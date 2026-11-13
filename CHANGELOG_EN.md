@@ -1,0 +1,23 @@
+# KS Client — Alpha 1.1.6
+
+## CEF compilation repair
+
+- Corrected the C# host namespace collision (`KS.Cef.Client` versus `CefSharp.Cef`), which led to CS0246 and CS0234 errors at Program.cs lines 21, 38 and 46 in alpha 1.1.5.
+- The CEF host now uses an unambiguous `KSClient.CefHost` namespace and explicit CefSharp type references.
+- Added `--ks-self-test` mode to the CEF host to initialize and shut down the native runtime without starting the game.
+
+## Install verification
+
+- Electron and CEF installers now check required files and run a 30-second runtime-startup self-test BEFORE replacing the current runtime. Failed checks preserve the previous installed engine.
+- Engine version markers force an upgrade when alpha 1.1.6 is installed over older builds.
+- Added a standalone, non-destructive Windows verification script: `Verify-Installed.ps1`.
+- Retained official Electron SHA-256 verification, CEF NuGet restore/build, PowerShell syntax checking and the installer's transaction-like file replacement.
+
+## Unchanged
+
+- CEF default, Electron alternative with restart-based engine selection.
+- English-language setup, uninstaller and engine setup; KS Client appearance and previous game features.
+
+## Validation boundary
+
+The Go host programs can be cross-compiled on Linux, and JavaScript and packages checked offline. The full .NET/CefSharp Windows build, actual runtime downloads, and live Windows engine startup cannot be executed in this offline Linux environment, so successful Windows installation is not yet independently verified. The new installer performs runtime tests on the target PC.
