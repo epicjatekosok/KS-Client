@@ -33,6 +33,8 @@ if ($Engine -eq 'Electron' -or $Engine -eq 'Both') {
 if ($Engine -eq 'CEF' -or $Engine -eq 'Both') {
   $dir=Join-Path $repo 'runtime\CEF'
   $dotnet=Join-Path $dir 'dotnet'
-  if(-not (Test-Path (Join-Path $dotnet 'dotnet.exe'))) { throw 'Bundled .NET Desktop runtime is missing' }
+  foreach ($required in @('dotnet.exe','host\fxr','shared\Microsoft.NETCore.App','shared\Microsoft.WindowsDesktop.App')) {
+    if (-not (Test-Path (Join-Path $dotnet $required))) { throw "CEF bundled .NET runtime is incomplete: missing $required" }
+  }
   Test-Executable (Join-Path $dir 'KS.Cef.Client.exe') $dir 'CEF' @{DOTNET_ROOT=$dotnet; DOTNET_ROOT_X64=$dotnet; DOTNET_MULTILEVEL_LOOKUP='0'}
 }
