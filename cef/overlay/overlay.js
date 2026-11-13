@@ -1,0 +1,2182 @@
+/* KS Client alpha 1.1.6 – Electron/CEF unified game overlay. */
+(() => {
+  'use strict';
+  if (window.__KS_CLIENT__) return;
+
+  const allowedHosts = new Set([
+    'kirka.io',
+    'www.kirka.io',
+    'kirka-stats.lovable.app',
+    'kirka-clan-tracker-notpro9.lovable.app'
+  ]);
+  if (!allowedHosts.has(location.hostname) || location.protocol !== 'https:') return;
+
+  const isGamePage = location.hostname === 'kirka.io' || location.hostname === 'www.kirka.io';
+  const KEY = 'ksclient.settings.alpha';
+  const defaults = Object.freeze({
+    crosshairEnabled: false,
+    shape: 'cross',
+    color: '#f4a61c',
+    size: 14,
+    gap: 6,
+    thickness: 2,
+    opacity: 100,
+    centerDot: false,
+    previewBackground: 'default',
+    centerDotShape: 'circle', centerDotSize: 3, centerDotColor: '#ffffff',
+    centerDotOutline: false, centerDotOutlineColor: '#000000', centerDotOutlineThickness: 1,
+    outlineEnabled: false, outlineColor: '#000000', outlineThickness: 2,
+    shadowEnabled: false, shadowColor: '#000000', shadowBlur: 4, shadowOffsetX: 1, shadowOffsetY: 2,
+    showFPS: true,
+    fpsSource: 'browser',
+    showHUD: true,
+    showBadge: true,
+    fpsPosition: 'top-left',
+    uiScale: 100,
+    reduceMotion: false,
+    uiAnimations: true,
+    customCSSEnabled: false,
+    customCSS: '',
+    menuResolution: 'native',
+    gameResolution: 'native',
+    fpsLimit: 0,
+    smoothPreset: 'Native',
+    showGraph: true,
+    eyeEnabled: false, eyePreset: 'Normal', eyeBrightness: 100, eyeContrast: 100, eyeSaturation: 100, eyeWarmth: 0, eyeSoftness: 0,
+    breakReminderMinutes: 0,
+    lowLatency: false,
+    performancePreset: 'Balanced',
+    themePreset: 'Amber', customAccent: '#f0aa35', customBackground: '#0d1015', customPanel: '#171c23', customText: '#edf0f6', customMuted: '#97a3b2', gameThemeEnabled: false,
+    fontFamily: 'Segoe UI', fontSize: 110, gameFontEnabled: false,
+    menuImageEnabled: true, menuSelector: '', uiImageSelector: '', menuSoundEnabled: false,
+    minimalHUD: false, minimalSelectors: '', customCrosshairPresets: [],
+    language: 'en'
+  });
+
+  function stored() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; } }
+  const previousSettings = stored();
+  let state = { ...defaults, ...previousSettings };
+  // One-time alpha 1.1.6 migration: undo the previous forced 150% default.
+  // Non-150% choices remain unchanged. Users can select 150% again afterwards.
+  try {
+    if (localStorage.getItem('ksclient.menu-scale-alpha109') !== '1') {
+      if (Number(state.uiScale) === 150) state.uiScale = 100;
+      localStorage.setItem('ksclient.menu-scale-alpha109','1');
+      localStorage.setItem(KEY,JSON.stringify(state));
+    }
+  } catch (_) { /* Use in-memory defaults if storage is blocked. */ }
+  // Earlier builds defaulted to 1080p. Upgrade only those legacy defaults to
+  // monitor matching once; explicit 720p/1440p/4K selections are preserved.
+  // Users can reselect fixed 1080p afterwards if they prefer it.
+  try {
+    if (localStorage.getItem('ksclient.resolution-auto-alpha105') !== '1') {
+      if (state.menuResolution === '1080') state.menuResolution = 'native';
+      if (state.gameResolution === '1080') state.gameResolution = 'native';
+      localStorage.setItem('ksclient.resolution-auto-alpha105', '1');
+      localStorage.setItem(KEY, JSON.stringify(state));
+    }
+  } catch (_) { /* Storage may be disabled: use in-memory defaults. */ }
+  // Clear settings belonging to removed features from existing profiles.
+  const removedSettings = ['discordEnabled','discordAppId','hitmarkerEnabled','hitmarkerShape','hitmarkerColor','hitmarkerSize','hitmarkerDuration','updateFeed','autoCheck'];
+  if (removedSettings.some(k => Object.prototype.hasOwnProperty.call(state,k))) {
+    for (const key of removedSettings) delete state[key];
+    try { localStorage.setItem(KEY,JSON.stringify(state)); } catch (_) {}
+  }
+  let selectedTab = 'Display';
+  let open = false;
+  let fps = 0, frameMs = 0, count = 0, lastFrame = 0, lastSample = 0;
+  let activeEngine = 'Loading…';
+  let crashStatus = 'Checking local logs...';
+  let sharingStatus = 'Settings stay on your device until you export them.';
+  let diagnostics = null;
+  let gpuInfo = { status: 'Not checked', renderer: '—', note: 'Press Check GPU to test WebGL' };
+  const fpsHistory = [];
+  const frameHistory = [];
+  let displayedGameFPS = 0;
+  let displayedFrameMs = 0;
+  let measuredLabel = 'Browser animation ticks (not game GPU FPS)';
+  const themeColors = Object.freeze({ Amber:'#f0aa35', Ember:'#ef7958', Ice:'#74cce8', Forest:'#78c99c', Violet:'#b7a0f2', Custom:null });
+  const assetKeys = ['menuBackground', 'uiImage', 'menuSound', 'localFont'];
+  const assets = Object.create(null);
+  const assetURLs = Object.create(null);
+  let resourceStatus = 'Assets are stored locally in this browser profile.';
+  const crosshairFields = ['shape','color','size','gap','thickness','opacity','centerDot','centerDotShape','centerDotSize','centerDotColor','centerDotOutline','centerDotOutlineColor','centerDotOutlineThickness','outlineEnabled','outlineColor','outlineThickness','shadowEnabled','shadowColor','shadowBlur','shadowOffsetX','shadowOffsetY'];
+  const crosshairShapes = ['cross','plus','x','t','chevron','circle','square','diamond','triangle','bullseye','four-dots','dot'];
+
+  const resetSections = Object.freeze({
+    General: [],
+    Display: ['menuResolution','gameResolution','uiScale','showFPS','fpsSource','fpsPosition'],
+    Performance: ['fpsLimit','smoothPreset','showGraph','lowLatency','performancePreset','uiAnimations'],
+    'Frame Stability': [],
+    'Eye Comfort': ['eyeEnabled','eyePreset','eyeBrightness','eyeContrast','eyeSaturation','eyeWarmth','eyeSoftness','breakReminderMinutes'],
+    Crosshair: [...crosshairFields,'previewBackground','customCrosshairPresets'],
+    Appearance: ['themePreset','customAccent','customBackground','customPanel','customText','customMuted','fontFamily','fontSize','uiAnimations'],
+    Interface: ['showHUD','showBadge','reduceMotion','minimalHUD'],
+    Resources: ['menuImageEnabled','menuSelector','uiImageSelector','menuSoundEnabled'],
+    'CSS Editor': ['gameThemeEnabled','gameFontEnabled','menuSelector','uiImageSelector','minimalSelectors','customCSSEnabled','customCSS'],
+    Sharing: ['language'],
+    Diagnostics: []
+  });
+  function resetCurrentSection() {
+    const keys = resetSections[selectedTab] || [];
+    if (!keys.length) return;
+    if (!confirm(L('Reset only the settings in this section? Other sections will stay unchanged.'))) return;
+    for (const key of keys) state[key] = Array.isArray(defaults[key]) ? [] : defaults[key];
+    if (keys.includes('fpsLimit')) window.__KS_FRAME_PACER__?.setLimit(state.fpsLimit);
+    if (keys.includes('gameResolution')) notify('game-resolution',{preset:state.gameResolution});
+    if (keys.includes('menuResolution')) notify('menu-resolution',{preset:state.menuResolution});
+    save(); renderTab(); apply();
+  }
+  function sectionResetMarkup() {
+    if (selectedTab === 'General') return ''; // General keeps the master Reset all control.
+    if (!(resetSections[selectedTab] || []).length) return ''; // Informational-only sections have nothing to reset.
+    return `<div class="ks-section-reset"><span>${L('This resets only the open settings section.')}</span><button class="ks-btn danger" data-action="reset-section">${L('Reset section settings')}</button></div>`;
+  }
+  const assetMeta = Object.create(null);
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {} }
+  function notify(type, payload = {}) {
+    try {
+      const data={ type, ...payload };
+      if (window.__KS_NATIVE__?.post) window.__KS_NATIVE__.post(data);
+      else if (window.CefSharp?.PostMessage) window.CefSharp.PostMessage(JSON.stringify(data));
+    } catch (_) {}
+  }
+
+  const host = document.createElement('div');
+  host.id = 'ks-client-root';
+  host.style.cssText = 'all:initial!important;position:fixed!important;inset:0!important;z-index:2147483647!important;pointer-events:none!important;overflow:visible!important;';
+  const shadow = host.attachShadow({ mode: 'open' });
+  shadow.innerHTML = `
+  <style>
+    :host { all: initial; }
+    *, *::before, *::after { box-sizing: border-box; }
+    button, input, select, textarea { font: inherit; }
+    #ks-screen {
+      position: fixed; inset: 0; pointer-events: none;
+      color: var(--ks-text,#f5f1e7); font: 13px/1.5 'Segoe UI', Arial, sans-serif;
+      --ks-bg:#0d1015; --ks-panel:#171c23; --ks-text:#edf0f6; --ks-muted:#97a3b2; --ks-soft:#0f1318;
+      text-rendering: geometricPrecision; -webkit-font-smoothing: antialiased;
+    }
+    #ks-fps {
+      position: absolute; top: 18px; left: 18px; display: none;
+      background: rgba(0,0,0,.9); color: var(--ks-accent, #f0aa35); border: 1px solid rgba(244,166,28,.32);
+      border-radius: 10px; padding: 8px 12px; font: 700 13px 'Consolas', monospace;
+      letter-spacing: .35px; box-shadow: 0 10px 28px rgba(0,0,0,.45);
+    }
+    #ks-badge {
+      position: absolute; bottom: 18px; left: 20px; display: none;
+      border: 1px solid rgba(244,166,28,.28); border-radius: 10px;
+      background: rgba(0,0,0,.9); color: var(--ks-accent, #f0aa35);
+      font: 800 10px 'Segoe UI', sans-serif; letter-spacing: 2px; padding: 7px 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    }
+    #ks-crosshair {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      display: none; line-height: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,.75));
+    }
+    #ks-quick {
+      position: absolute; top: 82px; right: 20px; display: flex; gap: 10px; pointer-events: auto;
+    }
+    .ks-quick-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 38px; padding: 0 14px; cursor: pointer;
+      background: rgba(0,0,0,.86); color: var(--ks-accent, #f0aa35);
+      border: 1px solid rgba(244,166,28,.46); border-radius: 8px;
+      font-weight: 700; box-shadow: 0 10px 26px rgba(0,0,0,.35);
+      transition: background .12s ease, color .12s ease, border-color .12s ease, transform .12s ease;
+    }
+    .ks-quick-btn:hover { background: var(--ks-accent, #f0aa35); color: #090909; border-color: #f6ba49; transform: translateY(-1px); }
+    .ks-gear-icon { font-size: 16px; line-height: 1; }
+    #ks-dimmer {
+      display: none; pointer-events: auto; position: absolute; inset: 0;
+      background: rgba(0,0,0,.70); backdrop-filter: blur(6px);
+    }
+    #ks-dimmer.visible { display: flex; align-items: center; justify-content: center; }
+    #ks-panel {
+      width: min(980px, calc(100vw - 46px)); max-height: min(820px, calc(100vh - 46px));
+      display: flex; flex-direction: column; overflow: hidden;
+      border: 1px solid rgba(255,255,255,.08); border-radius: 14px;
+      background: var(--ks-bg,#0d1015);
+      box-shadow: 0 28px 100px rgba(0,0,0,.66), 0 0 0 1px rgba(244,166,28,.08) inset;
+      color: var(--ks-text,#ece6d8);
+      zoom: var(--ks-ui-scale, 1);
+    }
+    #ks-top {
+      display: flex; justify-content: space-between; align-items: center; gap: 18px;
+      padding: 18px 22px 16px; background: var(--ks-soft,#0f1318);
+      border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+    #ks-brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    #ks-brand-main { font-size: 23px; font-weight: 900; letter-spacing: 1px; color: var(--ks-accent, #f0aa35); }
+    #ks-brand-sub { font-size: 11px; color: var(--ks-muted,#e7d7b3); letter-spacing: 1.6px; text-transform: uppercase; }
+    .ks-stack { display: flex; align-items: center; gap: 9px; }
+    .ks-pill {
+      display: inline-flex; align-items: center; gap: 7px; min-height: 30px;
+      background: rgba(11,11,11,.92); color: var(--ks-accent, #f0aa35); border: 1px solid rgba(244,166,28,.34);
+      border-radius: 7px; padding: 0 11px; font-size: 11px; font-weight: 800; letter-spacing: .55px;
+    }
+    .ks-alpha {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 24px; padding: 0 8px; border-radius: 999px;
+      background: var(--ks-accent, #f0aa35); color: #090909; border: 1px solid var(--ks-accent, #f0aa35);
+      font-size: 10px; font-weight: 900; letter-spacing: .8px;
+    }
+    #ks-close {
+      min-width: 36px; min-height: 36px; border-radius: 9px; cursor: pointer;
+      background: rgba(0,0,0,.88); color: var(--ks-accent, #f0aa35); border: 1px solid rgba(244,166,28,.34);
+    }
+    #ks-close:hover { background: var(--ks-accent, #f0aa35); color: #090909; }
+    #ks-main { display:grid; grid-template-columns:190px minmax(0,1fr); min-height:0; overflow:hidden; }
+    #ks-nav {
+      display: flex; flex-direction:column; gap:5px; padding:18px 12px;
+      overflow:auto; background:var(--ks-soft,#101418); border-right:1px solid rgba(255,255,255,.07);
+    }
+    .ks-tab {
+      background:transparent; border:1px solid transparent;
+      border-radius:8px; padding:11px 13px; color:var(--ks-muted,#b6b5ae); text-align:left;
+      cursor: pointer; white-space: nowrap; font-size: 12px; font-weight: 700;
+    }
+    .ks-tab:hover { color:#fff; background:#1a2028; border-color:#2f3640; }
+    .ks-tab.active {background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));color:var(--ks-accent,#f0aa35);border-color:rgba(240,170,53,.35);box-shadow:inset 3px 0 0 var(--ks-accent,#f0aa35); }
+    #ks-body { padding: 23px 27px; overflow: auto; min-height: 290px; max-height: min(510px, calc(100vh - 220px)); background: var(--ks-bg,#0d1015); scrollbar-width: thin; scrollbar-color: var(--ks-accent,#f4a61c) var(--ks-soft,#101418); }
+    .ks-title { font-size: 20px; font-weight: 900; margin: 0 0 5px; color: var(--ks-accent, #f0aa35); letter-spacing: .3px; }
+    .ks-sub { color: var(--ks-muted,#aaa9a2); margin: 0 0 18px; font-size: 12px; }
+    .ks-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 20px; }
+    .ks-card {
+      background: var(--ks-panel,#171c23); border: 1px solid rgba(255,255,255,.07);
+      border-radius: 10px; padding: 0 14px;
+    }
+    .ks-preview {
+      display: grid; place-items: center; min-height: 210px; border-radius: 10px;
+      background: rgba(255,255,255,.02);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    #ks-preview-svg { width: 130px; height: 130px; shape-rendering: geometricPrecision; }
+    .ks-row {
+      display: flex; justify-content: space-between; gap: 14px; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .ks-row:last-child { border-bottom: 0; }
+    .ks-label { font-weight: 800; font-size: 13px; color: var(--ks-text,#f0eee9); }
+    .ks-desc { color: var(--ks-muted,#97a3b2); font-size: 11px; margin-top: 3px; line-height: 1.42; }
+    .ks-input {
+      background: var(--ks-soft,#0f1318); border: 1px solid rgba(255,255,255,.08); color: var(--ks-text,#edf0f6);
+      padding: 8px 11px; border-radius: 8px; outline: none; max-width: 100%;
+    }
+    .ks-input:focus { border-color: var(--ks-accent, #f0aa35); box-shadow: 0 0 0 2px rgba(244,166,28,.12); }
+    .ks-field { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 13px; }
+    textarea.ks-input { width: 100%; min-height: 95px; resize: vertical; font: 12px/1.5 Consolas, monospace; }
+    select.ks-input {
+      min-width: 190px; appearance: none; -webkit-appearance: none; -moz-appearance: none;
+      padding-right: 38px; cursor: pointer;
+      background-color: #0d0d0d;
+      background-image: linear-gradient(45deg, transparent 50%, #f4a61c 50%), linear-gradient(135deg, #f4a61c 50%, transparent 50%);
+      background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px);
+      background-size: 6px 6px, 6px 6px; background-repeat: no-repeat;
+    }
+    select.ks-input:hover { border-color:#f4a61c; background-color:#111111; }
+    select.ks-input:focus { border-color:#f4a61c; box-shadow: 0 0 0 2px rgba(244,166,28,.12); }
+    select.ks-input option { background:#0c0c0c; color:#f3ead6; }
+
+    input[type='range'] { accent-color: var(--ks-accent, #f0aa35); width: 170px; cursor: pointer; }
+    input[type='checkbox'] { accent-color: var(--ks-accent, #f0aa35); width: 18px; height: 18px; cursor: pointer; }
+    input[type='color'] { width: 44px; height: 32px; border-radius: 7px; border: 1px solid rgba(244,166,28,.34); background: rgba(4,4,4,.96); padding: 2px; cursor: pointer; }
+    .ks-val { font: 700 12px Consolas, monospace; color: var(--ks-accent, #f0aa35); min-width: 46px; text-align: right; }
+    .ks-btn {
+      background: var(--ks-panel,#181818); color: var(--ks-accent, #f0aa35); border: 1px solid rgba(255,255,255,.15);
+      border-radius: 8px; padding: 9px 14px; font-weight: 800; cursor: pointer;
+    }
+    .ks-btn:hover { background: var(--ks-accent, #f0aa35); color: #090909; }
+    .ks-btn.primary { background: var(--ks-accent, #f0aa35); color: #090909; border-color: var(--ks-accent, #f0aa35); }
+    .ks-btn.primary:hover { background: var(--ks-accent, #f0aa35); }
+    .ks-btn.danger { background: rgba(30,10,10,.9); color: #ffb0a8; border-color: rgba(255,125,106,.55); }
+    .ks-btn.danger:hover { background: #5e211b; color: #fff2ee; }
+    .ks-code { font: 12px Consolas, monospace; color: var(--ks-accent,#f5d185); word-break: break-all; }
+    .ks-status { font-size: 11px; color: var(--ks-muted,#f7d48b); margin-top: 10px; min-height: 18px; word-break: break-word; }
+    .ks-hint {
+      font-size: 11px; color: var(--ks-muted,#d9c8a5); background: var(--ks-panel,#151515);
+      border: 1px solid rgba(244,166,28,.2); border-radius: 9px; padding: 11px 13px; margin: 14px 0 0;
+    }
+    #ks-foot {
+      display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+      padding: 12px 22px; background: var(--ks-soft,#0f1318); border-top: 1px solid rgba(244,166,28,.2);
+      color: var(--ks-muted,#b8ab8d); font-size: 11px;
+    }
+    /* Performance monitor: same black / amber card layout as KirkaStats. */
+    .ks-metric-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0; }
+    .ks-metric { border:1px solid rgba(244,166,28,.25);border-radius:9px;background:var(--ks-panel,#171c23);padding:11px; }
+    .ks-metric-name { font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--ks-muted,#bbae91); }
+    .ks-metric-value { font:800 23px 'Segoe UI',Arial,sans-serif;color:var(--ks-text,#f7e9cb);margin-top:4px; }
+    .ks-stat-details { font-size:11px;color:var(--ks-muted,#c5b494);line-height:1.65;margin:12px 0; }
+    #ks-graph-fps,#ks-graph-ms { display:block;width:100%;height:145px;background:#060606;border:1px solid rgba(244,166,28,.23);border-radius:8px;margin:10px 0 16px; }
+    .ks-section-heading { margin-top:18px;font-size:12px;letter-spacing:1.4px;color:var(--ks-accent, #f0aa35);font-weight:800;text-transform:uppercase; }
+    #ks-screen.no-motion *, #ks-screen.no-motion *::before, #ks-screen.no-motion *::after { transition:none!important;animation:none!important; }
+    #ks-screen.no-motion #ks-dimmer { backdrop-filter:none!important; }
+    @media (max-width:600px) {.ks-metric-grid{grid-template-columns:1fr 1fr;} }
+    #ks-screen { --ks-accent:#f0aa35; --ks-font-scale:1.1; --ks-font-family:'Segoe UI', Arial, sans-serif; }
+    #ks-panel { font-family:var(--ks-font-family); font-size:calc(13px * var(--ks-font-scale)); }
+    #ks-panel button, #ks-panel input, #ks-panel textarea, #ks-panel select { font-family:inherit; }
+    .ks-label {font-size:calc(13px * var(--ks-font-scale));}
+    .ks-desc,.ks-sub,.ks-hint {font-size:calc(11px * var(--ks-font-scale));}
+    .ks-tab {font-size:calc(12px * var(--ks-font-scale));}
+    .ks-row {min-height:56px;}
+    .ks-asset-summary {font:11px/1.5 var(--ks-font-family); color:var(--ks-muted,#bab8b2); padding:7px 0 0;}
+    #ks-brand-icon {width:28px;height:28px;object-fit:contain;display:none;flex:0 0 auto;}
+    .ks-note {padding:11px;background:var(--ks-panel,#171c23);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--ks-muted,#c9c3b8);margin-top:10px;font-size:12px;line-height:1.5;}
+    .ks-swatch {width:20px;height:20px;display:inline-block;border:1px solid #666;border-radius:50%;vertical-align:middle;margin-left:7px;}
+    #ks-panel .ks-btn:disabled {opacity:.45;cursor:not-allowed;}
+    @media (max-width: 800px) {
+      .ks-grid { grid-template-columns: 1fr; }
+      #ks-panel { width: min(920px,calc((100vw - 18px) / var(--ks-ui-scale,1))); }
+      #ks-main {grid-template-columns:1fr;}
+      #ks-nav {display:flex;flex-direction:row;flex-wrap:nowrap;border-right:0;border-bottom:1px solid #2a2418;padding:7px;max-height:58px;}
+      .ks-tab {white-space:nowrap;}
+      #ks-body { padding: 16px; }
+      #ks-top { padding: 14px 16px; }
+      #ks-quick { top: 70px; right: 12px; }
+    }
+
+    /* alpha 1.1.6: native CSS zoom (layout-level, vector-sharp), responsive bounds. */
+    #ks-panel {width:min(1180px,calc((100vw - 24px) / var(--ks-ui-scale,1)));max-height:min(920px,calc((100vh - 24px) / var(--ks-ui-scale,1)));border-radius:12px;}
+    #ks-main {grid-template-columns:174px minmax(0,1fr);flex:1;}
+    #ks-nav {overflow-y:auto; gap:5px; padding:17px 10px; background:var(--ks-soft,#101217); min-height:0;}
+    .ks-sidebar-caption {font-size:9px;letter-spacing:2px;color:var(--ks-muted,#98a3ae);font-weight:800;padding:4px 12px 13px;opacity:.8;}
+    .ks-sidebar-foot {margin-top:auto;padding:17px 9px 6px;font-size:10px;letter-spacing:.2px;color:var(--ks-muted,#98a3ae);border-top:1px solid rgba(255,255,255,.06);}
+    .ks-tab {display:flex;align-items:center;gap:11px;min-height:42px;border-radius:7px;font-size:12px;font-weight:750;padding:9px 12px;letter-spacing:.1px;}
+    .ks-tab-icon {width:19px;text-align:center;color:var(--ks-accent,#f0aa35);font-size:17px;opacity:.86;flex:0 0 19px;}
+    .ks-tab.active {box-shadow:inset 3px 0 0 var(--ks-accent,#f0aa35);border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.07);color:var(--ks-text,#edf0f6);}
+    #ks-body {min-height:0;max-height:none;padding:22px 25px 20px; scrollbar-width:thin; scrollbar-color:var(--ks-accent,#f0aa35) var(--ks-bg,#0d1015);}
+    #ks-body .ks-title {font-size:19px;letter-spacing:.1px;}
+    #ks-body .ks-sub {margin-bottom:14px;}
+    .ks-subtabs {display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-bottom:17px;margin-bottom:17px;border-bottom:1px solid rgba(255,255,255,.065);}
+    .ks-subtab {background:transparent;color:var(--ks-muted,#9ba6b4);border:1px solid rgba(255,255,255,.08);border-radius:7px;padding:7px 12px;cursor:pointer;font-size:11px;font-weight:800;min-height:33px;}
+    .ks-subtab:hover {background:rgba(255,255,255,.055);color:var(--ks-text,#edf0f6);}
+    .ks-subtab.active {background:color-mix(in srgb,var(--ks-accent,#f0aa35) 13%,#11141a);border-color:color-mix(in srgb,var(--ks-accent,#f0aa35) 37%,#12141a);color:var(--ks-accent,#f0aa35);}
+    .ks-settings-columns {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;}
+    .ks-settings-columns .ks-card {min-width:0;}
+    .ks-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+    .ks-card {border-radius:8px;padding:2px 15px 4px;}
+    .ks-row {padding:12px 0;min-height:58px;gap:10px;}
+    .ks-label {font-size:12px;font-weight:760;color:var(--ks-text,#edf0f6);}
+    .ks-desc {font-size:10px;line-height:1.48;}
+    .ks-hint {border-color:rgba(255,255,255,.075);background:var(--ks-panel,#171c23);color:var(--ks-muted,#9ba6b4);}
+    .ks-input {background:var(--ks-bg,#0d1015);border-color:rgba(255,255,255,.13);}
+    /* Native <select> elements remain in the DOM for existing change handlers,
+       but are visually replaced by fully styled, keyboard-usable dropdowns. */
+    .ks-select-shell {position:relative;display:inline-flex;min-width:155px;max-width:100%;flex:0 1 215px;}
+    .ks-select-shell>select {position:absolute!important;opacity:0!important;pointer-events:none!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%);}
+    .ks-select-trigger {width:100%;display:flex;justify-content:space-between;align-items:center;gap:9px;min-height:36px;min-width:0;text-align:left;background:rgba(8,10,14,.82);color:var(--ks-text,#edf0f6);border:1px solid rgba(255,255,255,.14);border-radius:7px;padding:7px 10px 7px 12px;font-size:11px;font-weight:700;cursor:pointer;}
+    .ks-select-trigger:hover,.ks-select-trigger[aria-expanded="true"] {border-color:var(--ks-accent,#f0aa35);background:#15191f;}
+    .ks-select-trigger:focus-visible {outline:2px solid var(--ks-accent,#f0aa35);outline-offset:2px;}
+    .ks-select-value {white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;}
+    .ks-select-chevron {flex:0 0 auto;color:var(--ks-accent,#f0aa35);font-size:11px;}
+    .ks-select-popup {position:fixed;z-index:2147483647;background:#151a21;color:#f4f4f5;border:1px solid rgba(247,169,42,.45);border-radius:9px;padding:5px;box-shadow:0 20px 54px rgba(0,0,0,.85);max-height:min(275px,55vh);overflow:auto;scrollbar-width:thin;scrollbar-color:var(--ks-accent,#f0aa35) #151a21;pointer-events:auto;}
+    .ks-select-popup button {display:flex;justify-content:space-between;gap:10px;align-items:center;width:100%;min-height:34px;border:0;border-radius:5px;background:transparent;color:#dfdfdf;padding:7px 10px;white-space:nowrap;text-align:left;font-size:11px;cursor:pointer;}
+    .ks-select-popup button:hover,.ks-select-popup button:focus-visible {outline:0;background:#2e3137;color:white;}
+    .ks-select-popup button[aria-selected="true"] {background:rgba(242,162,37,.12);color:var(--ks-accent,#f0aa35);}
+    .ks-select-popup button[aria-selected="true"]::after {content:'✓';font-weight:900;}
+    /* Electron/CEF / Chromium scrollbar track and arrows; no native white arrow buttons. */
+    #ks-nav::-webkit-scrollbar,#ks-body::-webkit-scrollbar,.ks-select-popup::-webkit-scrollbar,#ks-panel textarea::-webkit-scrollbar {width:7px;height:7px;}
+    #ks-nav::-webkit-scrollbar-track,#ks-body::-webkit-scrollbar-track,.ks-select-popup::-webkit-scrollbar-track,#ks-panel textarea::-webkit-scrollbar-track {background:transparent;}
+    #ks-nav::-webkit-scrollbar-thumb,#ks-body::-webkit-scrollbar-thumb,.ks-select-popup::-webkit-scrollbar-thumb,#ks-panel textarea::-webkit-scrollbar-thumb {background:color-mix(in srgb,var(--ks-accent,#f0aa35) 65%,#252b33);border-radius:20px;border:1px solid transparent;background-clip:padding-box;}
+    #ks-nav::-webkit-scrollbar-thumb:hover,#ks-body::-webkit-scrollbar-thumb:hover {background:var(--ks-accent,#f0aa35);}
+    #ks-nav::-webkit-scrollbar-button,#ks-body::-webkit-scrollbar-button,.ks-select-popup::-webkit-scrollbar-button,#ks-panel textarea::-webkit-scrollbar-button {display:none!important;width:0!important;height:0!important;}
+
+    /* alpha 1.1.6: scale is committed only after releasing the slider.
+       CSS zoom reflows text sharply; never raster-stretch with transform. */
+    #ks-panel {transform:none!important;transform-origin:center center;}
+    #ks-preview-svg {width:162px;height:162px;max-width:100%;}
+    .ks-crosshair-preview {position:sticky;top:2px;}
+    .ks-preview-inline {min-height:122px;margin:7px 0 12px;}
+    .ks-preview-inline #ks-preview-svg {height:118px;width:118px;}
+    .ks-advanced-caption {font-size:11px;font-weight:850;letter-spacing:.7px;color:var(--ks-accent,#f0aa35);margin:12px 0 4px;}
+    .ks-crosshair-card {padding-bottom:12px;}
+    @media (max-width:1250px) {
+      .ks-settings-columns,.ks-grid {grid-template-columns:minmax(0,1fr);}
+    }
+    .ks-history {margin-top:16px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:var(--ks-panel,#171c23);overflow:hidden;}
+    .ks-history-heading {font-size:12px;font-weight:850;padding:12px 15px;border-bottom:1px solid rgba(255,255,255,.06);color:var(--ks-text,#edf0f6);}
+    .ks-release {border-bottom:1px solid rgba(255,255,255,.07);}
+    .ks-release:last-child {border-bottom:0;}
+    .ks-release>summary {cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 15px;color:var(--ks-text,#edf0f6);font-size:12px;font-weight:750;}
+    .ks-release>summary::-webkit-details-marker {display:none;}
+    .ks-release>summary::after {content:'⌄';color:var(--ks-accent,#f0aa35);font-size:18px;line-height:1;transition:transform .15s;}
+    .ks-release[open]>summary::after {transform:rotate(180deg);}
+    .ks-release>summary:hover {background:rgba(255,255,255,.035);}
+    .ks-release-body {padding:2px 16px 15px;color:var(--ks-muted,#9ba6b4);font-size:11px;line-height:1.7;}
+    .ks-release-body ul {margin:0;padding-left:18px;}
+    .ks-release-body li {padding:2px 0;}
+    #ks-changes {display:none!important;}
+    #ks-break-reminder {position:absolute;bottom:74px;right:18px;z-index:30;pointer-events:auto;display:flex;align-items:center;gap:12px;max-width:340px;background:#171c23;color:#f0f2f5;border:1px solid var(--ks-accent,#f0aa35);border-radius:10px;padding:13px 15px;font-size:12px;box-shadow:0 10px 40px rgba(0,0,0,.6);}
+    #ks-break-reminder[hidden] {display:none!important;}
+    #ks-break-dismiss {border:0;color:var(--ks-accent,#f0aa35);background:transparent;font-size:19px;cursor:pointer;}
+    .ks-comfort-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;}
+    .ks-comfort-grid .ks-card {min-width:0;}
+    .ks-comfort-preview {padding:16px 18px;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:linear-gradient(135deg,#152436,#445572 58%,#c9a577);color:#fff;font-weight:850;text-shadow:0 2px 5px #000;min-height:86px;display:flex;align-items:center;justify-content:space-between;}
+    .ks-comfort-grid .ks-row {flex-wrap:wrap;}
+    .ks-stability-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:13px 0 17px;}
+    .ks-stability-stat {border:1px solid rgba(255,255,255,.09);border-radius:9px;background:var(--ks-panel,#171c23);padding:13px 10px;}
+    .ks-stability-stat .ks-metric-value {font-size:20px;}
+    .ks-stability-stat .ks-metric-name {font-size:10px;}
+    @media(max-width:950px){.ks-comfort-grid{grid-template-columns:1fr;}.ks-stability-grid{grid-template-columns:repeat(2,1fr);}}
+    @media (max-width:900px) {
+      #ks-panel {width:min(99vw,980px);}
+      #ks-main {grid-template-columns:155px minmax(0,1fr);}
+      #ks-body {padding:16px;}
+      #ks-nav {display:flex;flex-direction:column;max-height:none;overflow-y:auto;}
+      .ks-settings-columns,.ks-grid {grid-template-columns:minmax(0,1fr);}
+    }
+    @media (max-width:650px) {
+      #ks-main {display:flex;flex-direction:column;}
+      #ks-nav {display:flex;flex-direction:row;flex-wrap:nowrap;overflow:auto;max-height:61px;border-right:0;border-bottom:1px solid rgba(255,255,255,.07);}
+      .ks-sidebar-caption,.ks-sidebar-foot {display:none;}
+      .ks-tab {white-space:nowrap;flex-shrink:0;}
+      #ks-body {min-height:0;}
+      #ks-top {padding:11px 13px;}
+    }
+
+    .ks-crosshair-editor { display:grid;grid-template-columns:minmax(0,1.35fr) minmax(265px, .85fr);gap:14px;align-items:start; }
+    .ks-crosshair-controls { display:grid;gap:12px;min-width:0; }
+    .ks-crosshair-preview-column { position:sticky;top:8px;align-self:start;min-width:0; }
+    .ks-preview-sticky { padding:12px 14px; }
+    .ks-preview-large {min-height:158px;display:grid;place-items:center;border-radius:9px;margin:12px 0;}
+    .ks-preview-large #ks-preview-svg {width:142px;height:142px;max-width:100%;}
+    .ks-crosshair-advice { margin:0 0 14px;background:rgba(240,170,53,.06);color:var(--ks-text,#f0ece4);border:1px solid rgba(240,170,53,.30);}
+    .ks-section-reset {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding:13px 14px;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:var(--ks-panel,#171c23);color:var(--ks-muted,#9aa4b4);font-size:11px;}
+    @media(max-width:760px){.ks-crosshair-editor{grid-template-columns:minmax(0,1fr);} .ks-crosshair-preview-column{position:relative;top:auto;grid-row:1;} .ks-preview-large{min-height:145px;} .ks-preview-large #ks-preview-svg{width:130px;height:130px;} .ks-section-reset{flex-wrap:wrap;} }
+  </style>
+  <div id="ks-screen">
+    <div id="ks-fps" aria-label="Estimated frame rate"></div>
+    <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
+    <div id="ks-crosshair"></div>
+    <div id="ks-badge">KS CLIENT <span style="color:#ffe2a8">alpha 1.1.6</span></div>
+    <div id="ks-quick">
+      <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings"><span class="ks-gear-icon">⚙</span> <span class="ks-quick-label">Settings</span></button>
+    </div>
+    <div id="ks-dimmer"><div id="ks-panel" role="dialog" aria-label="KS Client Settings" aria-modal="true">
+      <div id="ks-top">
+        <div id="ks-brand"><img id="ks-brand-icon" alt="KS Client Logo"><div id="ks-brand-main">KS CLIENT</div><div id="ks-brand-sub">Custom Kirka.io Client · alpha 1.1.6</div></div>
+        <div class="ks-stack"><span class="ks-pill">● CHROMIUM</span><span class="ks-alpha">alpha 1.1.6</span><button id="ks-close" aria-label="Close Settings">✕</button></div>
+      </div>
+      <div id="ks-main"><div id="ks-nav"></div>
+      <div id="ks-body"></div></div>
+      <div id="ks-foot"><span>F1 Settings · F10 Hide Client HUD · F11 Fullscreen</span><span>Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.6</span></div>
+    </div></div>
+  </div>`;
+
+  const DEFAULT_LOGO_DATA = 'data:image/png;base64,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';
+  const $ = id => shadow.getElementById(id);
+  const groups = [
+    {key:'Display', icon:'▣', items:['Display']},
+    {key:'Gameplay', icon:'⌖', items:['Performance','Frame Stability','Eye Comfort','Crosshair']},
+    {key:'Personalization', icon:'✦', items:['Appearance','Interface','Resources','CSS Editor']},
+    {key:'Client', icon:'⚙', items:['General','Sharing','Diagnostics']},
+    {key:'Browser', icon:'◈', items:['Browser Graphics','Browser Controls','Browser GPU Info']}
+  ];
+  const tabs = groups.flatMap(group=>group.items);
+  const currentGroup = () => groups.find(group=>group.items.includes(selectedTab)) || groups[0];
+  // Complete English/Hungarian KS Client interface translation. Internal
+  // preference values and game data are deliberately not translated.
+  const languageNames = { en:'English', hu:'Magyar' };
+  let browserPrefs = { gpu:'enabled', angle:'default', devTools:false, contextMenu:false, uncapFps:false };
+  let browserActive = { ...browserPrefs };
+  let browserPrefsLoaded = false;
+  let browserPendingRestart = false;
+  let browserStatus = 'Waiting for native Electron/CEF settings…';
+  let browserWebGL = { webgl:'Not tested', webgl2:'Not tested', renderer:'Not checked', compositing:'Not accessible from WebGL' };
+  const browserGroups = new Set(['Browser Graphics','Browser Controls','Browser GPU Info']);
+  function browserSelect(label, description, key, options) {
+    return `<div class="ks-row"><div><div class="ks-label">${label}</div><div class="ks-desc">${description}</div></div><select class="ks-input" data-browser="${key}" ${!browserPrefsLoaded?'disabled':''}>${options.map(o=>`<option value="${esc(o.value)}" ${browserPrefs[key]===o.value?'selected':''}>${o.label}</option>`).join('')}</select></div>`;
+  }
+  function browserCheckbox(label, description, key) {
+    return `<div class="ks-row"><div><div class="ks-label">${label}</div><div class="ks-desc">${description}</div></div><input type="checkbox" data-browser="${key}" ${browserPrefs[key]?'checked':''} ${!browserPrefsLoaded?'disabled':''} aria-label="${label}"></div>`;
+  }
+  function browserStatusBox() {
+    return `<div class="ks-status" id="ks-browser-status">${esc(L(browserStatus))}</div>` +
+      `${browserPendingRestart ? `<div class="ks-note">${L('GPU or ANGLE changes are pending a restart. The old backend is still active.')}</div>`:''}`;
+  }
+  function browserResetButton(section) {
+    return `<div class="ks-section-reset"><span>${L('Restore only these browser settings to defaults.')}</span><button class="ks-btn danger" data-action="browser-reset" data-browser-section="${esc(section)}">${L('Reset browser settings')}</button></div>`;
+  }
+  const hu = {
+  "Live preview":"Élő előnézet",
+  "Crosshair shape":"Célkereszt formája",
+  "Select one of 12 shapes":"Válassz a 12 célkeresztforma közül",
+  "Cross (4 arms)":"Kereszt (4 szár)",
+  "Plus (connected)":"Plusz (összefüggő)",
+  "X (diagonal)":"X (átlós)",
+  "T-shaped":"T alakú",
+  "Chevron (4 corners)":"Négy saroknyíl",
+  "Square":"Négyzet",
+  "Diamond":"Rombusz",
+  "Triangle":"Háromszög",
+  "Bullseye":"Körös célkereszt",
+  "Four dots":"Négy pont",
+  "Single dot":"Egyetlen pont",
+  "Crosshair color":"Célkereszt színe",
+  "Center shape":"Középpont formája",
+  "Choose the center point shape":"Válaszd ki a középpont alakját",
+  "Center dot color":"Középpont színe",
+  "Center dot size":"Középpont mérete",
+  "Center dot outline":"Középpont körvonala",
+  "Separate dark/light outline for the center":"Különálló sötét vagy világos körvonal a középpontnak",
+  "Center outline color":"Középpont körvonalának színe",
+  "Center outline thickness":"Középpont körvonalvastagsága",
+  "Outline & shadow":"Körvonal és árnyék",
+  "Crosshair outline":"Célkereszt körvonala",
+  "Add a separate outline color around the main shape":"Külön színű körvonal a fő alakzat köré",
+  "Outline color":"Körvonal színe",
+  "Outline thickness":"Körvonal vastagsága",
+  "Drop shadow":"Vetett árnyék",
+  "Add a soft shadow to improve visibility":"Lágy árnyék a jobb láthatóságért",
+  "Shadow color":"Árnyék színe",
+  "Shadow blur":"Árnyék elmosása",
+  "Shadow X offset":"Árnyék vízszintes eltolása",
+  "Shadow Y offset":"Árnyék függőleges eltolása",
+  "Independent color, size and shape.":"Külön állítható szín, méret és forma.",
+  "Create a fully customized visual overlay. No aim assistance or gameplay automation.":"Teljesen személyre szabható célkereszt. Nem biztosít célzássegítést vagy játékautomatizálást.",
+  "Disable the original Kirka.io crosshair to avoid doubling.":"Kapcsold ki a Kirka.io saját célkeresztjét, hogy ne legyen két jelölés.",
+  "Saved profiles":"Elmentett profilok",
+  "Save, load or delete up to 12 complete presets, including outlines and shadows.":"Legfeljebb 12 teljes profilt menthetsz, betölthetsz vagy törölhetsz, körvonallal és árnyékkal együtt.",
+  "Preview uses the same vector drawing as the in-game overlay. Center dot and outlines are independent.":"Az előnézet ugyanazt a vektoros rajzolást használja, mint a játék feletti jelölés. A középpont és a körvonal külön beállítható.",
+  "alpha 1.1.6":"alpha 1.1.6",
+    "Gameplay":"Játékmenet","Personalization":"Testreszabás","Client":"Kliens",
+    "Customize accent, surface, text and typography for the client interface.":"A kliens kiemelőszíneinek, hátterének, szövegének és betűtípusának testreszabása.",
+    "Color palette":"Színpaletta","Accent color of active elements":"Az aktív elemek kiemelőszíne",
+    "Background color":"Háttérszín","Panel color":"Panelek színe","Text color":"Szöveg színe","Muted text color":"Másodlagos szöveg színe",
+    "Typography & motion":"Betűk és animációk","Colors update instantly. Settings are saved automatically on this device.":"A színek azonnal változnak. A beállításokat a kliens helyben automatikusan menti.",
+  "General": "Általános",
+  "Sharing": "Megosztás",
+  "Display": "Kijelző",
+  "Performance": "Teljesítmény",
+  "Diagnostics": "Diagnosztika",
+  "Crosshair": "Célkereszt",
+  "Appearance": "Megjelenés",
+  "Resources": "Erőforrások",
+  "CSS Editor": "CSS-szerkesztő",
+  "Interface": "Felület",
+  "Settings": "Beállítások",
+  "Open KS Client settings": "KS Client beállításainak megnyitása",
+  "KS Client Settings": "KS Client beállítások",
+  "Custom Kirka.io Client · alpha 1.1.6": "Egyedi Kirka.io-kliens · alpha 1.1.6",
+  "F1 Settings · F10 Hide Client HUD · F11 Fullscreen": "F1 Beállítások · F10 Kliens-HUD elrejtése · F11 Teljes képernyő",
+  "Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.6": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · alpha 1.1.6",
+  "Close Settings": "Beállítások bezárása",
+  "● ACTIVE": "● AKTÍV",
+  "Client Overview": "A kliens áttekintése",
+  "KS Client is a separate Windows app with an embedded Chromium Electron/CEF engine.": "A KS Client önálló Windows-alkalmazás, beépített Chromium Electron/CEF motorral.",
+  "Active browser engine": "Aktív böngészőmotor",
+  "Experimental engine, not available in this release": "Kísérleti motor, ebben a kiadásban még nem használható",
+  "Borderless fullscreen": "Keret nélküli teljes képernyő",
+  "Toggle fullscreen · F11": "Teljes képernyő be/ki · F11",
+  "Reset client settings": "Kliensbeállítások visszaállítása",
+  "Reset all settings": "Összes beállítás visszaállítása",
+  "This build uses the visible label alpha 1.1.6. Game files and player data still come from Kirka.io.": "Ez a kiadás az alpha 1.1.6 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
+  "Settings Backup & Language": "Beállításmentés és nyelv",
+  "Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.": "Mentsd el és oszd meg a KS Client beállításait. Csak JSON-fájl használható; ismeretlen személy mentését ne importáld.",
+  "Language": "Nyelv",
+  "Choose the complete English or Hungarian KS Client interface.": "Válassz a teljes angol vagy magyar KS Client felület közül.",
+  "English": "Angol",
+  "Settings import/export": "Beállítások importálása és exportálása",
+  "Export a JSON backup, including crosshair presets and visual settings. Uploaded binary assets are excluded.": "JSON-mentés készítése a célkeresztprofilokról és a megjelenési beállításokról. A feltöltött fájlok nem kerülnek bele.",
+  "Export settings": "Beállítások exportálása",
+  "Import settings": "Beállítások importálása",
+  "Settings stay on your device until you export them.": "A beállítások a gépeden maradnak, amíg nem exportálod őket.",
+  "Export leaves out the update-feed URL and local image/audio/font files. Imported CSS stays disabled until you review and enable it.": "A mentés nem tartalmazza a frissítési URL-t, sem a helyi kép-, hang- vagy betűkészletfájlokat. Az importált CSS ellenőrzésig kikapcsolva marad.",
+  "Settings JSON exported. No account token or local image/audio/font was included.": "A beállítások JSON-mentése elkészült. Fióktoken és helyi kép-, hang- vagy betűkészletfájl nem került bele.",
+  "Display & Resolution": "Kijelző és felbontás",
+  "Separate presets for the KS Client menu area and the Kirka.io game rendering density.": "Külön felbontásbeállítások a KS Client ablakához és a Kirka.io megjelenítési részletességéhez.",
+  "Menu resolution preset": "Menüfelbontás",
+  "Controls the client window preset used for the KS menu and browsing pages.": "A kliensablak célméretét állítja be a menühöz és a weboldalakhoz.",
+  "Game resolution preset": "Játékfelbontás",
+  "Controls the Electron/CEF rasterization target for Kirka.io rendering.": "A Kirka.io Electron/CEF-megjelenítésének célfelbontását állítja be.",
+  "Native / automatic": "Natív / automatikus",
+  "Settings menu scale": "Beállításmenü méretezése",
+  "Show FPS counter": "FPS-számláló megjelenítése",
+  "Approximate browser animation-frame rate (not direct GPU FPS)": "A böngésző animációs képkockáinak becsült száma (nem közvetlen GPU-FPS).",
+  "FPS position": "FPS-számláló helye",
+  "Top left": "Bal felső sarok",
+  "Top right": "Jobb felső sarok",
+  "Bottom right": "Jobb alsó sarok",
+  "Automatic is recommended: the menu fits your monitor work area and the game uses the native engine/Windows display scale. When monitor information is unavailable, 1080p is used as a fallback. Fixed presets adjust browser page zoom, not the game engine’s internal render resolution.": "A játékfelbontás a Electron/CEF megjelenítési sűrűségét akár 4K-ig növeli. A menübeállítás a kliensablak célméretét módosítja; a tényleges méret a monitortól és a Windows nagyításától is függ.",
+  "Performance Settings": "Teljesítménybeállítások",
+  "Best-effort game animation pacing, measured frametimes, and client-side performance profiles.": "Kísérleti képkocka-időzítés, mért képkockaidők és kliensoldali teljesítményprofilok.",
+  "FPS Limiter": "FPS-korlátozó",
+  "Attempts to pace game requestAnimationFrame callbacks. The game engine, WebGL and monitor may ignore the target.": "Megpróbálja szabályozni a játék requestAnimationFrame-hívásait. A játékmotor, a WebGL vagy a monitor figyelmen kívül hagyhatja a célt.",
+  "Unlimited / Native": "Korlátlan / natív",
+  "Performance Preset": "Teljesítményprofil",
+  "Low targets 1080p / 60 FPS; Balanced uses native resolution; High Performance reduces client effects.": "Az Alacsony profil 1080p/60 FPS-t céloz, a Kiegyensúlyozott natív felbontást használ, a Nagy teljesítmény csökkenti a kliens effektjeit.",
+  "Low": "Alacsony",
+  "Balanced": "Kiegyensúlyozott",
+  "High Performance": "Nagy teljesítmény",
+  "Low Latency Mode": "Alacsony késleltetésű mód",
+  "Removes client blur and animation effects; cannot guarantee lower game input or network latency.": "Kikapcsolja a kliens elmosási és animációs effektjeit; nem garantál alacsonyabb bemeneti vagy hálózati késleltetést.",
+  "UI Animations": "Felületi animációk",
+  "Allow animations and blur in the KS Client interface.": "Animációk és elmosási effektusok engedélyezése a KS Clientben.",
+  "Real-time FPS & Frametime graphs": "Valós idejű FPS- és képkockaidő-grafikonok",
+  "Show live sampled browser/game callback timing graphs while this tab is open.": "Élő, mintavételezett böngészős/játékos időzítési grafikonok megjelenítése, amíg ez a fül nyitva van.",
+  "Measured callback rate": "Mért animációs hívási gyakoriság",
+  "Browser animation ticks (not game GPU FPS)": "Böngésző-animációs ütem (nem a játék GPU-FPS-e)",
+  "Estimated game rAF callback rate (not presented GPU frames)": "Becsült játékon belüli animációs hívási gyakoriság (nem GPU-képkockaszám)",
+  "Most recent callback interval": "Legutóbbi hívások közötti idő",
+  "FPS history (last ~60 samples)": "FPS-előzmények (utolsó ~60 mérés)",
+  "Frametime history (milliseconds)": "Képkockaidő-előzmények (ezredmásodperc)",
+  "The FPS limit is a best-effort JavaScript frame pacing mechanism, not a driver-level cap. Graphs display animation callback timings, not confirmed GPU presentation times. For stable gameplay try 120 or 144 FPS.": "Az FPS-korlát kísérleti JavaScript-időzítés, nem illesztőprogram-szintű korlátozás. A grafikonok animációs hívási időket mutatnak, nem igazolt GPU-megjelenítési adatokat. Stabil játékhoz próbáld a 120 vagy 144 FPS-t.",
+  "Advanced Diagnostics": "Részletes diagnosztika",
+  "Live measurements of KS Client and its Chromium/Electron/CEF child processes. Refreshes every two seconds.": "A KS Client és a Chromium/Electron/CEF alfolyamatainak élő mérései. Két másodpercenként frissülnek.",
+  "Browser CPU": "Böngésző CPU-használata",
+  "Browser RAM": "Böngésző memóriahasználata",
+  "Browser Processes": "Böngészőfolyamatok",
+  "Client CPU": "Kliens CPU-használata",
+  "Client RAM": "Kliens memóriahasználata",
+  "Renderer": "Megjelenítő",
+  "Not checked": "Még nincs ellenőrizve",
+  "Hardware Acceleration Check": "Hardveres gyorsítás ellenőrzése",
+  "Inspect WebGL context and software-renderer indicators. Electron/CEF uses GPU acceleration by default.": "A WebGL-környezet és a szoftveres megjelenítés jeleinek vizsgálata. A Electron/CEF alapból GPU-gyorsítást használ.",
+  "Check GPU": "GPU ellenőrzése",
+  "WebGL renderer": "WebGL-megjelenítő",
+  "Press Check GPU to test WebGL": "Kattints a GPU ellenőrzése gombra a WebGL teszteléséhez",
+  "Local Crash Reporter": "Helyi hibajelentések",
+  "Logs app errors and identifies previously unclean shutdowns. Reports remain on your PC.": "Naplózza a programhibákat, és jelzi a korábbi szabálytalan leállásokat. A jelentések a gépeden maradnak.",
+  "Open log folder": "Naplómappa megnyitása",
+  "Checking local logs...": "Helyi naplók ellenőrzése…",
+  "A visible WebGL renderer is not conclusive proof of full GPU acceleration. Fatal native crashes may not yield a full dump. Diagnostics are not uploaded.": "A WebGL-megjelenítő neve önmagában nem bizonyítja a teljes GPU-gyorsítást. Súlyos natív összeomlásnál nem mindig keletkezik teljes hibadump. A diagnosztikai adatok nem kerülnek feltöltésre.",
+  "Custom Crosshair": "Egyedi célkereszt",
+  "A visual center overlay. No aim assistance or game automation.": "Képernyőközépre rajzolt célkereszt. Nem nyújt célzási segítséget és nem automatizálja a játékot.",
+  "Enable custom crosshair": "Egyedi célkereszt engedélyezése",
+  "Turn off the in-game crosshair first if you see two.": "Ha két célkeresztet látsz, először kapcsold ki a játék saját célkeresztjét.",
+  "Shape": "Forma",
+  "Cross": "Kereszt",
+  "Dot": "Pont",
+  "Circle": "Kör",
+  "Color": "Szín",
+  "Size": "Méret",
+  "Gap": "Rés",
+  "Thickness": "Vastagság",
+  "Opacity": "Átlátszatlanság",
+  "Center dot": "Középpont",
+  "Add a small dot in the middle": "Kis pont megjelenítése középen",
+  "Crosshair drawing aligns to the center of the embedded page. Hide the original crosshair to avoid doubling.": "A célkereszt a beágyazott oldal közepére igazodik. A kettőződés elkerüléséhez rejtsd el az eredeti célkeresztet.",
+  "Crosshair Presets": "Célkeresztprofilok",
+  "Save, load and delete up to 12 custom presets.": "Legfeljebb 12 egyedi profil mentése, betöltése és törlése.",
+  "Select a saved preset": "Válassz egy mentett profilt",
+  "Save": "Mentés",
+  "Load": "Betöltés",
+  "Delete": "Törlés",
+  "New preset name": "Új profil neve",
+  "Appearance & Themes": "Megjelenés és témák",
+  "Personalize the KS Client menu and, optionally, HTML elements of the game interface.": "Szabd testre a KS Client menüjét, valamint igény szerint a játék HTML-elemeit.",
+  "Client theme": "Kliens témája",
+  "Accent color used on KS menus and controls": "A KS menüiben és kezelőelemein használt kiemelőszín",
+  "Amber / Gold": "Borostyán / arany",
+  "Ember": "Parázs",
+  "Ice Blue": "Jégkék",
+  "Forest Green": "Erdőzöld",
+  "Violet": "Lila",
+  "Custom": "Egyéni",
+  "Custom accent color": "Egyedi kiemelőszín",
+  "Font family": "Betűtípus",
+  "Fonts already available in Windows / Electron/CEF": "A Windowsban / Electron/CEF-ben elérhető betűtípusok",
+  "Uploaded font (Resources)": "Feltöltött betűkészlet (Erőforrások)",
+  "Client font size": "Kliens betűmérete",
+  "Menu animations": "Menüanimációk",
+  "Enable client transitions and blur effects.": "Kliensátmenetek és elmosási effektusok engedélyezése.",
+  "The KS Client theme applies instantly. Game menu styling is limited to accessible HTML controls; Kirka.io may render some interface parts on canvas.": "A KS Client témája azonnal érvényesül. A játék menüstílusa csak az elérhető HTML-elemekre hat; a Kirka.io egyes részeket vászonra rajzolhat.",
+  "Resource Swapper": "Erőforráscsere",
+  "Load local UI image, background, sound or font. Files stay on your device.": "Helyi felületkép, háttér, hang vagy betűtípus betöltése. A fájlok a gépeden maradnak.",
+  "Menu Background": "Menü háttérképe",
+  "Image applied behind KS Client settings; optional game selector in CSS Editor.": "A KS Client beállításmenüje mögött látható kép; a játékhoz tartozó célzót a CSS-szerkesztőben találod.",
+  "No local file selected": "Nincs kiválasztott helyi fájl",
+  "Browse": "Tallózás",
+  "Remove": "Eltávolítás",
+  "Use custom settings background": "Egyéni beállításmenü-háttér használata",
+  "Shows your uploaded background behind the dark menu overlay.": "A feltöltött háttérkép megjelenítése a sötét menü mögött.",
+  "UI Image / Logo": "Felületkép / logó",
+  "Replaces the KS Client header logo; optional game selector in CSS Editor.": "Lecseréli a KS Client fejlécének logóját; a játékhoz tartozó célzót a CSS-szerkesztőben találod.",
+  "Menu Sound": "Menühang",
+  "A short local sound played when opening Settings, if enabled.": "Rövid, helyi hang lejátszása a beállítások megnyitásakor, ha engedélyezett.",
+  "Play custom menu sound": "Egyéni menühang lejátszása",
+  "Requires a selected sound; browser playback policy applies.": "Kiválasztott hangfájl szükséges; a böngésző lejátszási szabályai érvényesek.",
+  "Custom Font": "Egyedi betűkészlet",
+  "Upload a .woff or .woff2 font for use in Appearance.": "Tölts fel .woff vagy .woff2 betűkészletet a Megjelenés fülhöz.",
+  "Some local resources could not be loaded.": "Néhány helyi erőforrást nem sikerült betölteni.",
+  "Assets are stored locally in this browser profile.": "Az erőforrásokat a böngészőprofil helyben tárolja.",
+  "Local resource removed.": "A helyi erőforrás eltávolítva.",
+  "Resource swapping here affects KS Client UI and optionally selected game HTML elements via CSS. It does not intercept Kirka.io network assets, replace 3D textures, or alter game data. Upload rights-cleared assets only.": "Az erőforráscsere a KS Client felületére és a CSS-sel kiválasztott játékbeli HTML-elemekre hat. Nem cseréli a Kirka.io hálózati fájljait, 3D textúráit vagy játékadatait. Csak jogtisztán használható fájlokat tölts fel.",
+  "Client HUD & Style": "Kliens-HUD és stílus",
+  "Choose which KS Client widgets appear over the game.": "Válaszd ki, hogy a KS Client mely elemei jelenjenek meg a játék fölött.",
+  "Client HUD enabled": "Kliens-HUD engedélyezése",
+  "Master switch for FPS counter, badge, crosshair and quick settings button": "Főkapcsoló az FPS-számlálóhoz, jelvényhez, célkereszthez és gyorsbeállításokhoz",
+  "Show KS Client badge": "KS Client jelvény megjelenítése",
+  "Small KS Client label in the lower-left corner": "Kis KS Client jelvény a bal alsó sarokban",
+  "Reduce client animations": "Kliensanimációk csökkentése",
+  "Disable blur and decorative transitions in the KS interface": "Elmosás és díszítő átmenetek kikapcsolása a KS felületén",
+  "Minimal HUD": "Minimális HUD",
+  "Hide nonessential KS overlays while keeping Settings accessible.": "A nem szükséges KS-elemek elrejtése, a Beállítások megtartásával.",
+  "Quick hide / show": "Gyors elrejtés / megjelenítés",
+  "Toggle client HUD · F10": "Kliens-HUD be/ki · F10",
+  "The KS menu theme now follows your black / orange KirkaStats and clan tracker style, including the darker panel cards and outlined action buttons.": "A KS Client menüje a fekete–narancs KirkaStats és klánkövető stílust használja, sötétebb panelekkel és körvonalas gombokkal.",
+  "Custom CSS Editor": "Egyedi CSS-szerkesztő",
+  "Personalize HTML-based Kirka.io menus with your own stylesheet.": "Szabd testre a Kirka.io HTML-alapú menüit saját CSS-stíluslappal.",
+  "Game HTML styling options": "A játék HTML-felületének beállításai",
+  "Apply theme to game HTML menus": "Téma alkalmazása a játék HTML-menüire",
+  "Best effort CSS styling of HTML buttons only; does not recolor WebGL-rendered menus.": "Csak a HTML-gombok megjelenésének kísérleti módosítása; a WebGL-menük színét nem változtatja meg.",
+  "Apply font to game HTML menus": "Betűtípus alkalmazása a játék HTML-menüire",
+  "Optional HTML-only font override; not WebGL textures.": "Opcionális betűtípus-felülírás csak HTML-hez, nem WebGL-textúrákhoz.",
+  "Game menu CSS selector (advanced)": "Játékmenü CSS-szelektora (haladó)",
+  "UI image target selector (advanced)": "Felületkép célpontjának szelektora (haladó)",
+  "Optional game HTML elements to hide (CSS selector)": "Elrejthető játékbeli HTML-elemek (CSS-szelektor)",
+  "Custom stylesheet editor": "Egyedi stíluslap szerkesztése",
+  "Enable custom CSS": "Egyedi CSS engedélyezése",
+  "Applies only on pages using the KS Client overlay.": "Csak a KS Client felülettel megnyitott oldalakra vonatkozik.",
+  "Custom stylesheet (max 12,000 characters)": "Egyedi stíluslap (legfeljebb 12 000 karakter)",
+  "Apply CSS": "CSS alkalmazása",
+  "Clear CSS": "CSS törlése",
+  "Styles can change or break page layouts. Use Clear CSS to undo custom changes. Script execution is not supported by this editor.": "A CSS megváltoztathatja vagy elronthatja az oldalak elrendezését. A CSS törlése gombbal visszavonhatod a módosításokat. Ez a szerkesztő nem futtat JavaScriptet.",
+  "Optional HTML element selector e.g. .menu-background": "Opcionális HTML-szelektor, pl. .menu-background",
+  "Optional HTML element selector": "Opcionális HTML-szelektor",
+  "e.g. .optional-panel": "pl. .optional-panel",
+  "Reset all KS Client settings?": "Visszaállítod a KS Client összes beállítását?",
+  "Import this settings backup? Personal CSS will remain disabled for safety. Local assets will not be changed.": "Importálod ezt a beállításmentést? A saját CSS biztonsági okból kikapcsolva marad. A helyi fájlok nem változnak.",
+  "Download the SHA-256-verified update into your Downloads folder?": "Letöltöd az SHA-256-tal ellenőrzött frissítést a Letöltések mappába?",
+  "Install the verified update and restart KS Client? The old EXE will be backed up.": "Telepíted az ellenőrzött frissítést, majd újraindítod a KS Clientet? A régi EXE-ről biztonsági másolat készül.",
+  "Maximum 12 crosshair presets. Remove one first.": "Legfeljebb 12 célkeresztprofil menthető. Előbb törölj egyet.",
+  "Please choose a JSON backup smaller than 256 KB.": "Válassz egy 256 KB-nál kisebb JSON-mentést.",
+  "Unsupported KS Client settings format.": "Nem támogatott KS Client beállításformátum.",
+  "WebGL unavailable": "WebGL nem érhető el",
+  "Unknown": "Ismeretlen",
+  "No WebGL context could be created": "Nem sikerült WebGL-környezetet létrehozni",
+  "Software renderer detected": "Szoftveres megjelenítő észlelve",
+  "WebGL available (GPU unconfirmed)": "WebGL elérhető (GPU nem ellenőrzött)",
+  "The renderer reports software rendering.": "A megjelenítő szoftveres feldolgozást jelez.",
+  "WebGL works; check Edge DevTools for compositing and all GPU feature status.": "A WebGL működik; az Edge fejlesztői eszközeiben ellenőrizheted a GPU-funkciókat.",
+  "Not available": "Nem érhető el",
+  "Collecting data…": "Adatok gyűjtése…",
+  "Frame interval": "Képkockák közötti idő",
+  "Personalize the KS Client menu colors and fonts. Advanced game HTML styling is under CSS Editor.": "Szabd testre a KS Client menüjének színeit és betűtípusait. A haladó játékbeli HTML-stílusok a CSS-szerkesztőben találhatók.",
+  "The KS Client theme applies instantly. Game HTML styling is available in the CSS Editor at the bottom of the menu.": "A KS Client témája azonnal érvényesül. A játék HTML-felületének testreszabását a menü alján található CSS-szerkesztőben éred el.",
+  "What's new": "Mi újság",
+  "Background color": "Háttérszín",
+  "Panel color": "Panelszín",
+  "Text color": "Szövegszín",
+  "Muted text color": "Másodlagos szövegszín",
+  "Layout style": "Elrendezési stílus",
+  "Inspired by the clean double-column layout you requested.": "A kért letisztult, kéthasábos elrendezés ihlette.",
+  "REFRESHED": "FRISSÍTVE",
+  "Personalize the KS Client menu colors, panels and fonts. Advanced game HTML styling is under CSS Editor.": "Szabd testre a KS Client menüjének színeit, paneljeit és betűtípusait. A haladó játékbeli HTML-stílusok a CSS-szerkesztőben találhatók.",
+  "Match monitor / automatic": "Monitorhoz igazítás / automatikus",
+  "Auto-fit the current monitor work area, or select a fixed window size.": "Az aktuális monitor használható területéhez igazítja az ablakot, vagy fix méretet állít be.",
+  "Automatic uses monitor DPI and engine native scaling; fixed modes set a raster target.": "Automatikusan a monitor DPI- és Electron/CEF-skálázását használja; a fix módok megjelenítési célméretet állítanak.",
+  "Automatic is recommended: the menu fits your monitor work area and the game uses the native engine/Windows display scale. When monitor information is unavailable, 1080p is used as a fallback. Fixed presets adjust browser page zoom, not the game engine’s internal render resolution.": "Az automatikus mód ajánlott: a menü a monitor használható területéhez igazodik, a játék pedig a natív Windows/Electron/CEF képernyőskálázást követi. Ha nem érhetők el monitoradatok, a tartalék felbontás 1080p. A fix módok a megjelenítési sűrűséget módosítják, nem a játékmotor belső felbontását.",
+  "Audio test": "Hang tesztelése",
+  "Play the uploaded menu sound now to confirm Electron/CEF allows playback.": "A feltöltött menühang lejátszásával ellenőrizheted, hogy a Electron/CEF engedélyezi-e a hangot.",
+  "Test sound": "Hang kipróbálása",
+  "Local assets check": "Helyi erőforrások ellenőrzése",
+  "Verify which uploaded resources are currently available in this profile.": "Ellenőrzi, hogy a profilban mely feltöltött erőforrások érhetők el.",
+  "Verify assets": "Erőforrások ellenőrzése",
+  "No menu sound uploaded. Choose an audio file first.": "Nincs feltöltött menühang. Először válassz ki egy hangfájlt.",
+  "Menu sound playback started successfully.": "A menühang lejátszása sikeresen elindult.",
+  "No local asset loaded. Add a file above.": "Nincs betöltött helyi erőforrás. Fent adj hozzá egy fájlt.",
+  "Paces browser requestAnimationFrame callbacks. This can limit games using the main-thread rAF loop, but is not a GPU driver cap.": "A böngésző requestAnimationFrame hívásait ütemezi. Ez korlátozhatja az ezen alapuló játékokat, de nem videokártya-szintű FPS-limit.",
+  "Disables KS Client menu blur and animations. This reduces interface overhead only, not game network latency.": "Kikapcsolja a KS Client menüelmosását és animációit. Csak a felület terhelését csökkenti, a hálózati késleltetést nem.",
+  "Measured requestAnimationFrame callback rate, not presented GPU FPS.": "Mért requestAnimationFrame hívási gyakoriság, nem a GPU által megjelenített FPS.",
+
+  "Tip: disable the default crosshair elements in Kirka.io settings to prevent a double crosshair.": "Tipp: kapcsold ki a Kirka.io beállításaiban az alap célkereszt elemeit, hogy ne látszódjon két célkereszt!",
+  "Preview background": "Előnézet háttere",
+  "Change only the preview background; this does not affect the game.": "Csak az előnézet hátterét állítja; a játék hátterét nem módosítja.",
+  "Default": "Alapértelmezett",
+  "Black": "Fekete",
+  "White": "Fehér",
+  "Reset section settings": "Ezen rész beállításainak visszaállítása",
+  "This resets only the open settings section.": "Csak az aktuális rész beállításait állítja vissza.",
+  "Reset only the settings in this section? Other sections will stay unchanged.": "Csak az aktuális rész beállításait állítod vissza? A többi rész változatlan marad.",
+  };
+
+  Object.assign(hu, {
+    'Browser':'Böngésző',
+    'Saving browser settings…':'Böngészőbeállítások mentése…',
+    'chrome://settings/system — the equivalent settings for this embedded runtime are here.':'chrome://settings/system — a beépített Electron/CEF megfelelő beállításai itt találhatók.',
+    'chrome://flags/#use-angle — applies only when Electron/CEF starts.':'chrome://flags/#use-angle — csak a Electron/CEF indításakor alkalmazható.',
+    'Browser settings loaded':'Böngészőbeállítások betöltve',
+    'Browser settings saved. Live options applied.':'A böngészőbeállítások mentve. A közvetlenül módosítható opciók alkalmazva.',
+    'Saved. Restart KS Client to apply GPU/ANGLE changes.':'Mentve. A GPU/ANGLE módosítások alkalmazásához indítsd újra a KS Clientet.',
+    'Applied on browser startup':'A böngésző indításakor alkalmazva',
+    'Disabled GPU may prevent Kirka.io from loading.':'Kikapcsolt GPU mellett a Kirka.io esetleg nem töltődik be.',
+    'Browser Graphics':'Grafika',
+    'Browser Controls':'Böngészőfunkciók',
+    'Browser GPU Info':'GPU diagnosztika',
+    'Graphics engine':'Grafikus motor',
+    'Chromium / Electron/CEF Graphics':'Chromium / Electron/CEF grafika',
+    'GPU hardware acceleration':'GPU-hardvergyorsítás',
+    'Enabled (recommended)':'Bekapcsolva (ajánlott)',
+    'Disabled (compatibility test)':'Kikapcsolva (hibakereséshez)',
+    'ANGLE graphics backend':'ANGLE grafikus háttérrendszer',
+    'Automatic / Default':'Automatikus / Alapértelmezett',
+    'D3D11 (DirectX 11)':'D3D11 (DirectX 11)',
+    'OpenGL (experimental)':'OpenGL (kísérleti)',
+    'Chrome flags are applied to the embedded Electron/CEF process, not your installed Google Chrome.':'A Chromium-indítási opciók a beépített Electron/CEF folyamatra vonatkoznak, nem a telepített Google Chrome-ra.',
+    'Disable GPU acceleration only to troubleshoot rendering defects; Kirka.io 3D can become slow or stop working.':'Csak grafikai hibakereséshez kapcsold ki a GPU-gyorsítást; a Kirka.io 3D lassulhat vagy működésképtelenné válhat.',
+    'ANGLE changes and GPU startup flags require restarting KS Client.':'Az ANGLE és a GPU indítási beállításai a KS Client újraindítását igénylik.',
+    'Restart KS Client now':'KS Client újraindítása',
+    'Restart and apply changes?':'Újraindítod a klienst a grafikai módosítások alkalmazásához?',
+    'Reset browser settings':'Böngészőbeállítások visszaállítása',
+    'Restore only these browser settings to defaults.':'A Electron/CEF beállításainak visszaállítása az alapértékekre.',
+    'Reset all browser settings?':'Visszaállítod az összes böngészőbeállítást?',
+    'Waiting for native Electron/CEF settings…':'A Electron/CEF beállításainak lekérése…',
+    'GPU or ANGLE changes are pending a restart. The old backend is still active.':'A GPU- vagy ANGLE-módosítás újraindításra vár. A korábbi grafikus motor még aktív.',
+    'Electron/CEF Browser Controls':'Electron/CEF böngészőfunkciók',
+    'Context menu':'Jobb kattintásos menü',
+    'Enable the native Electron/CEF right-click menu.':'A Electron/CEF saját jobb kattintásos menüjének bekapcsolása.',
+    'Developer tools (F12)':'Fejlesztői eszközök (F12)',
+    'Allow opening Chromium DevTools for debugging.':'A Chromium fejlesztői eszközeinek engedélyezése hibakereséshez.',
+    'These settings use the native Electron/CEF Settings API. Some changes become fully visible after reloading the page.':'Ezek a Electron/CEF natív beállítási API-ját használják. Egyes módosítások oldalfrissítés után válnak teljesen láthatóvá.',
+    'Electron/CEF GPU Diagnostics':'Electron/CEF GPU-diagnosztika',
+    'Run WebGL checks on this exact embedded browser process.':'WebGL-teszt futtatása a kliens saját beépített böngészőjében.',
+    'Run GPU check':'GPU-ellenőrzés indítása',
+    'WebGL status':'WebGL állapota',
+    'WebGL2 status':'WebGL2 állapota',
+    'WebGL renderer':'WebGL megjelenítő',
+    'Compositing status':'Kompozitálás állapota',
+    'WebGL does not expose the Chromium compositing feature status. edge://gpu in standalone Edge is not a measurement of this KS Client process.':'A WebGL nem szolgáltat adatot a Chromium kompozitálási állapotáról. A külön futó Edge edge://gpu oldala nem a KS Client folyamatát méri.',
+    'Supported':'Elérhető',
+    'Unavailable':'Nem érhető el',
+    'Not tested':'Nincs ellenőrizve',
+    'Not checked':'Nincs ellenőrizve',
+    'Not accessible from WebGL':'WebGL-ből nem lekérdezhető',
+    'FPS indicator source':'FPS-mutató forrása',
+    'Choose the browser callback counter or use the in-game counter supplied by Kirka.io.':'Válaszd a böngészős képkockahívás-mérést vagy a Kirka.io saját játékbeli FPS-mutatóját.',
+    'KS Client browser FPS (rAF)':'KS Client böngészős FPS (rAF)',
+    'Kirka.io own FPS (game setting)':'Kirka.io saját FPS (játékbeállítás)',
+    'The Kirka.io FPS reader recognizes visible HTML text only, not FPS painted inside a WebGL canvas. If unavailable it shows no value; use the in-game counter.':'A KS Client nem tudja kiolvasni a Kirka.io belső FPS-adatát. Kirka.io módban a kliens FPS-kijelzője eltűnik; kapcsold be a játék saját FPS-mutatóját a játék beállításaiban.',
+    'Browser animation callback FPS':'Böngészős animációhívások FPS-értéke',
+    'Game engine FPS (Kirka.io)':'Játékmotor FPS (Kirka.io)',
+    'Available only in the Kirka.io game settings, not accessible through Electron/CEF.':'Csak a Kirka.io játékbeállításaiban érhető el; Electron/CEF-n keresztül nem olvasható ki.',
+    'Applied on browser startup':'Böngészőindításkor alkalmazva',
+    'The Chromium engine chooses automatically.':'A Chromium motor automatikusan választ.',
+    'Enable the ANGLE D3D11 graphics path.':'Az ANGLE D3D11 grafikus útvonalának engedélyezése.',
+    'Try the ANGLE OpenGL graphics path; it may fail or be slower.':'Az ANGLE OpenGL útvonalának kipróbálása; hibát vagy lassulást okozhat.',
+    'Changes are stored per Windows user. Restart is required only for GPU/ANGLE.':'A beállítások Windows-felhasználónként tárolódnak. Csak a GPU/ANGLE módosításokhoz kell újraindítás.',
+  });
+
+  Object.assign(hu, {
+    "Frame Stability": "Képkockastabilitás",
+    "Eye Comfort": "Szemkomfort",
+    "Smooth Rendering": "Egyenletes megjelenítés",
+    "Native / no extra cap": "Natív / külön korlátozás nélkül",
+    "Comfort – 120 FPS": "Kényelmes – 120 FPS",
+    "Balanced – 144 FPS": "Kiegyensúlyozott – 144 FPS",
+    "High Smoothness – 165 FPS": "Folyamatos – 165 FPS",
+    "Smoothness profile": "Megjelenítési profil",
+    "Choose a browser callback pacing target. It cannot guarantee the displayed GPU frame rate.": "Válassz böngészős képkockahívási célértéket. A kijelző tényleges GPU-FPS-ét nem garantálja.",
+    "Native resolution / Pixel Perfect": "Natív felbontás / Pixel Perfect",
+    "Use native monitor scaling": "Natív monitorméretezés alkalmazása",
+    "Resets page zoom to 100%; does not change the game engine framebuffer.": "A böngésző oldalnagyítását 100%-ra állítja; a játékmotor képkockapufferét nem módosítja.",
+    "Frame Stability Monitor": "Képkockastabilitás-figyelő",
+    "Measures browser animation intervals, not GPU presentation or Kirka.io engine frames.": "A böngésző animációs időközeit méri, nem a GPU megjelenített képkockáit vagy a Kirka.io motorját.",
+    "Median frame interval": "Medián képkockaidő",
+    "95th-percentile interval": "95. percentilis idő",
+    "Browser interval jitter": "Böngészős időingadozás",
+    "Long intervals": "Hosszú képkockaidők",
+    "Not enough samples": "Még nincs elég mérési adat",
+    "Intervals over 1.5× median during visible playback. A browser measurement, not confirmed stutter in the game.": "Látható lejátszás közben a medián 1,5-szeresénél hosszabb időközök. Böngészős mérés, nem igazolt játékbeli akadozás.",
+    "Anti-aliasing / WebGL inspector": "Élsimítás / WebGL-vizsgálat",
+    "Inspect observed game WebGL contexts": "A játék észlelt WebGL-környezetének vizsgálata",
+    "AA requested": "Kért élsimítás",
+    "AA reported": "Jelzett élsimítás",
+    "Canvas resolution": "Canvas-felbontás",
+    "No game WebGL context observed yet": "A játék WebGL-környezete még nem észlelhető",
+    "Unknown (not observed)": "Ismeretlen (nincs adat)",
+    "Enabled": "Bekapcsolva",
+    "Disabled": "Kikapcsolva",
+    "No game engine AA override is applied.": "A játék élsimítását a kliens nem írja felül.",
+    "Adaptive Sync & Camera Comfort": "Adaptív szinkron és kamerakényelem",
+    "Check G-SYNC Compatible / FreeSync in your monitor and GPU driver settings; the client cannot switch these on itself.": "A G-SYNC Compatible / FreeSync funkciót a monitor és a videokártya illesztőprogramjának beállításaiban ellenőrizd; a kliens nem tudja helyetted bekapcsolni.",
+    "For more comfortable camera movement, test a lower in-game mouse sensitivity and FOV if Kirka.io offers it. The client does not alter your camera input.": "Kényelmesebb kameramozgáshoz próbálj alacsonyabb játékbeli egérérzékenységet és FOV-ot, ha a Kirka.io támogatja. A kliens nem módosítja a kamera bemenetét.",
+    "Color and Softness": "Színek és lágyítás",
+    "Optional canvas-only CSS filters; not true anti-aliasing and may lower performance.": "Opcionális, csak a játék canvasára ható CSS-szűrők; nem valódi élsimítás, és csökkenthetik a teljesítményt.",
+    "Enable comfort filters": "Szemkomfort-szűrők engedélyezése",
+    "Changes color and optional softness of the game canvas only.": "Csak a játék canvasának színeit és opcionális lágyítását módosítja.",
+    "Comfort preset": "Szemkomfortprofil",
+    "Normal (no filter)": "Normál (szűrő nélkül)",
+    "Soft": "Lágy",
+    "Warm": "Meleg",
+    "Custom settings": "Egyéni beállítások",
+    "Brightness": "Fényerő",
+    "Contrast": "Kontraszt",
+    "Saturation": "Színtelítettség",
+    "Warmth": "Meleg tónus",
+    "Softness (CSS blur)": "Lágyítás (CSS-elmosás)",
+    "Off": "Kikapcsolva",
+    "Every 20 minutes": "20 percenként",
+    "Every 30 minutes": "30 percenként",
+    "Every 45 minutes": "45 percenként",
+    "Every 60 minutes": "60 percenként",
+    "Optional break reminder": "Opcionális szünetemlékeztető",
+    "Counts visible gameplay minutes only; does not interrupt the game or collect data.": "Csak a látható játékmenet perceit számolja; nem szakítja meg a játékot és nem gyűjt adatot.",
+    "Comfort filter preview": "Szemkomfort-szűrő előnézete",
+    "Filter preview is illustrative. It does not apply until enabled.": "A szűrő-előnézet szemléltető jellegű. Engedélyezésig nem változik a játék.",
+    "Take a short visual break. Look away from the screen for a moment.": "Tarts egy rövid szemkímélő szünetet! Nézz el a képernyőről egy kis időre.",
+    "Settings menu scale": "Beállításmenü mérete",
+    "Scale updates only when you release the slider to avoid repeated repaints.": "Az új méret csak a csúszka elengedésekor lép életbe, hogy ne akadjon a felület.",
+    "Pixel-perfect mode uses native display scaling. WebGL anti-aliasing and internal render scale remain controlled by Kirka.io.": "A Pixel Perfect mód natív kijelzőskálázást használ. A WebGL élsimítását és a belső renderfelbontást továbbra is a Kirka.io szabályozza.",
+    "Frame pacing, gentle canvas color filters, optional break reminders and visual diagnostics.": "Képkocka-időzítés, enyhe canvas-színszűrők, opcionális szünetemlékeztetők és képi diagnosztika.",
+    "Use cautiously: CSS blur can make text less sharp and may add GPU work. Start with softness 0.": "Óvatosan használd: a CSS-elmosás életlenebbé teheti a szöveget és növelheti a GPU terhelését. Kezdd 0-s lágyítással.",
+    "Browser timing spikes may indicate frame pacing problems; they do not prove the game actually stuttered.": "A böngészős időzítési kiugrások képkockaütemezési problémát jelezhetnek, de önmagukban nem bizonyítják a játék akadozását.",
+    "Use this to compare FPS settings in the same scene; do not treat it as GPU frame presentation data.": "Azonos jelenetben összehasonlíthatod az FPS-beállításokat; ez nem a GPU tényleges megjelenítési adata."
+});
+
+  Object.assign(hu, {
+    'Experimental Unlimited FPS (Chromium)': 'Kísérleti korlátlan FPS (Chromium)',
+    'Attempts to remove Chromium rAF/vsync limits. Requires a restart and may cause tearing, higher CPU load or network input delays.': 'Megpróbálja feloldani a Chromium rAF/VSync korlátját. Újraindítást igényel; képtörést, nagyobb CPU-terhelést vagy hálózati/egérkésést okozhat.',
+    'Unlimited here only removes the KS JavaScript cap. For above-monitor-Hz FPS enable Experimental Chromium Uncap below and restart.': 'A korlátlan mód itt csak a KS JavaScript-korlátját oldja fel. A monitor Hz-értéke fölötti FPS kipróbálásához engedélyezd lent a kísérleti Chromium-feloldást, majd indítsd újra a klienst.',
+    'Experimental uncap is a Electron/CEF startup request; the browser may ignore it. Test the Kirka.io in-game FPS counter (Show FPS, typically I).': 'A kísérleti feloldás a Electron/CEF-nek küldött indítási kérés; a böngésző figyelmen kívül hagyhatja. Ellenőrizd a Kirka.io saját FPS-mutatójával (Show FPS, általában I).',
+    'Requested on startup': 'Indításkor kérve',
+    'Off / normal sync': 'Ki / normál szinkron',
+    'Kirka.io HUD FPS (HTML only, experimental)': 'Kirka.io HUD FPS (csak HTML, kísérleti)',
+    'Kirka.io game FPS (native HUD)': 'Kirka.io játékbeli FPS (saját HUD)',
+    'The Kirka.io FPS reader recognizes visible HTML text only, not FPS painted inside a WebGL canvas. If unavailable it shows no value; use the in-game counter.': 'A Kirka.io FPS-olvasó csak látható HTML-szöveget ismer fel, WebGL-canvasra rajzolt FPS-t nem. Ha nem érhető el, nem mutat számot; használd a játék saját kijelzőjét.',
+    'Game FPS detected from HTML': 'Játék-FPS HTML-ből felismerve',
+    'Kirka.io HUD FPS unavailable (possibly drawn on canvas)': 'A Kirka.io HUD FPS nem olvasható (lehet, hogy canvasra rajzolt)',
+    'The game FPS indicator can be enabled in Kirka.io (Show FPS, usually I). Auto-reading only works for DOM/HTML text, not WebGL canvas.': 'A Kirka.io saját FPS-mutatója a játékban bekapcsolható (Show FPS, általában I). Automatikus kiolvasás csak DOM/HTML-szövegből működik, WebGL-canvasból nem.',
+    'Browser FPS unlock': 'Böngészős FPS-feloldás',
+    'Your selected engine startup request': 'A jelenlegi Electron/CEF indítási kérés',
+    'Kirka HUD FPS value': 'Kirka HUD FPS-érték',
+    'Searching visible HTML for FPS…': 'Látható HTML-ben FPS keresése…',
+    'Enable experimental uncapped FPS in Performance or Browser Graphics. Restart required.': 'Kapcsold be a kísérleti korlátlan FPS-t a Teljesítmény vagy a Böngésző grafika részben. Újraindítás szükséges.'
+  });
+
+  function L(input) {
+    const str=String(input ?? '');
+    if(state.language!=='hu')return str;
+    const v=str.trim();
+    if(Object.hasOwn(hu,v))return str.replace(v,hu[v]);
+    let m;
+    if((m=/^Imported (\d+) settings\. Review Custom CSS before enabling it\.$/.exec(v)))
+      return `${m[1]} beállítás importálva. Engedélyezés előtt ellenőrizd az egyedi CSS-t.`;
+    if((m=/^Import failed: (.+)$/.exec(v)))return 'Sikertelen importálás: '+L(m[1]);
+    if((m=/^Update check failed: (.+)$/.exec(v)))return 'Frissítéskeresési hiba: '+m[1];
+    if((m=/^Download failed: (.+)$/.exec(v)))return 'Letöltési hiba: '+m[1];
+    if((m=/^Installation could not start: (.+)$/.exec(v)))return 'A telepítés nem indítható: '+m[1];
+    if((m=/^Unsupported file or too large\. Limit: (.+)$/.exec(v)))return 'Nem támogatott vagy túl nagy fájl. Korlát: '+m[1];
+    if((m=/^Unable to store the file: (.+)$/.exec(v)))return 'A fájl nem menthető: '+m[1];
+    if((m=/^Unable to delete local file: (.+)$/.exec(v)))return 'A helyi fájl nem törölhető: '+m[1];
+    if((m=/^(.+) saved locally\.$/.exec(v)))return m[1]+' helyben elmentve.';
+    return str;
+  }
+  function localizePanel(root) {
+    if (!root || state.language !== 'hu') return;
+    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+    let node;
+    while((node=walker.nextNode())) {
+      const source=node.nodeValue.trim();
+      if(source)node.nodeValue=L(node.nodeValue);
+    }
+    for(const el of root.querySelectorAll('[placeholder],[aria-label],[title]')) {
+      for(const attr of ['placeholder','aria-label','title']) {
+        const v=el.getAttribute(attr);
+        if(v)el.setAttribute(attr,L(v));
+      }
+    }
+  }
+  function translateTab(tab) {return L(tab);}
+
+
+  const releaseHistory = [
+    {v:'1.1.6',en:['Replaced the empty PowerShell window with a native English engine installer with visible logs.','Setup now automatically installs both engines online; CEF starts by default.','Switch between CEF and Electron in Client > General; changing engines restarts KS Client.'],hu:['Üres terminál helyett saját angol nyelvű motortelepítő ablak naplóval.','Telepítés után mindkét motor automatikusan települ az internetről; az alapmotor CEF.','Motorváltás a Kliens > Általános menüben, automatikus újraindítással.']},
+    {v:'1.1.2',en:['Fixed existing-installation detection for upgrades, including previous WebView2 releases.','Reworked setup file replacement with rollback and Retry / Cancel recovery.','English-labelled native setup and uninstaller buttons, independent of Windows display language.'],hu:['Javított telepítési hely felismerés és verziófrissítés, régebbi WebView2 kiadásokról is.','Biztonságosabb fájlcsere visszaállítással és Újra / Mégse választással.','Saját angol feliratú telepítő- és eltávolító gombok a Windows nyelvétől függetlenül.']},
+    {v:'1.1.1',en:['English-only Windows installer, engine selector, engine setup and maintenance messages.','Added Windows Installed apps registration and an English uninstaller with optional settings and profile removal.','Electron and CEF options and existing in-game settings are preserved.'],hu:['Angol nyelvű Windows-telepítő, motorválasztó és motortelepítő.','Windowsos eltávolító beállításmegtartással és opcionális profiltörléssel.','Az Electron/CEF motorok és korábbi beállítások megmaradtak.']},
+    {v:'1.1.0',en:['Switched to selectable Electron and CEF engines.','Migrated the KS Client overlay and browser settings bridge.','The WebView2 host is no longer used.'],hu:['Választható Electron és CEF motorokra váltottunk.','Átkerült a KS Client menüje és a böngészőbeállítások kezelése.','A WebView2 motort az új kiadás már nem használja.']},
+    {v:'1.0.11', en:['Removed nonfunctional Hitmarker, update downloader and Discord detection menu.','Moved version history to Client Overview.','Preserved Unlimited FPS, Eye Comfort and other gameplay settings.'], hu:['Eltávolítottuk a nem működő találatjelzőt, frissítésletöltőt és Discord-felismerés menüpontot.','A verziótörténet az Általános menübe került.','Megmaradt a korlátlan FPS, a Szemkomfort és a többi játékbeállítás.']},
+    {v:'1.0.10',en:['Opt-in experimental Chromium FPS unlock with restart and recovery.','Restart clears stale Chromium launch flags when disabling the unlock.','Optional Kirka.io FPS reader for visible HTML HUD elements only.'],hu:['Külön kapcsolható kísérleti Chromium FPS-feloldás újraindítással és biztonságos visszaállítással.','Kikapcsoláskor az újraindítás eltávolítja a korábbi FPS-feloldó kapcsolókat.','Opcionális Kirka.io FPS-kiolvasás a látható HTML HUD-elemekből.']},
+    {v:'1.0.9', en:['Reset default menu size to 100% and defer resizing until slider release to reduce redraw stutter.','Added Eye Comfort canvas color/softness filters, presets and optional break reminders.','Added Frame Stability diagnostics, measured WebGL antialiasing status and Pixel Perfect native-scaling action.','Added browser callback smoothness profiles and Adaptive Sync / camera comfort guidance.'], hu:['A menü alapmérete újra 100%, a méretezés csak a csúszka elengedésekor történik a szaggatás csökkentéséhez.','Szemkomfort-szín- és lágyítószűrők, profilok és opcionális szünetemlékeztetők.','Képkockastabilitás-diagnosztika, WebGL-élsimítás állapotának kijelzése és natív Pixel Perfect mód.','Böngészős képkockaütemezési profilok és útmutató az adaptív szinkronhoz és kamerakényelemhez.']},
+    {v:'1.0.8',en:['Dedicated Electron/CEF browser graphics, controls and GPU diagnostics menus.','GPU acceleration and ANGLE backend settings with persistent per-user preferences.','Clearly differentiated browser rAF FPS and Kirka.io own in-game FPS.'],hu:['Külön Electron/CEF grafikai, böngészőfunkciós és GPU-diagnosztikai menük.','GPU-gyorsítás és ANGLE-választó felhasználónként mentve.','Böngészős rAF FPS és Kirka.io játékbeli FPS egyértelmű elkülönítése.']},
+    {v:'1.0.7', en:['Added menu sound playback testing and local resource verification.','Fixed retry downloads and added a release-manifest generator for publishers.','Added Windows uninstaller support and improved crash-log handling.','Made theme colors more consistent and clarified browser callback FPS labels.'], hu:['Menühang-lejátszás tesztelése és helyi erőforrások ellenőrzése.','Ismételt frissítésletöltés javítása, valamint verziófájl-készítő segédeszköz a kiadónak.','Windowsos eltávolítóprogram és továbbfejlesztett hibanaplózás.','Egységesebb témaszínek és pontosabb böngészős FPS-feliratok.']},
+    {v:'1.0.6', en:['Moved Performance under Gameplay and Interface under Personalization.','Increased the default settings menu size to 150% with crisp layout scaling.','Added 12 crosshair shapes, center-dot options, colored outlines and shadows.'], hu:['A Teljesítmény a Játékmenet, a Felület a Testreszabás csoportba került.','A beállításmenü alapmérete 150%-ra nőtt, éles elrendezési nagyítással.','12 célkeresztforma, állítható középpont, színes körvonalak és árnyékok.']},
+    {v:'1.0.5', en:['Renamed the Windows window and application identity to KS Client for clearer Discord detection.','Added automatic monitor matching and 720p presets for both display modes.','Removed the unused browser-engine switch from the menu.'], hu:['Az ablak neve és a Windows-alkalmazásazonosító KS Client lett a Discord jobb felismeréséhez.','Automatikus monitorhoz igazítás és 720p a menü- és játékfelbontáshoz.','Eltávolítottuk a nem működő motorválasztó menüpontot.']},
+    {v:'1.0.4', en:['Reorganized Settings into five main categories with related submenus.','Replaced native option popups with a custom dark selection menu.','Unified narrow scrollbars; moved the expandable release history into Updates.'], hu:['A beállítások öt áttekinthető főkategóriába és kapcsolódó almenükbe kerültek.','A natív választólistákat egyedi, sötét lenyíló menük váltották fel.','Egységes, keskeny görgetősávok; a lenyitható verziótörténet a Frissítések fülre került.']},
+    {v:'1.0.3', en:['Refreshed dark interface and extended custom theme colors.','Added a built-in change summary and improved the EXE replacement workflow.'], hu:['Frissített sötét felület és több testreszabható témaszín.','Újdonságösszegzés és továbbfejlesztett EXE-csere a frissítőben.']},
+    {v:'1.0.2', en:['Added the embedded orange K application icon and desktop shortcut installer.','Expanded Hungarian language support and simplified the Discord section.'], hu:['Beépített narancssárga K-ikon és asztali parancsikont készítő telepítő.','Bővített magyar nyelv és egyszerűsített Discord-rész.']},
+    {v:'1.0.1', en:['Removed the native top menu and status bar from the game view.','Moved display settings first and updated the original selector styling.'], hu:['Eltűnt a natív felső menü- és állapotsor a játékablakból.','Előre kerültek a kijelzőbeállítások, és javult a választók megjelenése.']},
+    {v:'1.0.0', en:['Introduced the alpha 1.0.0 branded KS Client build with the K logo.'], hu:['Megjelent az alpha 1.0.0 feliratú KS Client kiadás a K-logóval.']}
+  ];
+  function historyHTML() {
+    return `<section class="ks-history" aria-label="Release history"><div class="ks-history-heading">${state.language==='hu'?'Verziótörténet – kattints egy verzióra':'Version history – click a version'}</div>`+
+      releaseHistory.map(r=>`<details class="ks-release"><summary>KS Client alpha ${esc(r.v)}</summary><div class="ks-release-body"><ul>`+
+        (state.language==='hu'?r.hu:r.en).map(item=>`<li>${esc(item)}</li>`).join('')+
+      `</ul></div></details>`).join('')+`</section>`;
+  }
+
+  function updateShellLanguage() {
+    $('ks-gear').querySelector('.ks-quick-label').textContent=L('Settings');
+    $('ks-gear').setAttribute('aria-label',L('Open KS Client settings'));
+    $('ks-panel').setAttribute('aria-label',L('KS Client Settings'));
+    $('ks-close').setAttribute('aria-label',L('Close Settings'));
+    $('ks-brand-sub').textContent=L('Custom Kirka.io Client · alpha 1.1.6');
+    $('ks-foot').children[0].textContent=L('F1 Settings · F10 Hide Client HUD · F11 Fullscreen');
+    $('ks-foot').children[1].textContent=L('Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.6');
+  }
+
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const toggleRow = (label, desc, key) => `<div class="ks-row"><div><div class="ks-label">${label}</div><div class="ks-desc">${desc}</div></div><input type="checkbox" data-setting="${key}" ${state[key] ? 'checked' : ''} aria-label="${label}"></div>`;
+  const rangeRow = (label, key, min, max, suffix = '%') => `<div class="ks-row"><div class="ks-label">${label}</div><div class="ks-stack"><input aria-label="${label}" data-setting="${key}" type="range" min="${min}" max="${max}" value="${Number(state[key])}"><span class="ks-val" data-for="${key}">${state[key]}${suffix}</span></div></div>`;
+  const selectRow = (label, desc, key, options) => `<div class="ks-row"><div><div class="ks-label">${label}</div><div class="ks-desc">${desc}</div></div><select class="ks-input" data-setting="${key}">${options.map(o => `<option value="${o.value}" ${String(state[key]) === String(o.value) ? 'selected' : ''}>${o.label}</option>`).join('')}</select></div>`;
+  const title = (t, s) => `<h2 class="ks-title">${t}</h2><p class="ks-sub">${s}</p>`;
+
+  function currentAccent() {
+    const candidate = themeColors[state.themePreset] || state.customAccent;
+    return /^#[0-9a-f]{6}$/i.test(String(candidate)) ? candidate : '#f0aa35';
+  }
+  const savedPresets = () => Array.isArray(state.customCrosshairPresets) ? state.customCrosshairPresets : [];
+  const assetLabel = key => assetMeta[key] || 'No local file selected';
+  const uploadRow = (titleText, description, key, accept) => `<div class="ks-row"><div><div class="ks-label">${titleText}</div><div class="ks-desc">${description}</div><div class="ks-asset-summary" data-asset-summary="${key}">${esc(assetLabel(key))}</div></div><div class="ks-stack"><label class="ks-btn" style="cursor:pointer">Browse<input type="file" data-asset="${key}" accept="${accept}" hidden></label><button class="ks-btn" data-clear-asset="${key}">Remove</button></div></div>`;
+
+  function tabContent() {
+    switch (selectedTab) {
+      case 'General':
+        return title('Client Overview', 'KS Client alpha 1.1.6 starts in CEF by default. Switching engines restarts the application.') +
+          `<div class="ks-card">` +
+          `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
+          `<div class="ks-row"><div class="ks-label">Borderless fullscreen</div><button class="ks-btn" data-action="fullscreen">Toggle fullscreen · F11</button></div>` +
+          `<div class="ks-row"><div class="ks-label">Reset client settings</div><button class="ks-btn danger" data-action="reset">Reset all settings</button></div>` +
+          `</div>` +
+          `<p class="ks-hint">This build uses the visible label alpha 1.1.6. Game files and player data still come from Kirka.io.</p>` + historyHTML();
+      case 'Sharing':
+        return title('Settings Backup & Language','Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.') +
+          `<div class="ks-card">` +
+          selectRow('Language','Choose the complete English or Hungarian KS Client interface.','language',[
+            {value:'en',label:'English'},{value:'hu',label:'Magyar'}
+          ]) +
+          `<div class="ks-row"><div><div class="ks-label">Settings import/export</div><div class="ks-desc">Export a JSON backup, including crosshair presets and visual settings. Uploaded binary assets are excluded.</div></div><div class="ks-stack"><button class="ks-btn primary" data-action="export-settings">Export settings</button><button class="ks-btn" data-action="import-settings">Import settings</button></div></div>` +
+          `<input id="ks-import-file" type="file" accept=".json,application/json" hidden>` +
+          `<div class="ks-stat-details" id="ks-sharing-status">${esc(sharingStatus)}</div>` +
+          `</div><p class="ks-hint">Export leaves out local image/audio/font files. Imported CSS stays disabled until you review and enable it.</p>`;
+      case 'Display':
+        return title('Display & Resolution', 'Separate presets for the KS Client menu area and the Kirka.io game rendering density.') +
+          `<div class="ks-card">` +
+          selectRow('Menu resolution preset', 'Auto-fit the current monitor work area, or select a fixed window size.', 'menuResolution', [
+            { value: 'native', label: 'Match monitor / automatic' },
+            { value: '720', label: '1280 × 720 (720p)' },
+            { value: '1080', label: '1920 × 1080 (1080p)' },
+            { value: '1440', label: '2560 × 1440 (1440p)' },
+            { value: '2160', label: '3840 × 2160 (4K)' }
+          ]) +
+          selectRow('Game resolution preset', 'Automatic uses monitor DPI and engine native scaling; fixed modes set a raster target.', 'gameResolution', [
+            { value: 'native', label: 'Match monitor / automatic' },
+            { value: '720', label: '1280 × 720 (720p)' },
+            { value: '1080', label: '1920 × 1080 (1080p)' },
+            { value: '1440', label: '2560 × 1440 (1440p)' },
+            { value: '2160', label: '3840 × 2160 (4K)' }
+          ]) +
+          rangeRow('Settings menu scale', 'uiScale', 100, 160, '%') +
+          `<p class="ks-hint">Scale updates only when you release the slider to avoid repeated repaints.</p>` +
+          toggleRow('Show FPS counter', 'Measured requestAnimationFrame callback rate, not presented GPU FPS.', 'showFPS') +
+          selectRow('FPS indicator source','Choose the browser callback counter or use the in-game counter supplied by Kirka.io.','fpsSource',[
+            {value:'browser',label:'KS Client browser FPS (rAF)'},{value:'kirka',label:'Kirka.io game FPS (native HUD)'},{value:'kirka-hud',label:'Kirka.io HUD FPS (HTML only, experimental)'}]) +
+          `<p class="ks-hint">The Kirka.io FPS reader recognizes visible HTML text only, not FPS painted inside a WebGL canvas. If unavailable it shows no value; use the in-game counter.</p>` +
+          `<div class="ks-row"><div class="ks-label">FPS position</div><select class="ks-input" data-setting="fpsPosition"><option value="top-left" ${state.fpsPosition === 'top-left' ? 'selected' : ''}>Top left</option><option value="top-right" ${state.fpsPosition === 'top-right' ? 'selected' : ''}>Top right</option><option value="bottom-right" ${state.fpsPosition === 'bottom-right' ? 'selected' : ''}>Bottom right</option></select></div>` +
+          `</div>` +
+          `<p class="ks-hint">Automatic is recommended: the menu fits your monitor work area and the game uses the native engine/Windows display scale. When monitor information is unavailable, 1080p is used as a fallback. Fixed presets adjust browser page zoom, not the game engine’s internal render resolution.</p>`;
+      case 'Performance':
+        return title('Performance Settings', 'Best-effort game animation pacing, measured frametimes, and client-side performance profiles.') +
+          `<div class="ks-card">` +
+          selectRow('FPS Limiter', 'Paces browser requestAnimationFrame callbacks. This can limit games using the main-thread rAF loop, but is not a GPU driver cap.', 'fpsLimit', [
+            { value: 0, label: 'Unlimited / Native' },
+            { value: 60, label: '60 FPS' },
+            { value: 120, label: '120 FPS' },
+            { value: 144, label: '144 FPS' },
+            { value: 165, label: '165 FPS' },
+            { value: 180, label: '180 FPS' }
+          ]) +
+          `<div class="ks-row"><div><div class="ks-label">Experimental Unlimited FPS (Chromium)</div><div class="ks-desc">Attempts to remove Chromium rAF/vsync limits. Requires a restart and may cause tearing, higher CPU load or network input delays.</div></div><input type="checkbox" data-browser="uncapFps" ${browserPrefs.uncapFps?'checked':''} ${!browserPrefsLoaded?'disabled':''}></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Browser FPS unlock</div><div class="ks-desc">Your selected engine startup request</div></div><span class="ks-code">${browserActive.uncapFps ? L('Requested on startup') : L('Off / normal sync')}</span></div>`+
+          (browserPendingRestart ? `<p class="ks-hint">${L('Restart KS Client now')}</p><button class="ks-btn primary" data-action="browser-restart">${L('Restart KS Client now')}</button>` : '') +
+          `<p class="ks-hint">Unlimited here only removes the KS JavaScript cap. For above-monitor-Hz FPS enable Experimental Chromium Uncap below and restart.</p>`+
+          selectRow('Smoothness profile','Choose a browser callback pacing target. It cannot guarantee the displayed GPU frame rate.','smoothPreset',[
+            {value:'Native',label:'Native / no extra cap'},{value:'Comfort',label:'Comfort – 120 FPS'},{value:'Balanced',label:'Balanced – 144 FPS'},{value:'Smooth',label:'High Smoothness – 165 FPS'}]) +
+          selectRow('Performance Preset', 'Low targets 720p / 60 callbacks per second; Balanced uses native resolution; High Performance disables client effects.', 'performancePreset', [
+            { value: 'Low', label: 'Low' }, { value: 'Balanced', label: 'Balanced' },
+            { value: 'High Performance', label: 'High Performance' }
+          ]) +
+          toggleRow('Low Latency Mode', 'Disables KS Client menu blur and animations. This reduces interface overhead only, not game network latency.', 'lowLatency') +
+          toggleRow('UI Animations', 'Allow animations and blur in the KS Client interface.', 'uiAnimations') +
+          toggleRow('Real-time FPS & Frametime graphs', 'Show live sampled browser/game callback timing graphs while this tab is open.', 'showGraph') +
+          `<div class="ks-row"><div><div class="ks-label">Measured callback rate</div><div class="ks-desc" id="ks-fps-source">${esc(measuredLabel)}</div></div><b class="ks-code" id="ks-current-gamefps">${displayedGameFPS} FPS</b></div>` +
+          `<div class="ks-row"><div class="ks-label">Most recent callback interval</div><b class="ks-code" id="ks-current-ms">${displayedFrameMs.toFixed(1)} ms</b></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Kirka HUD FPS value</div><div class="ks-desc">HTML HUD reading if exposed; otherwise use the game's own counter.</div></div><span class="ks-code" id="ks-kirka-fps-value">—</span></div>` +
+          `</div>` +
+          `<div id="ks-graphs"><div class="ks-section-heading">FPS history (last ~60 samples)</div><canvas id="ks-graph-fps" aria-label="FPS graph"></canvas>` +
+          `<div class="ks-section-heading">Frametime history (milliseconds)</div><canvas id="ks-graph-ms" aria-label="Frametime graph"></canvas></div>` +
+          `<p class="ks-hint">The FPS limit is a best-effort JavaScript frame pacing mechanism. The optional Chromium uncap may allow FPS above monitor Hz, but Electron/CEF may ignore it or introduce mouse/network stalls. Verify with the game's own FPS HUD.</p>`;
+      case 'Diagnostics':
+        return title('Advanced Diagnostics', 'Live measurements of KS Client and its Chromium/Electron/CEF child processes. Refreshes every two seconds.') +
+          `<div class="ks-metric-grid">` +
+          `<div class="ks-metric"><div class="ks-metric-name">Browser CPU</div><div class="ks-metric-value" id="ks-browser-cpu">—</div></div>` +
+          `<div class="ks-metric"><div class="ks-metric-name">Browser RAM</div><div class="ks-metric-value" id="ks-browser-ram">—</div></div>` +
+          `<div class="ks-metric"><div class="ks-metric-name">Browser Processes</div><div class="ks-metric-value" id="ks-browser-processes">—</div></div>` +
+          `<div class="ks-metric"><div class="ks-metric-name">Client CPU</div><div class="ks-metric-value" id="ks-client-cpu">—</div></div>` +
+          `<div class="ks-metric"><div class="ks-metric-name">Client RAM</div><div class="ks-metric-value" id="ks-client-ram">—</div></div>` +
+          `<div class="ks-metric"><div class="ks-metric-name">Renderer</div><div class="ks-metric-value" style="font-size:13px;line-height:1.35;overflow-wrap:anywhere" id="ks-gpu-state">${esc(gpuInfo.status)}</div></div>` +
+          `</div>` +
+          `<div class="ks-card">` +
+          `<div class="ks-row"><div><div class="ks-label">Hardware Acceleration Check</div><div class="ks-desc">Inspect WebGL context and software-renderer indicators. Electron/CEF uses GPU acceleration by default.</div></div><button class="ks-btn primary" data-action="check-gpu">Check GPU</button></div>` +
+          `<div class="ks-row"><div class="ks-label">WebGL renderer</div><span class="ks-code" style="max-width:62%;text-align:right" id="ks-gpu-renderer">${esc(gpuInfo.renderer)}</span></div>` +
+          `<div class="ks-stat-details" id="ks-diagnostics-note">CPU percentages are fractions of total logical CPU capacity. Browser RAM is summed working-set memory of the client-owned Electron/CEF process tree. First CPU sample may show zero.</div>` +
+          `</div>` +
+          `<div class="ks-card" style="margin-top:12px"><div class="ks-row"><div><div class="ks-label">Local Crash Reporter</div><div class="ks-desc">Logs app errors and identifies previously unclean shutdowns. Reports remain on your PC.</div></div><button class="ks-btn" data-action="open-logs">Open log folder</button></div><div class="ks-stat-details" id="ks-crash-status">${esc(crashStatus)}</div></div>` +
+          `<p class="ks-hint">A visible WebGL renderer is not conclusive proof of full GPU acceleration. Fatal native crashes may not yield a full dump. Diagnostics are not uploaded.</p>`;
+      case 'Frame Stability':
+        return title('Frame Stability Monitor', 'Measures browser animation intervals, not GPU presentation or Kirka.io engine frames.') +
+          `<div class="ks-stability-grid">`+
+            `<div class="ks-stability-stat"><div class="ks-metric-name">Median frame interval</div><div class="ks-metric-value" id="ks-stability-median">—</div></div>`+
+            `<div class="ks-stability-stat"><div class="ks-metric-name">95th-percentile interval</div><div class="ks-metric-value" id="ks-stability-p95">—</div></div>`+
+            `<div class="ks-stability-stat"><div class="ks-metric-name">Browser interval jitter</div><div class="ks-metric-value" id="ks-stability-jitter">—</div></div>`+
+            `<div class="ks-stability-stat"><div class="ks-metric-name">Long intervals</div><div class="ks-metric-value" id="ks-stability-stutter">—</div></div>`+
+          `</div>`+
+          `<div class="ks-comfort-grid"><div class="ks-card"><h3 class="ks-section-heading">Anti-aliasing / WebGL inspector</h3>`+
+          `<div class="ks-row"><div class="ks-label">AA requested</div><span class="ks-code" id="ks-observed-aa-requested">—</span></div>`+
+          `<div class="ks-row"><div class="ks-label">AA reported</div><span class="ks-code" id="ks-observed-aa-reported">—</span></div>`+
+          `<div class="ks-row"><div class="ks-label">Canvas resolution</div><span class="ks-code" id="ks-observed-canvas-size">—</span></div>`+
+          `<p class="ks-hint">No game engine AA override is applied.</p></div>`+
+          `<div class="ks-card"><h3 class="ks-section-heading">Adaptive Sync & Camera Comfort</h3>`+
+          `<p class="ks-note">Check G-SYNC Compatible / FreeSync in your monitor and GPU driver settings; the client cannot switch these on itself.</p>`+
+          `<p class="ks-note">For more comfortable camera movement, test a lower in-game mouse sensitivity and FOV if Kirka.io offers it. The client does not alter your camera input.</p></div></div>`+
+          `<p class="ks-hint">Browser timing spikes may indicate frame pacing problems; they do not prove the game actually stuttered.</p>`;
+      case 'Eye Comfort':
+        return title('Eye Comfort', 'Frame pacing, gentle canvas color filters, optional break reminders and visual diagnostics.') +
+          `<div class="ks-comfort-grid"><div class="ks-card"><h3 class="ks-section-heading">Color and Softness</h3>`+
+          toggleRow('Enable comfort filters','Changes color and optional softness of the game canvas only.','eyeEnabled')+
+          selectRow('Comfort preset','Optional canvas-only CSS filters; not true anti-aliasing and may lower performance.','eyePreset',[
+            {value:'Normal',label:'Normal (no filter)'},{value:'Soft',label:'Soft'},{value:'Warm',label:'Warm'},{value:'Custom',label:'Custom settings'}])+
+          rangeRow('Brightness','eyeBrightness',80,115,'%')+
+          rangeRow('Contrast','eyeContrast',70,115,'%')+
+          rangeRow('Saturation','eyeSaturation',70,115,'%')+
+          rangeRow('Warmth','eyeWarmth',0,60,'%')+
+          rangeRow('Softness (CSS blur)','eyeSoftness',0,6,'/10 px')+
+          `</div><div class="ks-card"><h3 class="ks-section-heading">Comfort filter preview</h3>`+
+          `<div id="ks-comfort-preview" class="ks-comfort-preview"><span>KIRKA.IO</span><span>◈ ◇ △ ▰</span></div>`+
+          `<p class="ks-hint">Filter preview is illustrative. It does not apply until enabled.</p>`+
+          selectRow('Optional break reminder','Counts visible gameplay minutes only; does not interrupt the game or collect data.','breakReminderMinutes',[
+            {value:0,label:'Off'},{value:20,label:'Every 20 minutes'},{value:30,label:'Every 30 minutes'},{value:45,label:'Every 45 minutes'},{value:60,label:'Every 60 minutes'}])+
+          `<div class="ks-row"><div><div class="ks-label">Native resolution / Pixel Perfect</div><div class="ks-desc">Resets page zoom to 100%; does not change the game engine framebuffer.</div></div><button class="ks-btn primary" data-action="pixel-perfect">Use native monitor scaling</button></div>`+
+          `</div></div><p class="ks-hint">Use cautiously: CSS blur can make text less sharp and may add GPU work. Start with softness 0.</p>`+
+          `<p class="ks-hint">Pixel-perfect mode uses native display scaling. WebGL anti-aliasing and internal render scale remain controlled by Kirka.io.</p>`;
+      case 'Crosshair':
+        return title('Custom Crosshair', 'Create a fully customized visual overlay. No aim assistance or gameplay automation.') +
+          `<div class="ks-note ks-crosshair-advice">${L('Tip: disable the default crosshair elements in Kirka.io settings to prevent a double crosshair.')}</div>` +
+          `<div class="ks-crosshair-editor">` +
+          `<div class="ks-crosshair-controls">` +
+          `<div class="ks-card"><h3 class="ks-section-heading">Crosshair shape</h3>` +
+          toggleRow('Enable custom crosshair','Disable the original Kirka.io crosshair to avoid doubling.','crosshairEnabled') +
+          selectRow('Shape','Select one of 12 shapes','shape',[
+            {value:'cross',label:'Cross (4 arms)'},{value:'plus',label:'Plus (connected)'},{value:'x',label:'X (diagonal)'},
+            {value:'t',label:'T-shaped'},{value:'chevron',label:'Chevron (4 corners)'},{value:'circle',label:'Circle'},
+            {value:'square',label:'Square'},{value:'diamond',label:'Diamond'},{value:'triangle',label:'Triangle'},
+            {value:'bullseye',label:'Bullseye'},{value:'four-dots',label:'Four dots'},{value:'dot',label:'Single dot'}
+          ]) +
+          `<div class="ks-row"><div class="ks-label">Crosshair color</div><input data-setting="color" type="color" value="${esc(state.color)}"></div>` +
+          rangeRow('Size','size',4,36,'px') + rangeRow('Gap','gap',0,24,'px') + rangeRow('Thickness','thickness',1,9,'px') + rangeRow('Opacity','opacity',20,100,'%') +
+          `</div><div class="ks-card"><h3 class="ks-section-heading">Center dot</h3>` +
+          toggleRow('Center dot','Independent color, size and shape.','centerDot') +
+          `${state.centerDot ? (
+            selectRow('Center shape','Choose the center point shape','centerDotShape',[{value:'circle',label:'Circle'},{value:'square',label:'Square'},{value:'diamond',label:'Diamond'}]) +
+            `<div class="ks-row"><div class="ks-label">Center dot color</div><input data-setting="centerDotColor" type="color" value="${esc(state.centerDotColor)}"></div>` +
+            rangeRow('Center dot size','centerDotSize',1,14,'px') +
+            toggleRow('Center dot outline','Separate dark/light outline for the center','centerDotOutline') +
+            (state.centerDotOutline ? `<div class="ks-row"><div class="ks-label">Center outline color</div><input data-setting="centerDotOutlineColor" type="color" value="${esc(state.centerDotOutlineColor)}"></div>` + rangeRow('Center outline thickness','centerDotOutlineThickness',1,5,'px') : '')
+          ) : ''}` +
+          `</div><div class="ks-card"><h3 class="ks-section-heading">Outline & shadow</h3>` +
+          toggleRow('Crosshair outline','Add a separate outline color around the main shape','outlineEnabled') +
+          `${state.outlineEnabled ? `<div class="ks-row"><div class="ks-label">Outline color</div><input data-setting="outlineColor" type="color" value="${esc(state.outlineColor)}"></div>` + rangeRow('Outline thickness','outlineThickness',1,6,'px') : ''}` +
+          toggleRow('Drop shadow','Add a soft shadow to improve visibility','shadowEnabled') +
+          `${state.shadowEnabled ? `<div class="ks-row"><div class="ks-label">Shadow color</div><input data-setting="shadowColor" type="color" value="${esc(state.shadowColor)}"></div>` + rangeRow('Shadow blur','shadowBlur',0,12,'px') + rangeRow('Shadow X offset','shadowOffsetX',-8,8,'px') + rangeRow('Shadow Y offset','shadowOffsetY',-8,8,'px') : ''}` +
+          `</div>` +
+          `<div class="ks-card"><h3 class="ks-section-heading">Crosshair Presets</h3>` +
+          `<div class="ks-row"><div><div class="ks-label">Saved profiles</div><div class="ks-desc">Save, load or delete up to 12 complete presets, including outlines and shadows.</div></div></div>` +
+          `<div class="ks-row"><select id="ks-preset-select" class="ks-input"><option value="">Select a saved preset</option>${savedPresets().map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join('')}</select></div>` +
+          `<div class="ks-row"><input id="ks-preset-name" class="ks-input" placeholder="New preset name" maxlength="30"><div class="ks-stack"><button class="ks-btn primary" data-action="preset-save">Save</button><button class="ks-btn" data-action="preset-load">Load</button><button class="ks-btn danger" data-action="preset-delete">Delete</button></div></div>` +
+          `</div></div>` +
+          `<aside class="ks-crosshair-preview-column"><div class="ks-card ks-preview-sticky">` +
+          `<h3 class="ks-section-heading">Live preview</h3>` +
+          `<div id="ks-preview-background" class="ks-preview ks-preview-large"><svg id="ks-preview-svg" viewBox="0 0 160 160"></svg></div>` +
+          selectRow('Preview background','Change only the preview background; this does not affect the game.','previewBackground',[
+            {value:'default',label:'Default'},{value:'black',label:'Black'},{value:'white',label:'White'}]) +
+          `<p class="ks-hint">Preview uses the same vector drawing as the in-game overlay. Center dot and outlines are independent.</p>` +
+          `</div></aside></div>`;
+      case 'Appearance':
+        return title('Appearance & Themes','Customize accent, surface, text and typography for the client interface.') +
+          `<div class="ks-grid"><div class="ks-card"><h3 class="ks-section-heading">Color palette</h3>`+
+          selectRow('Client theme','Accent color of active elements','themePreset',[{value:'Amber',label:'Amber / Gold'},{value:'Ember',label:'Ember'},{value:'Ice',label:'Ice Blue'},{value:'Forest',label:'Forest Green'},{value:'Violet',label:'Violet'},{value:'Custom',label:'Custom'}]) +
+          `<div class="ks-row"><div class="ks-label">Custom accent color</div><input data-setting="customAccent" type="color" value="${esc(state.customAccent)}"></div>` +
+          `<div class="ks-row"><div class="ks-label">Background color</div><input data-setting="customBackground" type="color" value="${esc(state.customBackground)}"></div>` +
+          `<div class="ks-row"><div class="ks-label">Panel color</div><input data-setting="customPanel" type="color" value="${esc(state.customPanel)}"></div>` +
+          `<div class="ks-row"><div class="ks-label">Text color</div><input data-setting="customText" type="color" value="${esc(state.customText)}"></div>` +
+          `<div class="ks-row"><div class="ks-label">Muted text color</div><input data-setting="customMuted" type="color" value="${esc(state.customMuted)}"></div>` +
+          `</div><div class="ks-card"><h3 class="ks-section-heading">Typography & motion</h3>`+
+          selectRow('Font family','Fonts already available in Windows / Electron/CEF','fontFamily',[{value:'Segoe UI',label:'Segoe UI'},{value:'Arial',label:'Arial'},{value:'Verdana',label:'Verdana'},{value:'Tahoma',label:'Tahoma'},{value:'Consolas',label:'Consolas'},{value:'KS Custom Font',label:'Uploaded font (Resources)'}]) +
+          rangeRow('Client font size','fontSize',90,150,'%') +
+          toggleRow('Menu animations','Enable client transitions and blur effects.','uiAnimations') +
+          `<p class="ks-hint">Colors update instantly. Settings are saved automatically on this device.</p>`+
+          `</div></div>`;
+      case 'Resources':
+        return title('Resource Swapper','Load local UI image, background, sound or font. Files stay on your device.') +
+          `<div class="ks-card">` +
+          uploadRow('Menu Background','Image applied behind KS Client settings; optional game selector in CSS Editor.','menuBackground','image/png,image/jpeg,image/webp') +
+          toggleRow('Use custom settings background','Shows your uploaded background behind the dark menu overlay.','menuImageEnabled') +
+          uploadRow('UI Image / Logo','Replaces the KS Client header logo; optional game selector in CSS Editor.','uiImage','image/png,image/jpeg,image/webp') +
+          uploadRow('Menu Sound','A short local sound played when opening Settings, if enabled.','menuSound','audio/mpeg,audio/wav,audio/ogg,audio/mp4') +
+          toggleRow('Play custom menu sound','Requires a selected sound; browser playback policy applies.','menuSoundEnabled') +
+          `<div class="ks-row"><div><div class="ks-label">Audio test</div><div class="ks-desc">Play the uploaded menu sound now to confirm Electron/CEF allows playback.</div></div><button class="ks-btn primary" data-action="test-menu-sound">Test sound</button></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Local assets check</div><div class="ks-desc">Verify which uploaded resources are currently available in this profile.</div></div><button class="ks-btn" data-action="verify-assets">Verify assets</button></div>` +
+          uploadRow('Custom Font','Upload a .woff or .woff2 font for use in Appearance.','localFont','.woff,.woff2,font/woff,font/woff2') +
+          `</div><p class="ks-hint" id="ks-resource-status">${esc(resourceStatus)}</p>` +
+          `<p class="ks-note">Resource swapping here affects KS Client UI and optionally selected game HTML elements via CSS. It does not intercept Kirka.io network assets, replace 3D textures, or alter game data. Upload rights-cleared assets only.</p>`;
+      case 'CSS Editor':
+        return title('Custom CSS Editor','Personalize HTML-based Kirka.io menus with your own stylesheet.') +
+          `<div class="ks-card"><h3 class="ks-section-heading">Game HTML styling options</h3>` +
+          toggleRow('Apply theme to game HTML menus','Best effort CSS styling of HTML buttons only; does not recolor WebGL-rendered menus.','gameThemeEnabled') +
+          toggleRow('Apply font to game HTML menus','Optional HTML-only font override; not WebGL textures.','gameFontEnabled') +
+          `<label class="ks-field"><span class="ks-label">Game menu CSS selector (advanced)</span><input class="ks-input" data-setting="menuSelector" value="${esc(state.menuSelector)}" placeholder="Optional HTML element selector e.g. .menu-background" maxlength="120"></label>` +
+          `<label class="ks-field"><span class="ks-label">UI image target selector (advanced)</span><input class="ks-input" data-setting="uiImageSelector" value="${esc(state.uiImageSelector)}" placeholder="Optional HTML element selector" maxlength="120"></label>` +
+          `<label class="ks-field"><span class="ks-label">Optional game HTML elements to hide (CSS selector)</span><input class="ks-input" data-setting="minimalSelectors" value="${esc(state.minimalSelectors)}" maxlength="120" placeholder="e.g. .optional-panel"></label>` +
+          `<h3 class="ks-section-heading">Custom stylesheet editor</h3>` +
+          toggleRow('Enable custom CSS','Applies only on pages using the KS Client overlay.','customCSSEnabled') +
+          `<label class="ks-field"><span class="ks-label">Custom stylesheet (max 12,000 characters)</span><textarea class="ks-input" data-setting="customCSS" maxlength="12000" style="min-height:250px;font-family:Consolas,monospace" spellcheck="false" placeholder="/* Example: button { border-radius: 6px; } */">${esc(state.customCSS)}</textarea></label>` +
+          `<div class="ks-stack"><button class="ks-btn primary" data-action="css-apply">Apply CSS</button><button class="ks-btn danger" data-action="css-clear">Clear CSS</button></div>` +
+          `</div><p class="ks-hint">Styles can change or break page layouts. Use Clear CSS to undo custom changes. Script execution is not supported by this editor.</p>`;
+      case 'Interface':
+        return title('Client HUD & Style', 'Choose which KS Client widgets appear over the game.') +
+          `<div class="ks-card">` +
+          toggleRow('Client HUD enabled', 'Master switch for FPS counter, badge, crosshair and quick settings button', 'showHUD') +
+          toggleRow('Show KS Client badge', 'Small KS Client label in the lower-left corner', 'showBadge') +
+          toggleRow('Reduce client animations', 'Disable blur and decorative transitions in the KS interface', 'reduceMotion') +
+          toggleRow('Minimal HUD', 'Hide nonessential KS overlays while keeping Settings accessible.', 'minimalHUD') +
+          `<div class="ks-row"><div class="ks-label">Quick hide / show</div><button class="ks-btn" data-action="hud">Toggle client HUD · F10</button></div>` +
+          `</div>` +
+          `<p class="ks-hint">The KS menu theme now follows your black / orange KirkaStats and clan tracker style, including the darker panel cards and outlined action buttons.</p>`;
+      case 'Browser Graphics':
+        return title('Chromium / Electron/CEF Graphics', 'Chrome flags are applied to the embedded Electron/CEF process, not your installed Google Chrome.') +
+          `<div class="ks-settings-columns"><div class="ks-card"><h3 class="ks-section-heading">GPU hardware acceleration</h3>`+
+          browserSelect('GPU hardware acceleration','Disable GPU acceleration only to troubleshoot rendering defects; Kirka.io 3D can become slow or stop working.','gpu',[
+            {value:'enabled',label:'Enabled (recommended)'},{value:'disabled',label:'Disabled (compatibility test)'}])+
+          `<p class="ks-hint">chrome://settings/system — the equivalent settings for this embedded runtime are here.</p></div>`+
+          `<div class="ks-card"><h3 class="ks-section-heading">ANGLE graphics backend</h3>`+
+          browserSelect('ANGLE graphics backend','ANGLE changes and GPU startup flags require restarting KS Client.','angle',[
+            {value:'default',label:'Automatic / Default'},{value:'d3d11',label:'D3D11 (DirectX 11)'},{value:'opengl',label:'OpenGL (experimental)'}])+
+          `<p class="ks-hint">chrome://flags/#use-angle — applies only when Electron/CEF starts.</p>`+
+          browserCheckbox('Experimental Unlimited FPS (Chromium)','Attempts to remove Chromium rAF/vsync limits. Requires a restart and may cause tearing, higher CPU load or network input delays.','uncapFps')+
+          `</div></div>`+
+          browserStatusBox()+
+          `<div class="ks-stack" style="flex-wrap:wrap"><button class="ks-btn primary" data-action="browser-restart" ${!browserPrefsLoaded?'disabled':''}>Restart KS Client now</button></div>`+
+          browserResetButton('graphics')+
+          `<p class="ks-hint">Changes are stored per Windows user. Restart is required only for GPU/ANGLE.</p>`;
+      case 'Browser Controls':
+        return title('Electron/CEF Browser Controls','These settings use the native Electron/CEF Settings API. Some changes become fully visible after reloading the page.')+
+          `<div class="ks-settings-columns"><div class="ks-card">`+
+          browserCheckbox('Context menu','Enable the native Electron/CEF right-click menu.','contextMenu')+
+          `</div><div class="ks-card">`+
+          browserCheckbox('Developer tools (F12)','Allow opening Chromium DevTools for debugging.','devTools')+
+          `</div></div>`+browserStatusBox()+browserResetButton('controls');
+      case 'Browser GPU Info':
+        return title('Electron/CEF GPU Diagnostics','Run WebGL checks on this exact embedded browser process.')+
+          `<div class="ks-card"><div class="ks-row"><div><div class="ks-label">Graphics engine</div><div class="ks-desc">WebGL / WebGL2 / renderer</div></div><button class="ks-btn primary" data-action="browser-check-gpu">Run GPU check</button></div>`+
+          `<div class="ks-row"><div class="ks-label">WebGL status</div><span class="ks-code" id="ks-browser-webgl">${esc(L(browserWebGL.webgl))}</span></div>`+
+          `<div class="ks-row"><div class="ks-label">WebGL2 status</div><span class="ks-code" id="ks-browser-webgl2">${esc(L(browserWebGL.webgl2))}</span></div>`+
+          `<div class="ks-row"><div class="ks-label">WebGL renderer</div><span class="ks-code" style="max-width:55%;overflow-wrap:anywhere;text-align:right" id="ks-browser-renderer">${esc(browserWebGL.renderer)}</span></div>`+
+          `<div class="ks-row"><div class="ks-label">Compositing status</div><span class="ks-code" id="ks-browser-compositing">${esc(L(browserWebGL.compositing))}</span></div>`+
+          `</div><p class="ks-hint">WebGL does not expose the Chromium compositing feature status. edge://gpu in standalone Edge is not a measurement of this KS Client process.</p>`;
+    }
+    return '';
+  }
+
+  function crosshairExtent() {
+    const main = Number(state.size) + Number(state.gap) + Number(state.thickness);
+    const dot = Number(state.centerDotSize) + Number(state.centerDotOutlineThickness);
+    const edge = state.outlineEnabled ? Number(state.outlineThickness) * 2 : 0;
+    const shadow = state.shadowEnabled ? Number(state.shadowBlur) * 2 + Math.max(Math.abs(Number(state.shadowOffsetX)),Math.abs(Number(state.shadowOffsetY))) : 0;
+    return Math.max(50, Math.ceil(main + dot / 2 + edge + shadow + 8));
+  }
+  function drawCrosshair(svg, size = 160) {
+    if (!svg) return;
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,Number(v)||0));
+    const hex=v=>/^#[0-9a-f]{6}$/i.test(String(v))?String(v):'#ffffff';
+    const c=hex(state.color), t=clamp(state.thickness,1,9), s=clamp(state.size,4,36), g=clamp(state.gap,0,24);
+    const mid=size/2;
+    const outline=!!state.outlineEnabled;
+    const oc=hex(state.outlineColor), ot=clamp(state.outlineThickness,1,6);
+    let parts=[];
+    function strokeShape(tag, attrs) {
+      if(outline) parts.push(`<${tag} ${attrs} fill="none" stroke="${oc}" stroke-width="${t+2*ot}" stroke-linecap="round" stroke-linejoin="round"/>`);
+      parts.push(`<${tag} ${attrs} fill="none" stroke="${c}" stroke-width="${t}" stroke-linecap="round" stroke-linejoin="round"/>`);
+    }
+    function fillShape(tag,attrs) {
+      if(outline) parts.push(`<${tag} ${attrs} fill="${c}" stroke="${oc}" stroke-width="${ot*2}" stroke-linejoin="round" paint-order="stroke"/>`);
+      else parts.push(`<${tag} ${attrs} fill="${c}"/>`);
+    }
+    const d4=`M ${mid} ${mid-g-s} V ${mid-g} M ${mid} ${mid+g} V ${mid+g+s} M ${mid-g-s} ${mid} H ${mid-g} M ${mid+g} ${mid} H ${mid+g+s}`;
+    switch(state.shape) {
+      case 'dot': fillShape('circle',`cx="${mid}" cy="${mid}" r="${Math.max(2,t+1)}"`);break;
+      case 'circle': strokeShape('circle',`cx="${mid}" cy="${mid}" r="${Math.max(3,s+g/2)}"`);break;
+      case 'square': strokeShape('rect',`x="${mid-s-g/2}" y="${mid-s-g/2}" width="${(s+g/2)*2}" height="${(s+g/2)*2}" rx="1"`);break;
+      case 'diamond': {let q=s+g/2;strokeShape('path',`d="M ${mid} ${mid-q} L ${mid+q} ${mid} L ${mid} ${mid+q} L ${mid-q} ${mid} Z"`);break;}
+      case 'triangle': {let q=s+g/2;strokeShape('path',`d="M ${mid} ${mid-q} L ${mid+q} ${mid+q} L ${mid-q} ${mid+q} Z"`);break;}
+      case 'bullseye': strokeShape('circle',`cx="${mid}" cy="${mid}" r="${Math.max(4,s)}"`);strokeShape('circle',`cx="${mid}" cy="${mid}" r="${Math.max(2,s/2)}"`);break;
+      case 'x': {let q=s+g;strokeShape('path',`d="M ${mid-q} ${mid-q} L ${mid-g/1.4} ${mid-g/1.4} M ${mid+g/1.4} ${mid+g/1.4} L ${mid+q} ${mid+q} M ${mid+q} ${mid-q} L ${mid+g/1.4} ${mid-g/1.4} M ${mid-g/1.4} ${mid+g/1.4} L ${mid-q} ${mid+q}"`);break;}
+      case 't': strokeShape('path',`d="M ${mid} ${mid-g-s} V ${mid-g} M ${mid-g-s} ${mid} H ${mid-g} M ${mid+g} ${mid} H ${mid+g+s}"`);break;
+      case 'chevron': {let q=s+g;strokeShape('path',`d="M ${mid-q} ${mid-q} L ${mid-g} ${mid-g} M ${mid+q} ${mid-q} L ${mid+g} ${mid-g} M ${mid+q} ${mid+q} L ${mid+g} ${mid+g} M ${mid-q} ${mid+q} L ${mid-g} ${mid+g}"`);break;}
+      case 'four-dots': {let q=s+g;for(const [dx,dy] of [[0,-q],[q,0],[0,q],[-q,0]])fillShape('circle',`cx="${mid+dx}" cy="${mid+dy}" r="${Math.max(2,t)}"`);break;}
+      case 'plus': strokeShape('path',`d="M ${mid} ${mid-s-g} V ${mid+s+g} M ${mid-s-g} ${mid} H ${mid+s+g}"`);break;
+      default: strokeShape('path',`d="${d4}"`);
+    }
+    if(state.centerDot) {
+      const r=clamp(state.centerDotSize,1,14), cc=hex(state.centerDotColor),
+            dOutline=!!state.centerDotOutline,
+            da= dOutline ? `stroke="${hex(state.centerDotOutlineColor)}" stroke-width="${clamp(state.centerDotOutlineThickness,1,5)*2}" paint-order="stroke"` : '';
+      if(state.centerDotShape==='square')parts.push(`<rect x="${mid-r}" y="${mid-r}" width="${2*r}" height="${2*r}" rx="0" fill="${cc}" ${da}/>`);
+      else if(state.centerDotShape==='diamond')parts.push(`<path d="M ${mid} ${mid-r} L ${mid+r} ${mid} L ${mid} ${mid+r} L ${mid-r} ${mid} Z" fill="${cc}" ${da}/>`);
+      else parts.push(`<circle cx="${mid}" cy="${mid}" r="${r}" fill="${cc}" ${da}/>`);
+    }
+    const blur=clamp(state.shadowBlur,0,12),dx=clamp(state.shadowOffsetX,-8,8),dy=clamp(state.shadowOffsetY,-8,8);
+    // CSS drop-shadow works reliably inside Electron/CEF Shadow DOM. SVG url(#filter)
+    // references can fail to resolve across that boundary and hide the drawing.
+    svg.setAttribute('viewBox',`0 0 ${size} ${size}`);
+    svg.style.filter=state.shadowEnabled?`drop-shadow(${dx}px ${dy}px ${blur}px ${hex(state.shadowColor)})`:'none';
+    svg.innerHTML=`<g opacity="${clamp(state.opacity,20,100)/100}">${parts.join('')}</g>`;
+  }
+
+  // Per-origin IndexedDB stores local UI assets as Blobs (no upload or external server).
+  function openAssetDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('KSClientLocalResourcesAlpha', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('assets');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || Error('IndexedDB unavailable'));
+    });
+  }
+  async function assetOp(mode, key, value) {
+    const db = await openAssetDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('assets', mode);
+      const store = tx.objectStore('assets');
+      const request = mode === 'readonly' ? store.get(key) : value === null ? store.delete(key) : store.put(value, key);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+      tx.oncomplete = () => db.close();
+      tx.onerror = () => { db.close();reject(tx.error); };
+    });
+  }
+  async function saveAsset(key,file) { return assetOp('readwrite',key,file); }
+  async function deleteAsset(key) { return assetOp('readwrite',key,null); }
+  function setAssetURL(key,blob) {
+    if (assetURLs[key]) URL.revokeObjectURL(assetURLs[key]);
+    delete assetURLs[key];
+    if (blob instanceof Blob) assetURLs[key]=URL.createObjectURL(blob);
+  }
+  async function loadLocalAssets() {
+    for (const key of assetKeys) {
+      try {
+        const blob = await assetOp('readonly',key);
+        if(blob instanceof Blob) {setAssetURL(key,blob);assetMeta[key]=blob.name||'Saved local resource';}
+      } catch(error) {resourceStatus='Some local resources could not be loaded.';}
+    }
+    apply();renderTab();
+  }
+  function updateResourcesInUI() {
+    const status=$('ks-resource-status'); if(status) status.textContent=L(resourceStatus);
+    shadow.querySelectorAll('[data-asset-summary]').forEach(el=>{el.textContent=L(assetLabel(el.dataset.assetSummary));});
+  }
+  function safeSelector(raw) {
+    const selector=String(raw||'').trim().slice(0,120);
+    if(!selector || /[{};\x00-\x1f]/.test(selector))return '';
+    try {document.querySelector(selector);}catch(_){return '';}
+    return selector;
+  }
+  function buildPageStyles() {
+    const css=[];
+    const accent=currentAccent();
+    if(state.customCSSEnabled)css.push(String(state.customCSS).slice(0,12000));
+    if(state.gameThemeEnabled)css.push(`button:not([disabled]),[role="button"]{accent-color:${accent};}button:focus-visible{outline-color:${accent} !important;}`);
+    if(state.gameFontEnabled) {
+      let family=state.fontFamily;
+      if(family==='KS Custom Font' && assetURLs.localFont) {
+        css.push(`@font-face{font-family:"KS Custom Font";src:url("${assetURLs.localFont}");font-display:swap;}`);
+        family='KS Custom Font';
+      }
+      if(family==='KS Custom Font'&&!assetURLs.localFont) family='Segoe UI';
+      css.push(`button,input,select,textarea{font-family:"${family}" !important;font-size:calc(1em * ${Math.max(.9,Math.min(1.5,Number(state.fontSize)/100))}) !important;}`);
+    }
+    const menuSelector=safeSelector(state.menuSelector);
+    if(state.menuImageEnabled && assetURLs.menuBackground && menuSelector) css.push(`${menuSelector}{background-image:url("${assetURLs.menuBackground}") !important;background-size:cover !important;background-position:center !important;}`);
+    const imageSelector=safeSelector(state.uiImageSelector);
+    if(assetURLs.uiImage && imageSelector) css.push(`${imageSelector}{background-image:url("${assetURLs.uiImage}") !important;background-size:contain !important;background-repeat:no-repeat !important;background-position:center !important;}`);
+    const minimSelector=safeSelector(state.minimalSelectors);
+    if(state.minimalHUD && minimSelector)css.push(`${minimSelector}{visibility:hidden !important;}`);
+    return css.join('\n');
+  }
+  function checkGPU() {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 2;
+      const gl = canvas.getContext('webgl2', { antialias:false }) || canvas.getContext('webgl', { antialias:false });
+      if (!gl) {
+        gpuInfo = { status:'WebGL unavailable', renderer:'Unknown', note:'No WebGL context could be created' };
+      } else {
+        const debug = gl.getExtension('WEBGL_debug_renderer_info');
+        const renderer = debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+        const vendor = debug ? gl.getParameter(debug.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR);
+        const software = /swiftshader|llvmpipe|software rasterizer|softpipe|mesa offscreen/i.test(String(renderer));
+        gpuInfo = {
+          status: software ? 'Software renderer detected' : 'WebGL available (GPU unconfirmed)',
+          renderer: String(vendor) + ' · ' + String(renderer),
+          note: software ? 'The renderer reports software rendering.' : 'WebGL works; check Edge DevTools for compositing and all GPU feature status.'
+        };
+        gl.getExtension('WEBGL_lose_context')?.loseContext();
+      }
+    } catch (error) {
+      gpuInfo = { status:'Unknown', renderer:'Not available', note:String(error) };
+    }
+    updateDiagnosticsUI();
+  }
+
+  function checkBrowserGPU() {
+    const getContext = id => {
+      const canvas=document.createElement('canvas');canvas.width=canvas.height=2;
+      try{return canvas.getContext(id,{failIfMajorPerformanceCaveat:false});}catch(_){return null;}
+    };
+    const one=getContext('webgl'); const two=getContext('webgl2');
+    const gl=two||one;
+    browserWebGL={
+      webgl: one ? 'Supported' : 'Unavailable',
+      webgl2: two ? 'Supported' : 'Unavailable',
+      renderer: 'Unavailable',
+      compositing: 'Not accessible from WebGL'
+    };
+    if(gl){
+      try {
+        const ext=gl.getExtension('WEBGL_debug_renderer_info');
+        browserWebGL.renderer=String(ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER));
+      }catch(e){browserWebGL.renderer='Not checked';}
+    }
+    one?.getExtension('WEBGL_lose_context')?.loseContext();
+    two?.getExtension('WEBGL_lose_context')?.loseContext();
+    for(const [id,value] of [['ks-browser-webgl',browserWebGL.webgl],['ks-browser-webgl2',browserWebGL.webgl2],['ks-browser-renderer',browserWebGL.renderer],['ks-browser-compositing',browserWebGL.compositing]]){
+      const n=$(id);if(n)n.textContent=L(value);
+    }
+    checkGPU();
+  }
+
+  function updateDiagnosticsUI() {
+    const d = diagnostics;
+    const set = (id, text) => { const el = $(id); if (el) el.textContent = text; };
+    if (d) {
+      set('ks-browser-cpu', d.browserCPU.toFixed(1) + '%');
+      set('ks-client-cpu', d.clientCPU.toFixed(1) + '%');
+      set('ks-browser-ram', Math.round(d.browserRAM) + ' MB');
+      set('ks-client-ram', Math.round(d.clientRAM) + ' MB');
+      set('ks-browser-processes', String(d.browserProcesses));
+    }
+    set('ks-gpu-state', L(gpuInfo.status));
+    set('ks-gpu-renderer', gpuInfo.renderer);
+    set('ks-diagnostics-note', (d ? d.sampling + '. ' : '') + L(gpuInfo.note));
+  }
+
+  function drawLineGraph(canvasId, values, label, maxValue, suffix) {
+    const canvas = $(canvasId);
+    if (!canvas || !state.showGraph) return;
+    const width = Math.max(250,Math.round(canvas.clientWidth));
+    const height = Math.max(100,Math.round(canvas.clientHeight));
+    const dpr = Math.min(3,window.devicePixelRatio || 1);
+    canvas.width = Math.round(width*dpr);
+    canvas.height = Math.round(height*dpr);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,width,height);
+    ctx.strokeStyle = '#3f3219'; ctx.lineWidth = 1;
+    for(let y=1;y<4;y++) { const py=(height-25)*y/4; ctx.beginPath();ctx.moveTo(42,py);ctx.lineTo(width-10,py);ctx.stroke(); }
+    const high = Math.max(1,maxValue);
+    ctx.fillStyle='#b9ab8d';ctx.font='11px Segoe UI';ctx.textAlign='left';
+    ctx.fillText(label,12,15);ctx.fillText('0',13,height-15);
+    ctx.fillText(`${Math.round(high)} ${suffix}`,12,31);
+    if(values.length<2) { ctx.fillText('Collecting data…',width/2-50,height/2);return; }
+    const left=45,right=width-12,top=22,bottom=height-25;
+    ctx.strokeStyle='#f4a61c';ctx.lineWidth=2;ctx.beginPath();
+    values.forEach((value,i)=>{
+      const x=left+(right-left)*(i/Math.max(1,values.length-1));
+      const y=bottom-(bottom-top)*Math.min(1,Math.max(0,value)/high);
+      if(i===0) ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  }
+
+  function paintGraphs() {
+    const graphs=$('ks-graphs');
+    if(graphs) graphs.style.display=state.showGraph?'block':'none';
+    if(!open || selectedTab!=='Performance' || !state.showGraph)return;
+    drawLineGraph('ks-graph-fps',fpsHistory,'FPS',Math.max(60,Number(state.fpsLimit)||0,...fpsHistory),'FPS');
+    drawLineGraph('ks-graph-ms',frameHistory,L('Frame interval'),Math.max(20,...frameHistory),'ms');
+  }
+
+  function applyPerformancePreset(preset) {
+    const profiles={
+      'Low': {gameResolution:'720',fpsLimit:60,uiAnimations:false,showGraph:false,lowLatency:true},
+      'Balanced': {gameResolution:'native',fpsLimit:0,uiAnimations:true,showGraph:true,lowLatency:false},
+      'High Performance': {gameResolution:'native',fpsLimit:0,uiAnimations:false,showGraph:false,lowLatency:true}
+    };
+    if (!profiles[preset]) return;
+    state={...state,...profiles[preset],smoothPreset:'Native',performancePreset:preset};
+    save();
+    window.__KS_FRAME_PACER__?.setLimit(state.fpsLimit);
+    notify('game-resolution',{preset:state.gameResolution});
+    apply(); renderTab();
+  }
+
+
+  function updatePreviewBackground() {
+    const el = $('ks-preview-background');
+    if (!el) return;
+    const choices = { default:'#111820', black:'#000000', white:'#ffffff' };
+    el.style.backgroundColor = choices[state.previewBackground] || choices.default;
+    el.style.backgroundImage = 'none';
+    el.style.borderColor = state.previewBackground === 'white' ? '#b2bac5' : 'rgba(255,255,255,.12)';
+  }
+
+  function renderTab() {
+    closeCustomSelect();
+    const group=currentGroup();
+    $('ks-nav').innerHTML = `<div class="ks-sidebar-caption">${state.language==='hu'?'BEÁLLÍTÁSOK':'SETTINGS'}</div>`+
+      groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon">${g.icon}</span><span>${translateTab(g.key)}</span></button>`).join('')+
+      `<div class="ks-sidebar-foot">● ${state.language==='hu'?'AUTOMATIKUS MENTÉS':'AUTOSAVED'}<div style="opacity:.66;margin-top:5px">KS Client · alpha 1.1.6</div></div>`;
+    $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
+      group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
+      `</nav>`+tabContent()+sectionResetMarkup();
+    localizePanel($('ks-body'));
+    layoutSettingsCards();
+    enhanceCustomSelects();
+    updateShellLanguage();
+    const preview = $('ks-preview-svg');
+    if (preview) drawCrosshair(preview);
+    updatePreviewBackground();
+    updateDiagnosticsUI();
+    updateStabilityDiagnostics();
+    updateComfortPreview();
+    paintGraphs();
+  }
+
+  function layoutSettingsCards() {
+    if (!['General','Display','Performance','Interface','Resources'].includes(selectedTab)) return;
+    const primary=$('ks-body').querySelector('.ks-card');
+    if (!primary) return;
+    const nodes=Array.from(primary.children);
+    if (nodes.length<4 || !nodes.every(el=>el.classList.contains('ks-row'))) return;
+    const cut=Math.ceil(nodes.length/2);
+    const second=document.createElement('div');second.className='ks-card';
+    nodes.slice(cut).forEach(node=>second.appendChild(node));
+    const columns=document.createElement('div');columns.className='ks-settings-columns';
+    primary.replaceWith(columns);columns.append(primary,second);
+  }
+
+  // The browser's native select popup is rendered outside the page style system;
+  // implement an accessible select popup entirely within the client Shadow DOM.
+  let activeSelect=null, activePopup=null;
+  function closeCustomSelect() {
+    if (activeSelect) activeSelect.querySelector('.ks-select-trigger')?.setAttribute('aria-expanded','false');
+    if (activePopup) {activePopup.remove();activePopup=null;}
+    activeSelect=null;
+  }
+  function enhanceCustomSelects() {
+    $('ks-body').querySelectorAll('select.ks-input,select[data-setting]').forEach(select=>{
+      const shell=document.createElement('span');shell.className='ks-select-shell';
+      select.parentNode.insertBefore(shell,select);shell.appendChild(select);
+      select.tabIndex=-1;select.setAttribute('aria-hidden','true');
+      const button=document.createElement('button');button.type='button';button.className='ks-select-trigger';
+      button.setAttribute('aria-haspopup','listbox');button.setAttribute('aria-expanded','false');
+      const selected=select.options[select.selectedIndex];
+      button.innerHTML=`<span class="ks-select-value"></span><span class="ks-select-chevron">▾</span>`;
+      button.querySelector('.ks-select-value').textContent=selected?.textContent||'';
+      button.setAttribute('aria-label',select.dataset.setting||'Choose option');
+      shell.appendChild(button);
+      button.addEventListener('click',()=>{if(activeSelect===shell) closeCustomSelect();else openCustomSelect(shell,select);});
+      button.addEventListener('keydown',e=>{
+        if(['ArrowDown','ArrowUp',' ','Enter'].includes(e.key)) {e.preventDefault(); if(activeSelect!==shell)openCustomSelect(shell,select);}
+        if(e.key==='Escape'){e.preventDefault();closeCustomSelect();}
+      });
+    });
+  }
+  function openCustomSelect(shell,select) {
+    closeCustomSelect();
+    const trigger=shell.querySelector('.ks-select-trigger');
+    const popup=document.createElement('div');popup.className='ks-select-popup';popup.setAttribute('role','listbox');
+    popup.setAttribute('aria-label',select.dataset.setting||'Options');
+    Array.from(select.options).forEach((option,i)=>{
+      const b=document.createElement('button');b.type='button';b.setAttribute('role','option');
+      b.setAttribute('aria-selected',String(option.selected));b.textContent=option.textContent;
+      b.disabled=option.disabled;
+      b.addEventListener('click',()=>{select.selectedIndex=i;trigger.querySelector('.ks-select-value').textContent=option.textContent;closeCustomSelect();select.dispatchEvent(new Event('change',{bubbles:true}));trigger.focus();});
+      popup.appendChild(b);
+    });
+    $('ks-screen').appendChild(popup);
+    const r=trigger.getBoundingClientRect();
+    const maxWidth=Math.max(165,Math.min(310,window.innerWidth-26));
+    const width=Math.min(maxWidth,Math.max(r.width,215));
+    const height=Math.min(275,popup.scrollHeight+12);
+    const below=window.innerHeight-r.bottom-14,above=r.top-14;
+    const putAbove=below<Math.min(height,160)&&above>below;
+    popup.style.width=width+'px';
+    popup.style.left=Math.max(12,Math.min(r.left,window.innerWidth-width-12))+'px';
+    popup.style.top=(putAbove?Math.max(10,r.top-height-5):Math.min(window.innerHeight-height-10,r.bottom+5))+'px';
+    activeSelect=shell;activePopup=popup;trigger.setAttribute('aria-expanded','true');
+    const selectedButton=popup.querySelector('button[aria-selected="true"]');
+    selectedButton?.scrollIntoView({block:'nearest'});
+    (selectedButton||popup.querySelector('button'))?.focus({preventScroll:true});
+  }
+
+  function comfortFilterCSS() {
+    const b=Math.max(80,Math.min(115,Number(state.eyeBrightness)||100))/100;
+    const c=Math.max(70,Math.min(115,Number(state.eyeContrast)||100))/100;
+    const sat=Math.max(70,Math.min(115,Number(state.eyeSaturation)||100))/100;
+    const warm=Math.max(0,Math.min(60,Number(state.eyeWarmth)||0))/100*0.28;
+    const blur=Math.max(0,Math.min(6,Number(state.eyeSoftness)||0))/10;
+    return `brightness(${b}) contrast(${c}) saturate(${sat}) sepia(${warm.toFixed(3)})${blur>0?' blur('+blur.toFixed(1)+'px)':''}`;
+  }
+  function updateComfortPreview() {
+    const el=$('ks-comfort-preview');
+    if(el) el.style.filter=state.eyeEnabled?comfortFilterCSS():'none';
+  }
+  function applyEyePreset(preset) {
+    const options={
+      Normal: {eyeEnabled:false,eyeBrightness:100,eyeContrast:100,eyeSaturation:100,eyeWarmth:0,eyeSoftness:0},
+      Soft: {eyeEnabled:true,eyeBrightness:100,eyeContrast:91,eyeSaturation:94,eyeWarmth:10,eyeSoftness:0},
+      Warm: {eyeEnabled:true,eyeBrightness:98,eyeContrast:94,eyeSaturation:95,eyeWarmth:36,eyeSoftness:0}
+    };
+    if(preset==='Custom') {state.eyePreset='Custom'; save(); renderTab();apply();return;}
+    if(!options[preset])return;
+    Object.assign(state,options[preset],{eyePreset:preset});save();renderTab();apply();
+  }
+  function applySmoothPreset(preset) {
+    const target={Native:0,Comfort:120,Balanced:144,Smooth:165}[preset];
+    if(target===undefined)return;
+    state.smoothPreset=preset;state.fpsLimit=target;save();
+    window.__KS_FRAME_PACER__?.setLimit(target);
+    renderTab();apply();
+  }
+  const stabilitySamples=[];
+  function updateStabilityDiagnostics() {
+    if(!open||selectedTab!=='Frame Stability')return;
+    const m = id=>$(id);
+    if(stabilitySamples.length<25){for(const id of ['ks-stability-median','ks-stability-p95','ks-stability-jitter','ks-stability-stutter'])if(m(id))m(id).textContent=L('Not enough samples');}
+    else {
+      const sorted=[...stabilitySamples].sort((a,b)=>a-b);
+      const pct=f=>sorted[Math.min(sorted.length-1,Math.floor((sorted.length-1)*f))];
+      const mid=pct(.50),p95=pct(.95);
+      const spikes=stabilitySamples.filter(v=>v>1.5*mid).length;
+      if(m('ks-stability-median'))m('ks-stability-median').textContent=mid.toFixed(1)+' ms';
+      if(m('ks-stability-p95'))m('ks-stability-p95').textContent=p95.toFixed(1)+' ms';
+      if(m('ks-stability-jitter'))m('ks-stability-jitter').textContent=(p95-mid).toFixed(1)+' ms';
+      if(m('ks-stability-stutter'))m('ks-stability-stutter').textContent=spikes+'/'+stabilitySamples.length;
+    }
+    const observed=window.__KS_RENDER_OBSERVER__?.getStats?.();
+    const aa=value=>typeof value==='boolean'?L(value?'Enabled':'Disabled'):L('Unknown (not observed)');
+    if(m('ks-observed-aa-requested'))m('ks-observed-aa-requested').textContent=aa(observed?.antialiasRequested);
+    if(m('ks-observed-aa-reported'))m('ks-observed-aa-reported').textContent=aa(observed?.antialiasReported);
+    if(m('ks-observed-canvas-size'))m('ks-observed-canvas-size').textContent=observed?.canvasWidth>0?`${observed.canvasWidth} × ${observed.canvasHeight}`:L('No game WebGL context observed yet');
+  }
+  let visiblePlayMinutes=0;
+  function updateBreakReminderState() {
+    if(!state.breakReminderMinutes) {
+      visiblePlayMinutes=0;
+      $('ks-break-reminder').hidden=true;
+    }
+  }
+  setInterval(()=>{
+    if(!isGamePage || document.hidden || open || !state.breakReminderMinutes)return;
+    visiblePlayMinutes++;
+    if(visiblePlayMinutes>=Number(state.breakReminderMinutes)) {
+      visiblePlayMinutes=0;
+      $('ks-break-text').textContent=L('Take a short visual break. Look away from the screen for a moment.');
+      $('ks-break-reminder').hidden=false;
+    }
+  },60000);
+  $('ks-break-dismiss').addEventListener('click',()=>{$('ks-break-reminder').hidden=true;});
+
+  function apply() {
+    $('ks-dimmer').classList.toggle('visible', open);
+    $('ks-screen').classList.toggle('no-motion', !state.uiAnimations || state.lowLatency || state.reduceMotion);
+    const scale = Math.max(1, Math.min(1.6, Number(state.uiScale)/100 || 1));
+    $('ks-panel').style.setProperty('--ks-ui-scale', String(scale));
+
+    const accent = currentAccent();
+    $('ks-screen').style.setProperty('--ks-accent', accent);
+    $('ks-screen').style.setProperty('--ks-bg', state.customBackground || '#0d1015');
+    $('ks-screen').style.setProperty('--ks-panel', state.customPanel || '#171c23');
+    $('ks-screen').style.setProperty('--ks-text', state.customText || '#edf0f6');
+    $('ks-screen').style.setProperty('--ks-muted', state.customMuted || '#97a3b2');
+    $('ks-screen').style.setProperty('--ks-soft', state.customBackground || '#0d1015');
+    $('ks-screen').style.setProperty('--ks-font-scale', String(state.fontSize / 100));
+    const family = state.fontFamily === 'KS Custom Font' && assetURLs.localFont ? 'KS Custom Font' : state.fontFamily;
+    $('ks-screen').style.setProperty('--ks-font-family', (family === 'KS Custom Font' ? '"KS Custom Font"' : `'${family.replace(/'/g,'')}'`) + ', sans-serif');
+    const fontStyle = $('ks-local-font-style') || document.createElement('style');
+    fontStyle.id = 'ks-local-font-style';
+    fontStyle.textContent = assetURLs.localFont ? `@font-face{font-family:"KS Custom Font";src:url("${assetURLs.localFont}");font-display:swap;}` : '';
+    if (!fontStyle.isConnected) shadow.appendChild(fontStyle);
+    const panel = $('ks-panel');
+    panel.style.background = state.menuImageEnabled && assetURLs.menuBackground
+      ? `linear-gradient(rgba(8,12,16,.88),rgba(8,12,16,.94)), url("${assetURLs.menuBackground}") center/cover no-repeat`
+      : (state.customBackground || '#0d1015');
+    const logo = $('ks-brand-icon');
+    const activeLogo = assetURLs.uiImage || DEFAULT_LOGO_DATA;
+    logo.style.display = activeLogo ? 'block' : 'none';
+    if (activeLogo) logo.src = activeLogo;
+    const fpsNode = $('ks-fps');
+    fpsNode.style.display = isGamePage && state.showHUD && state.showFPS && state.fpsSource !== 'kirka' && !state.minimalHUD ? 'block' : 'none';
+    fpsNode.style.left = state.fpsPosition === 'top-left' ? '18px' : 'auto';
+    fpsNode.style.right = state.fpsPosition === 'top-left' ? 'auto' : '18px';
+    fpsNode.style.top = state.fpsPosition === 'bottom-right' ? 'auto' : '18px';
+    fpsNode.style.bottom = state.fpsPosition === 'bottom-right' ? '18px' : 'auto';
+
+    $('ks-badge').style.display = state.showHUD && state.showBadge && !state.minimalHUD ? 'block' : 'none';
+    $('ks-quick').style.display = 'flex'; // Always keep the Settings button accessible.
+
+    const cross = $('ks-crosshair');
+    cross.style.display = isGamePage && state.showHUD && state.crosshairEnabled ? 'block' : 'none';
+    const svgSize = crosshairExtent() * 2;
+    cross.innerHTML = `<svg width="${svgSize}" height="${svgSize}" xmlns="http://www.w3.org/2000/svg"></svg>`;
+    drawCrosshair(cross.querySelector('svg'), svgSize);
+
+    $('ks-dimmer').style.backdropFilter = (state.reduceMotion || state.lowLatency || !state.uiAnimations) ? 'none' : 'blur(6px)';
+
+    let custom = document.getElementById('ks-client-user-css');
+    if (!custom) {
+      custom = document.createElement('style');
+      custom.id = 'ks-client-user-css';
+      (document.head || document.body).appendChild(custom);
+    }
+    custom.textContent = buildPageStyles();
+    // Applies to the game's visible canvas only, never the KS overlay.
+    // This is a postprocessing color/softness effect, NOT WebGL anti-aliasing.
+    let eyeStyle=document.getElementById('ks-client-eye-filter');
+    if(!eyeStyle) {eyeStyle=document.createElement('style');eyeStyle.id='ks-client-eye-filter';(document.head||document.body).appendChild(eyeStyle);}
+    eyeStyle.textContent=isGamePage && state.eyeEnabled ? `canvas{filter:${comfortFilterCSS()} !important;}` : '';
+    updateComfortPreview();
+    updateBreakReminderState();
+    updateResourcesInUI();
+  }
+
+  let menuAudio = null;
+  async function playMenuSound() {
+    if (!assetURLs.menuSound) {
+      resourceStatus = 'No menu sound uploaded. Choose an audio file first.';
+      updateResourcesInUI();
+      return false;
+    }
+    try {
+      if (menuAudio) { menuAudio.pause(); menuAudio.currentTime=0; }
+      const sound = new Audio(assetURLs.menuSound);
+      sound.volume = .28;
+      menuAudio = sound;
+      await sound.play();
+      resourceStatus = 'Menu sound playback started successfully.';
+      updateResourcesInUI();
+      return true;
+    } catch(err) {
+      resourceStatus = 'Sound blocked or unreadable: ' + String(err?.message || err);
+      updateResourcesInUI();
+      return false;
+    }
+  }
+  function verifyAssets() {
+    const names=assetKeys.filter(k=>assetURLs[k]).map(k=>assetMeta[k]||k);
+    resourceStatus = names.length ? `${names.length} local assets ready: ${names.join(', ')}` : 'No local asset loaded. Add a file above.';
+    updateResourcesInUI();
+  }
+
+  function show(toggle) {
+    open = typeof toggle === 'boolean' ? toggle : !open;
+    if (open && document.pointerLockElement) document.exitPointerLock?.();
+    if (open) {
+      renderTab();
+      if (state.menuSoundEnabled && assetURLs.menuSound) { void playMenuSound(); }
+    }
+    apply();
+  }
+
+  function setSetting(k, value) {
+    if (!(k in defaults)) return;
+    if (typeof defaults[k] === 'number') value = Number(value);
+    if (k === 'customCSS') value = String(value).slice(0, 12000);
+    if (k === 'performancePreset') { applyPerformancePreset(value); return; }
+    if (k === 'smoothPreset') { applySmoothPreset(String(value));return; }
+    if (k === 'eyePreset') { applyEyePreset(String(value));return; }
+    if (['menuSelector','uiImageSelector','minimalSelectors'].includes(k)) value = String(value).slice(0,120);
+    if (k === 'themePreset' && !(value in themeColors)) return;
+    if (k === 'fontFamily' && !['Segoe UI','Arial','Verdana','Tahoma','Consolas','KS Custom Font'].includes(value)) return;
+    if (k === 'customAccent' && !/^#[a-f0-9]{6}$/i.test(value)) return;
+    if(k==='fpsLimit') { value=Number(value); if (![0,60,120,144,165,180].includes(value))return; }
+    if(k==='uiScale') {
+      value=Math.max(100,Math.min(160,Math.round(Number(value)||100)));
+      state.uiScale=value;save();
+      $('ks-panel').style.setProperty('--ks-ui-scale', String(value/100));
+      return; // No full redraw on the resize slider.
+    }
+    if(k==='eyeSoftness')value=Math.max(0,Math.min(6,Math.round(Number(value)||0)));
+    if(k==='breakReminderMinutes' && ![0,20,30,45,60].includes(Number(value)))return;
+    if(k.startsWith('eye') && !['eyeEnabled','eyePreset'].includes(k)) {
+      state.eyePreset='Custom';
+      const selector=$('ks-body').querySelector('select[data-setting="eyePreset"]');
+      if(selector) {selector.value='Custom';const choice=selector.options[selector.selectedIndex];const label=selector.parentNode.querySelector('.ks-select-value');if(choice&&label)label.textContent=choice.textContent;}
+    }
+    if(k==='fpsLimit')state.smoothPreset='Native';
+    state[k] = value;
+    if (k === 'fpsLimit') window.__KS_FRAME_PACER__?.setLimit(value);
+    save();
+    apply();
+    const preview = $('ks-preview-svg');
+    if (preview) drawCrosshair(preview);
+    if (k === 'previewBackground') updatePreviewBackground();
+    if (k === 'gameResolution') notify('game-resolution', { preset: state.gameResolution });
+    if (k === 'menuResolution') notify('menu-resolution', { preset: state.menuResolution });
+    if (k === 'showGraph') paintGraphs();
+    if (k === 'breakReminderMinutes')visiblePlayMinutes=0;
+    if (['fpsSource','themePreset','fontFamily','language','centerDot','centerDotOutline','outlineEnabled','shadowEnabled','shape'].includes(k)) renderTab();
+  }
+
+
+  const backupFormat = 'ksclient-settings';
+  function exportSettings() {
+    // Export only supported settings; local assets live in IndexedDB.
+    const safe = Object.fromEntries(Object.keys(defaults)
+      .map(k=>[k,state[k]]));
+    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client alpha 1.1.6',exportedAt:new Date().toISOString(),settings:safe};
+    const blob = new Blob([JSON.stringify(doc,null,2)],{type:'application/json'});
+    const objectURL = URL.createObjectURL(blob);
+    const link=document.createElement('a');link.href=objectURL;link.download='KS-Client-alpha-1.0.11-settings.json';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(objectURL),30000);
+    sharingStatus='Settings JSON exported. No account token or local image/audio/font was included.';
+    const status=$('ks-sharing-status');if(status)status.textContent=L(sharingStatus);
+  }
+  function checkImportValue(key, value) {
+    const def=defaults[key];
+    if(key==='customCrosshairPresets') {
+      if(!Array.isArray(value)||value.length>12)return undefined;
+      return value.filter(p=>p&&typeof p.name==='string'&&p.name.length<=30&&p.settings&&typeof p.settings==='object')
+        .map(p=>({name:p.name,settings:Object.fromEntries(crosshairFields.filter(k=>checkImportValue(k,p.settings[k])!==undefined).map(k=>[k,p.settings[k]]))}));
+    }
+    if(typeof value!==typeof def)return undefined;
+    if(typeof def==='number' && (!Number.isFinite(value)||Math.abs(value)>20000))return undefined;
+    if(typeof def==='string' && value.length>12000)return undefined;
+    if(['color','customAccent','centerDotColor','centerDotOutlineColor','outlineColor','shadowColor'].includes(key) && !/^#[a-f0-9]{6}$/i.test(value))return undefined;
+    if(key==='language' && !Object.hasOwn(languageNames,value))return undefined;
+    if(key==='fpsLimit' && ![0,60,120,144,165,180].includes(value))return undefined;
+    if(key==='gameResolution' && !['native','720','1080','1440','2160'].includes(value))return undefined;
+    if(key==='menuResolution' && !['native','720','1080','1440','2160'].includes(value))return undefined;
+    if(key==='themePreset' && !Object.hasOwn(themeColors,value))return undefined;
+    if(key==='performancePreset' && !['Low','Balanced','High Performance'].includes(value))return undefined;
+    if(key==='shape' && !crosshairShapes.includes(value))return undefined;
+    if(key==='centerDotShape' && !['circle','square','diamond'].includes(value))return undefined;
+    return value;
+  }
+  async function importSettings(file) {
+    if(!file||file.size>256000||file.size===0)throw Error(L('Please choose a JSON backup smaller than 256 KB.'));
+    const data=JSON.parse(await file.text());
+    if(!data||data.format!==backupFormat||data.schemaVersion!==1||!data.settings||typeof data.settings!=='object'||Array.isArray(data.settings))throw Error(L('Unsupported KS Client settings format.'));
+    if(!confirm(L('Import this settings backup? Personal CSS will remain disabled for safety. Local assets will not be changed.')))return;
+    const safe={};
+    for(const key of Object.keys(defaults)){
+      if(!Object.prototype.hasOwnProperty.call(data.settings,key))continue;
+      const checked=checkImportValue(key,data.settings[key]);
+      if(checked!==undefined)safe[key]=checked;
+    }
+    state={...state,...safe,customCSSEnabled:false};
+    save(); apply();
+    window.__KS_FRAME_PACER__?.setLimit(state.fpsLimit);
+    notify('game-resolution',{preset:state.gameResolution});
+    notify('menu-resolution',{preset:state.menuResolution});
+    sharingStatus=`Imported ${Object.keys(safe).length} settings. Review Custom CSS before enabling it.`;
+    renderTab();
+  }
+
+  function navigateSettingsTab(name) {
+    if (!tabs.includes(name))return;
+    selectedTab=name;renderTab();$('ks-body').scrollTop=0;
+    if(selectedTab==='Diagnostics'){notify('diagnostics-poll');notify('crash-status');}
+  }
+  $('ks-nav').addEventListener('click',e=>{const b=e.target.closest('[data-group]');if(b){const g=groups.find(g=>g.key===b.dataset.group);if(g)navigateSettingsTab(g.items[0]);}});
+  $('ks-body').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b)navigateSettingsTab(b.dataset.tab);});
+  shadow.addEventListener('pointerdown',e=>{if(activePopup&&!e.composedPath().includes(activePopup)&&!e.composedPath().includes(activeSelect))closeCustomSelect();},true);
+  shadow.addEventListener('keydown',e=>{
+    if(!activePopup)return;
+    const opts=Array.from(activePopup.querySelectorAll('button:not(:disabled)'));
+    if(e.key==='Escape'){e.stopPropagation();e.preventDefault();closeCustomSelect();return;}
+    const idx=opts.indexOf(shadow.activeElement);
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();opts[(idx+(e.key==='ArrowDown'?1:-1)+opts.length)%opts.length]?.focus();}
+    else if(e.key==='Home'){e.preventDefault();opts[0]?.focus();}
+    else if(e.key==='End'){e.preventDefault();opts[opts.length-1]?.focus();}
+  },true);
+  $('ks-body').addEventListener('scroll',()=>{if(activePopup)closeCustomSelect();},{passive:true});
+  $('ks-close').addEventListener('click', () => show(false));
+  $('ks-gear').addEventListener('click', () => show(true));
+  $('ks-dimmer').addEventListener('click', e => { if (e.target === $('ks-dimmer')) show(false); });
+
+  $('ks-body').addEventListener('change', async e => {
+    const input = e.target.closest('input[data-asset]');
+    if (!input || !input.files?.length) return;
+    const file = input.files[0];
+    const kind = input.dataset.asset;
+    const types = {
+      menuBackground: ['image/png','image/jpeg','image/webp'],
+      uiImage: ['image/png','image/jpeg','image/webp'],
+      menuSound: ['audio/mpeg','audio/wav','audio/ogg','audio/mp4'],
+      localFont: ['font/woff','font/woff2','application/font-woff','application/octet-stream','']
+    };
+    const maxSize = kind === 'menuSound' ? 3_000_000 : kind === 'localFont' ? 1_500_000 : 5_000_000;
+    const valid = kind === 'localFont' ? /\.woff2?$/i.test(file.name) : types[kind]?.includes(file.type);
+    if (!valid || file.size > maxSize || file.size === 0) {
+      resourceStatus = `Unsupported file or too large. Limit: ${(maxSize / 1000000).toFixed(1)} MB.`;
+      updateResourcesInUI(); return;
+    }
+    try {
+      await saveAsset(kind, file);
+      setAssetURL(kind, file);
+      assetMeta[kind] = file.name;
+      resourceStatus = `${file.name} saved locally.`;
+      apply();renderTab();
+    } catch(error) { resourceStatus = 'Unable to store the file: ' + String(error);updateResourcesInUI(); }
+  });
+  $('ks-body').addEventListener('change', async e=>{
+    const fileInput=e.target;
+    if(fileInput.id!=='ks-import-file')return;
+    const selected=fileInput.files?.[0];
+    try { await importSettings(selected); }
+    catch(error) {sharingStatus='Import failed: '+String(error.message||error);const n=$('ks-sharing-status');if(n)n.textContent=L(sharingStatus);}
+    // The import can re-render the panel; never dereference a detached event target.
+    if(fileInput.isConnected) fileInput.value='';
+  });
+  $('ks-body').addEventListener('click', async e => {
+    const button = e.target.closest('[data-clear-asset]');
+    if (!button) return;
+    const key = button.dataset.clearAsset;
+    try { await deleteAsset(key); setAssetURL(key, null); if(key==='menuSound'&&menuAudio){menuAudio.pause();menuAudio=null;} delete assetMeta[key]; resourceStatus = 'Local resource removed.'; apply();renderTab(); }
+    catch(error) {resourceStatus='Unable to delete local file: '+String(error);updateResourcesInUI();}
+  });
+
+  $('ks-body').addEventListener('input', e => {
+    const k = e.target.dataset.setting;
+    if (!k) return;
+    const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    if (e.target.type === 'range' || e.target.type === 'color') {
+      // Avoid relayout of the entire WebView while dragging menu zoom.
+      if(k!=='uiScale')setSetting(k,v);
+      const val = $('ks-body').querySelector(`[data-for="${k}"]`);
+      const suffix=k==='eyeSoftness'?'/10 px':(k === 'size' || k === 'gap' || k === 'thickness' ? 'px' : '%');
+      if (val) val.textContent = (k==='uiScale'?v:state[k]) + suffix;
+    }
+  });
+
+  $('ks-body').addEventListener('change', e => {
+    const key = e.target.dataset.browser;
+    if (!key || !browserPrefsLoaded || !Object.hasOwn(browserPrefs,key)) return;
+    const value = e.target.type==='checkbox' ? e.target.checked : e.target.value;
+    browserPrefs = {...browserPrefs,[key]:value};
+    if(key==='uncapFps' && value) {
+      state.fpsLimit=0;state.smoothPreset='Native';save();
+      window.__KS_FRAME_PACER__?.setLimit(0);
+    }
+    browserStatus = 'Saving browser settings…';
+    notify('browser-save',{browser:browserPrefs});
+  });
+
+  $('ks-body').addEventListener('change', e => {
+    const k = e.target.dataset.setting;
+    if (!k) return;
+    setSetting(k, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
+  });
+
+  $('ks-body').addEventListener('click', e => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const a = el.dataset.action;
+    if (a === 'test-menu-sound') {void playMenuSound();}
+    if (a === 'verify-assets') {verifyAssets();}
+    if (a === 'pixel-perfect') {state.menuResolution='native';state.gameResolution='native';save();notify('menu-resolution',{preset:'native'});notify('game-resolution',{preset:'native'});renderTab();apply();}
+    if (a === 'css-apply') { const editor=$('ks-body').querySelector('textarea[data-setting="customCSS"]'); if(editor) {state.customCSS=editor.value.slice(0,12000); state.customCSSEnabled=true;save();apply();renderTab();} }
+    if (a === 'css-clear') {state.customCSS='';state.customCSSEnabled=false;save();apply();renderTab();}
+    if (a === 'preset-save') {
+      const name=$('ks-preset-name')?.value.trim().slice(0,30) || `Preset ${savedPresets().length + 1}`;
+      const preset={name, settings:Object.fromEntries(crosshairFields.map(k=>[k,state[k]]))};
+      const existing=savedPresets().findIndex(p=>p.name.toLowerCase()===name.toLowerCase());
+      const list=[...savedPresets()];
+      if(existing>=0) list[existing]=preset;
+      else if(list.length < 12) list.push(preset);
+      else {alert(L('Maximum 12 crosshair presets. Remove one first.'));return;}
+      state.customCrosshairPresets=list;save();renderTab();
+    }
+    if (a === 'preset-load' || a === 'preset-delete') {
+      const value=$('ks-preset-select')?.value;
+      if(value===undefined || value==='') return;
+      const index=Number(value),list=[...savedPresets()];
+      if(!Number.isInteger(index)||!list[index])return;
+      if(a==='preset-load') {for(const k of crosshairFields) if(k in list[index].settings) state[k]=list[index].settings[k];state.crosshairEnabled=true;}
+      else {list.splice(index,1);state.customCrosshairPresets=list;}
+      save();renderTab();apply();
+    }
+    if (a === 'engine-electron' && !activeEngine.toLowerCase().includes('electron') && confirm('Restart KS Client with Electron?')) notify('engine-switch',{engine:'electron'});
+    if (a === 'engine-cef' && !activeEngine.toLowerCase().includes('cef') && confirm('Restart KS Client with CEF?')) notify('engine-switch',{engine:'cef'});
+    if (a === 'fullscreen') notify('fullscreen');
+    if (a === 'check-gpu') checkGPU();
+    if (a === 'browser-check-gpu') checkBrowserGPU();
+    if (a === 'browser-restart' && confirm(L('Restart and apply changes?'))) notify('browser-restart');
+    if (a === 'browser-reset' && confirm(L('Reset only the settings in this browser section?'))) notify('browser-reset',{section:el.dataset.browserSection});
+    if (a === 'export-settings') exportSettings();
+    if (a === 'import-settings') $('ks-import-file')?.click();
+    if (a === 'open-logs') notify('open-logs');
+    if (a === 'stats') { show(false); notify('stats'); }
+    if (a === 'clan') { show(false); notify('clan'); }
+    if (a === 'game') { show(false); notify('game'); }
+    if (a === 'hud') { state.showHUD = !state.showHUD; save(); renderTab(); apply(); }
+    if (a === 'reset-section') resetCurrentSection();
+    if (a === 'reset' && confirm(L('Reset all KS Client settings?'))) {
+      state = { ...defaults }; save();
+      notify('browser-reset',{section:'all'});
+      notify('game-resolution', { preset: state.gameResolution });
+      notify('menu-resolution', { preset: state.menuResolution });
+      window.__KS_FRAME_PACER__?.setLimit(state.fpsLimit);
+      renderTab(); apply();
+    }
+  });
+
+  window.addEventListener('keydown', e => {
+    if (e.key === 'F1') { e.preventDefault(); e.stopImmediatePropagation(); show(); }
+    else if (e.key === 'F10') { e.preventDefault(); e.stopImmediatePropagation(); state.showHUD = !state.showHUD; save(); apply(); }
+    else if (e.key === 'Escape' && open) { e.preventDefault(); e.stopImmediatePropagation(); show(false); }
+  }, true);
+
+  // Kirka.io may draw its FPS directly into a WebGL canvas. Canvas pixels
+  // cannot reliably reveal the engine's FPS, so only read explicitly visible
+  // DOM text carrying an FPS label; never infer it from rAF callback counts.
+  let gameHUDValue = null;
+  let gameHUDReadAt = -Infinity;
+  function readGameHUDValue() {
+    if(!isGamePage) return null;
+    let value=null;
+    try {
+      const items=document.querySelectorAll('[id*="fps" i], [class*="fps" i], [data-testid*="fps" i], [aria-label*="fps" i]');
+      for(let i=0;i<Math.min(items.length,50);i++) {
+        const el=items[i];
+        if(host.contains(el) || el.closest('#ks-client-root'))continue;
+        if(!el.getClientRects().length)continue;
+        const content=String(el.textContent||el.getAttribute('aria-label')||'').trim().slice(0,80);
+        const match=content.match(/(?:\bFPS\s*[:=]?\s*(\d{1,4})(?!\d))|(?:(\d{1,4})\s*FPS\b)/i);
+        if(!match)continue;
+        const v=Number(match[1]||match[2]);
+        if(v>=1 && v<=2000){value=v;break;}
+      }
+    } catch(_) { /* DOM/HTML FPS is optional. */ }
+    return value;
+  }
+  const animationFrame = window.__KS_FRAME_PACER__?.nativeRequestAnimationFrame || window.requestAnimationFrame.bind(window);
+  let lastGraphSampleAt=0;
+  let displayFrames=0;
+  let nativeDisplayFPS=0;
+  function animate(ts) {
+    if (lastFrame) {
+      frameMs=ts-lastFrame;displayFrames++;
+      // Only visible-page intervals, avoiding background-tab throttling spikes.
+      if(!document.hidden && frameMs>0 && frameMs<250) {stabilitySamples.push(frameMs);if(stabilitySamples.length>240)stabilitySamples.shift();}
+    }
+    lastFrame=ts;
+    if(!lastSample)lastSample=ts;
+    if(ts-lastSample >= 1000) {
+      nativeDisplayFPS = Math.round(displayFrames * 1000 / (ts-lastSample));
+      displayFrames=0;lastSample=ts;
+    }
+    if(ts-lastGraphSampleAt>=500) {
+      lastGraphSampleAt=ts;
+      if(state.fpsSource==='kirka-hud' && ts-gameHUDReadAt>900) {
+        gameHUDValue=readGameHUDValue();gameHUDReadAt=ts;
+      }
+      const measured = window.__KS_FRAME_PACER__?.getStats();
+      if(isGamePage && measured && measured.completedFrames>3) {
+        displayedGameFPS = measured.estimatedCallbackFPS;
+        displayedFrameMs = measured.estimatedCallbackFrameMs;
+        measuredLabel = 'Estimated game rAF callback rate (not presented GPU frames)';
+      } else {
+        displayedGameFPS = nativeDisplayFPS;
+        displayedFrameMs = frameMs;
+        measuredLabel = 'Browser animation ticks (not game GPU FPS)';
+      }
+      if(state.fpsSource==='kirka-hud') {
+        if(gameHUDValue!==null) {
+          displayedGameFPS=gameHUDValue;
+          displayedFrameMs=1000/gameHUDValue;
+          measuredLabel='Game FPS detected from HTML';
+        } else {
+          displayedGameFPS=0;displayedFrameMs=0;
+          measuredLabel='Kirka.io HUD FPS unavailable (possibly drawn on canvas)';
+        }
+      }
+      if(state.fpsSource!=='kirka-hud' || gameHUDValue!==null) {
+        fpsHistory.push(displayedGameFPS);
+        frameHistory.push(displayedFrameMs);
+      }
+      if(fpsHistory.length>60) fpsHistory.shift();
+      if(frameHistory.length>60) frameHistory.shift();
+      $('ks-fps').textContent=state.fpsSource==='kirka-hud' ? (gameHUDValue!==null ? `Kirka ${gameHUDValue} FPS` : L('Kirka.io HUD FPS unavailable (possibly drawn on canvas)')) : `rAF ${displayedGameFPS} FPS · ${displayedFrameMs.toFixed(1)} ms`;
+      const fpsNode=$('ks-current-gamefps'); if(fpsNode)fpsNode.textContent=state.fpsSource==='kirka-hud'&&gameHUDValue===null?'—':displayedGameFPS+' FPS';
+      const kirkaNode=$('ks-kirka-fps-value');if(kirkaNode)kirkaNode.textContent=gameHUDValue!==null?gameHUDValue+' FPS':'—';
+      const msNode=$('ks-current-ms'); if(msNode)msNode.textContent=displayedFrameMs.toFixed(1)+' ms';
+      const lbl=$('ks-fps-source'); if(lbl)lbl.textContent=L(measuredLabel);
+      paintGraphs();
+      updateStabilityDiagnostics();
+    }
+    animationFrame(animate);
+  }
+  setInterval(()=>{if(open && selectedTab==='Diagnostics')notify('diagnostics-poll');},2000);
+  window.__KS_CLIENT__ = {
+    setEngineInfo: name => {activeEngine=String(name||'Unknown');if(selectedTab==='General')renderTab();},
+    toggle: () => show(),
+    open: () => show(true),
+    close: () => show(false),
+    toggleHud: () => { state.showHUD = !state.showHUD; save(); apply(); },
+    setBrowserConfig: (desired,active,needsRestart,status) => {
+      if (desired && ['enabled','disabled'].includes(desired.gpu) && ['default','d3d11','opengl'].includes(desired.angle)) {
+        browserPrefs={gpu:desired.gpu,angle:desired.angle,devTools:!!desired.devTools,contextMenu:!!desired.contextMenu,uncapFps:!!desired.uncapFps};
+        browserActive=active||browserPrefs;
+        browserPrefsLoaded=true;
+        browserPendingRestart=!!needsRestart;
+      }
+      browserStatus=status || 'Applied on browser startup';
+      if(browserGroups.has(selectedTab) || selectedTab==='Performance')renderTab();
+    },
+    setDiagnostics: d => { if(d && Number.isFinite(d.browserRAM)) { diagnostics=d;updateDiagnosticsUI(); } },
+    setCrashStatus: s => {crashStatus=String(s);const el=$('ks-crash-status');if(el)el.textContent=L(crashStatus);},
+
+  };
+
+  function attach() {
+    if (!document.body) return false;
+    document.body.appendChild(host);
+    renderTab();
+    apply();
+    loadLocalAssets();
+    requestAnimationFrame(animate);
+    notify('engine-info');
+    notify('browser-config');
+    notify('game-resolution', { preset: state.gameResolution });
+    notify('menu-resolution', { preset: state.menuResolution });
+    return true;
+  }
+
+  // Local-only error reporting, with a small limit to avoid log spam. Do not
+  // capture tokens, URLs, account information, or script stacks.
+  let recordedErrors=0;
+  function reportOverlayError(message){
+    if(recordedErrors>=8)return;
+    recordedErrors++;
+    notify('client-error',{message:String(message||'Unknown JavaScript error').slice(0,250)});
+  }
+  window.addEventListener('unhandledrejection', e=>reportOverlayError('Unhandled promise rejection: '+(e.reason?.name||'Error')));
+  window.addEventListener('error', e=>reportOverlayError('Page JavaScript error: '+(e.error?.name||'Error')));
+
+  if (!attach()) document.addEventListener('DOMContentLoaded', attach, { once: true });
+})();

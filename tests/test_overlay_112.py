@@ -1,0 +1,47 @@
+"""Engine-independent KS Client 1.1.6 UI smoke test in local Chromium.
+Not a live test of Windows Electron, CEF, or FPS unlock.
+"""
+from pathlib import Path
+from playwright.sync_api import sync_playwright
+root=Path(__file__).resolve().parents[1]
+js=(root/'electron-app/overlay/overlay.js').read_text()
+cef=(root/'cef/overlay/overlay.js').read_text()
+assert js==cef, 'Different overlays shipped to the two engines'
+js=js.replace("if (!allowedHosts.has(location.hostname) || location.protocol !== 'https:') return;",'/* Testing offline origin: allow. */')
+pacer=(root/'electron-app/overlay/frame_pacer.js').read_text().replace("if (location.protocol !== 'https:' || !['kirka.io', 'www.kirka.io'].includes(location.hostname)) return;",'/* Testing offline origin: allow. */')
+with sync_playwright() as play:
+ browser=play.chromium.launch(executable_path=('/usr/bin/chromium' if Path('/usr/bin/chromium').exists() else None),headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
+ for width,height in [(1280,720),(1600,900),(2560,1440)]:
+  page=browser.new_page(viewport={'width':width,'height':height})
+  errors=[]
+  page.on('dialog',lambda dialog: dialog.accept())
+  page.on('pageerror',lambda err: errors.append(str(err)))
+  page.set_content('<html><body><canvas width="800" height="600"></canvas></body></html>')
+  page.evaluate('''() => {window.__out=[];window.__KS_NATIVE__={post: m=>window.__out.push(m)};const store={'ksclient.settings.alpha':JSON.stringify({language:'hu',showFPS:true,uiScale:100,eyeEnabled:true,eyeContrast:90,shape:'circle',crosshairEnabled:true})};Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem(k){return store[k]||null},setItem(k,v){store[k]=v},removeItem(k){delete store[k]}}});}''')
+  page.add_script_tag(content=pacer)
+  page.add_script_tag(content=js)
+  page.wait_for_function('!!window.__KS_CLIENT__')
+  assert page.evaluate("window.__out.some(m=>m.type==='engine-info')")
+  page.evaluate('window.__KS_CLIENT__.setEngineInfo("Electron")')
+  page.evaluate('window.__KS_CLIENT__.open()')
+  page.locator('.ks-tab[data-group="Client"]').click()
+  page.locator('.ks-subtab[data-tab="General"]').click()
+  body=page.locator('#ks-body').inner_text()
+  assert 'Electron' in body,(width,body[:200])
+  page.locator('[data-action="engine-cef"]').click()
+  assert page.evaluate("window.__out.some(m=>m.type==='engine-switch' && m.engine==='cef')")
+  page.locator('.ks-tab[data-group="Gameplay"]').click()
+  assert page.locator('.ks-subtab[data-tab="Performance"]').count()==1
+  assert page.locator('.ks-subtab[data-tab="Eye Comfort"]').count()==1
+  assert page.locator('.ks-subtab[data-tab="Frame Stability"]').count()==1
+  page.locator('.ks-subtab[data-tab="Eye Comfort"]').click()
+  assert page.locator('[data-setting="eyeEnabled"]').is_checked()
+  page.locator('.ks-subtab[data-tab="Crosshair"]').click()
+  assert page.locator('[data-setting="crosshairEnabled"]').count()==1
+  page.locator('.ks-tab[data-group="Client"]').click()
+  page.locator('.ks-subtab[data-tab="General"]').click()
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.6')
+  assert not errors,(width,errors)
+  print('PASS 1.1.6 engine UI',width,height)
+  page.close()
+ browser.close()
