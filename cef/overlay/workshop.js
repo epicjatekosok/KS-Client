@@ -121,6 +121,7 @@
        input('item-price','Estimated price (manual only)',0,'number')+
        '<label class="ks-row">Favorite <input type="checkbox" id="ks-wk-item-favorite" checked></label>'+btn('item-save','Save item'))+
      card('Visible inventory details','<p class="ks-hint">'+escape(JSON.stringify(deepSnapshot().inventory||{}).slice(0,1200))+'</p>')+
+     card('Visible market listings (read-only)','<p class="ks-hint">'+escape(JSON.stringify(deepSnapshot().market||{}).slice(0,1200))+'</p>')+
      card('Saved collection',cfg.inventory.length?cfg.inventory.map((x,i)=>'<div class="ks-row"><div><strong>'+(x.favorite?'★ ':'')+escape(x.item)+'</strong><div class="ks-desc">'+escape(x.note)+' · Manual estimate: '+x.price+'</div></div>'+btn('item-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved items.</p>')+notice;
    return '';
  }
@@ -284,7 +285,7 @@
    const html='<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;unsafe-inline&#39; &#39;unsafe-eval&#39;; style-src &#39;unsafe-inline&#39;; img-src data:; connect-src &#39;none&#39;; form-action &#39;none&#39;">'+
      '<style>body{background:#0d1219;color:#f0aa35;font:14px system-ui;padding:12px}</style></head><body>'+
      '<div id="plugin-status">Isolated plugin preview</div>'+
-     '<script>let id=0;const pending=new Map();window.addEventListener("message",e=>{if(e.data?.ksWorkshopReply===1&&pending.has(e.data.id)){pending.get(e.data.id)(e.data.snapshot);pending.delete(e.data.id)}});window.ks=Object.freeze({message:function(text){parent.postMessage({ksWorkshopPlugin:1,action:"message",text:String(text).slice(0,140)},"*")},tint:function(target,color){parent.postMessage({ksWorkshopPlugin:1,action:"tint",target:String(target),color:String(color)},"*")},snapshot:function(){return new Promise(resolve=>{let n=++id;pending.set(n,resolve);parent.postMessage({ksWorkshopPlugin:1,action:"snapshot",id:n},"*")})}});</script>'+     '<script>try{(new Function(atob("'+code64+'")))()}catch(e){document.getElementById("plugin-status").textContent="Plugin error: "+String(e.message).slice(0,150)}</script></body></html>';
+     '<script>let id=0;const pending=new Map();window.addEventListener("message",e=>{if(e.source===parent&&e.data?.ksWorkshopReply===1&&pending.has(e.data.id)){pending.get(e.data.id)(e.data.snapshot);pending.delete(e.data.id)}});window.ks=Object.freeze({message:function(text){parent.postMessage({ksWorkshopPlugin:1,action:"message",text:String(text).slice(0,140)},"*")},tint:function(target,color){parent.postMessage({ksWorkshopPlugin:1,action:"tint",target:String(target),color:String(color)},"*")},snapshot:function(){return new Promise(resolve=>{let n=++id;pending.set(n,resolve);parent.postMessage({ksWorkshopPlugin:1,action:"snapshot",id:n},"*")})}});</script>'+     '<script>try{(new Function(atob("'+code64+'")))()}catch(e){document.getElementById("plugin-status").textContent="Plugin error: "+String(e.message).slice(0,150)}</script></body></html>';
    const presets={hud:'.script-ui',chat:'#chat',killfeed:'.kill-bar-cont',inventory:'.inventory'};
    let calls=0;
    pluginListener=e=>{
@@ -292,7 +293,7 @@
      if(e.data.action==='snapshot'&&Number.isSafeInteger(e.data.id)&&e.data.id>0&&e.data.id<=100){
        const data=deepSnapshot();
        const safe={scene:data.scene||'unknown',stats:data.stats||{},observed:data.observed||{},
-         inventory:data.inventory||null,profile:data.profile||null,servers:data.servers||null,input:data.input||{}};
+         inventory:data.inventory||null,market:data.market||null,profile:data.profile||null,servers:data.servers||null,input:data.input||{}};
        frame.contentWindow?.postMessage({ksWorkshopReply:1,id:e.data.id,snapshot:safe},'*');
      }
      if(e.data.action==='message'){
