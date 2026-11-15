@@ -3,22 +3,42 @@
 package main
 
 import (
-  "path/filepath"
-  "testing"
+ "os"
+ "path/filepath"
+ "testing"
+ "time"
+ "os/exec"
 )
 
 func TestSwitchTokenValidation(t *testing.T){
-  valid:="0123456789abcdef0123456789abcdef"
-  if !validSwitchToken(valid){t.Fatal("valid nonce rejected")}
-  for _,bad:=range []string{"","wrong","../../bad","0123456789abcdef0123456789abcdeg"} {
-    if validSwitchToken(bad){t.Errorf("invalid nonce accepted: %q",bad)}
-  }
+ valid:="0123456789abcdef0123456789abcdef"
+ if !validSwitchToken(valid){t.Fatal("valid nonce rejected")}
+ for _,bad:=range []string{"","wrong","../../bad","0123456789abcdef0123456789abcdeg"}{
+  if validSwitchToken(bad){t.Errorf("invalid nonce accepted: %q",bad)}
+ }
 }
-
 func TestEnginePaths(t *testing.T){
-  base:=filepath.Join("C:","KS-Client")
-  electron,dir:=runtimeFile(base,"electron")
-  if filepath.Base(electron)!="electron.exe" || filepath.Base(dir)!="Electron"{t.Fatal("invalid Electron runtime path")}
-  cef,dir:=runtimeFile(base,"cef")
-  if filepath.Base(cef)!="KS.Cef.Client.exe" || filepath.Base(dir)!="CEF"{t.Fatal("invalid CEF runtime path")}
+ base:=filepath.Join("C:","KS-Client")
+ e,dir:=runtimeFile(base,"electron")
+ if filepath.Base(e)!="electron.exe"||filepath.Base(dir)!="Electron"{t.Fatal("invalid Electron path")}
+ c,dir:=runtimeFile(base,"cef")
+ if filepath.Base(c)!="KS.Cef.Client.exe"||filepath.Base(dir)!="CEF"{t.Fatal("invalid CEF path")}
+}
+func TestReadyDoesNotChangeSelectionUntilConfirmed(t *testing.T){
+ // Isolate the application preference directory and verify that failure
+ // cannot overwrite the previously selected engine.
+ temp:=t.TempDir()
+ old:=os.Getenv("LOCALAPPDATA")
+ t.Setenv("LOCALAPPDATA",temp)
+ defer os.Setenv("LOCALAPPDATA",old)
+ if err:=saveEngine("cef");err!=nil{t.Fatal(err)}
+ token:="deadbeefdeadbeefdeadbeefdeadbeef"
+ // Invalid executable must not count as a successful switch.
+ cmd:=exec.Command("cmd.exe","/c","exit","3")
+ if err:=cmd.Start();err!=nil{t.Fatal(err)}
+ if err:=awaitEngineSwitch(cmd,"electron",token);err==nil{t.Fatal("exited child passed readiness")}
+ if chosenEngine()!="cef"{t.Fatal("engine selection changed on startup failure")}
+}
+func TestSwitchTimeoutConstant(t *testing.T){
+ if switchTimeout<30*time.Second||switchTimeout>60*time.Second{t.Fatal("invalid switch timeout")}
 }

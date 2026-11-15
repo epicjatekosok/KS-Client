@@ -2,15 +2,15 @@ from pathlib import Path
 from zipfile import ZipFile
 import hashlib,json
 root=Path(__file__).resolve().parents[1]
-zip_path=root/'KS-Client-alpha-1.1.8-Portable.zip'
-setup=root/'KS-Client-alpha-1.1.8-Setup.exe'
+zip_path=root/'KS-Client-alpha-1.1.9-Portable.zip'
+setup=root/'KS-Client-alpha-1.1.9-Setup.exe'
 assert zip_path.is_file() and setup.is_file()
 assert setup.stat().st_size > zip_path.stat().st_size, 'setup missing embedded package'
 with ZipFile(zip_path) as z:
  assert z.testzip() is None, 'ZIP CRC failed'
  for engine,exe in [('Electron','electron.exe'),('CEF','KS.Cef.Client.exe')]:
   marker=json.loads(z.read(f'runtime/{engine}/ks-smoke-pass.json').decode('utf-8-sig'))
-  assert marker['version']=='1.1.8' and marker['result']=='PASS'
+  assert marker['version']=='1.1.9' and marker['result']=='PASS'
   assert marker['exeSha256']==hashlib.sha256(z.read(f'runtime/{engine}/{exe}')).hexdigest()
  for name in ('KS-Client.exe','Uninstall-KS-Client.exe','runtime/CEF/KS.Cef.Client.exe','runtime/CEF/dotnet/dotnet.exe','runtime/Electron/electron.exe','runtime/Electron/resources/app/main.cjs'):
   assert name in z.namelist(),f'missing {name}'

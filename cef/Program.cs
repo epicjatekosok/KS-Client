@@ -7,16 +7,44 @@ internal static class Program
 {
     internal static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KSClient");
     internal static readonly string PrefsPath = Path.Combine(Root,"browser-settings.json");
-    internal static readonly string LogPath = Path.Combine(Root,"cef-1.1.8.log");
+    internal static readonly string LogPath = Path.Combine(Root,"cef-1.1.9.log");
     internal static BrowserPrefs Active = BrowserPrefs.Default();
     internal static string? SwitchToken;
+    internal static bool SwitchProbe;
+    private static System.Windows.Forms.Timer? probeTimer;
     internal static void SignalSwitchReady()
     {
         string? token = SwitchToken;
         if (token is null || token.Length != 32 || token.Any(c => !Uri.IsHexDigit(c))) return;
         SwitchToken = null;
-        try { File.WriteAllText(Path.Combine(Root, "engine-switch-" + token + ".ok"), "CEF"); }
-        catch (Exception ex) { Log("Could not signal CEF engine readiness: " + ex.Message); }
+        try
+        {
+            // Native WinForms window exists; Kirka network/overlay availability
+            // is intentionally NOT part of the engine switch handshake.
+            File.WriteAllText(Path.Combine(Root, "engine-switch-" + token + ".ready"), "cef");
+            Log("Native CEF window ready; launcher confirmation pending");
+            if (SwitchProbe)
+            {
+                int checks = 0;
+                probeTimer = new System.Windows.Forms.Timer { Interval = 250 };
+                probeTimer.Tick += (_, _) =>
+                {
+                    if (File.Exists(Path.Combine(Root, "engine-switch-" + token + ".ok")))
+                    {
+                        probeTimer.Stop();
+                        Application.Exit();
+                    }
+                    else if (++checks > 240)
+                    {
+                        probeTimer.Stop();
+                        Environment.ExitCode = 3;
+                        Application.Exit();
+                    }
+                };
+                probeTimer.Start();
+            }
+        }
+        catch (Exception ex) { Log("Could not signal CEF readiness: " + ex.Message); }
     }
 
     [STAThread]
@@ -25,6 +53,7 @@ internal static class Program
         Directory.CreateDirectory(Root);
         var switchArg=args.FirstOrDefault(a=>a.StartsWith("--ks-switch-token=",StringComparison.Ordinal));
         SwitchToken=switchArg is null?null:switchArg.Substring("--ks-switch-token=".Length);
+        SwitchProbe = args.Contains("--ks-switch-probe") && SwitchToken is not null;
         bool selfTest = args.Contains("--ks-self-test");
         bool safe = args.Contains("--ks-browser-safe-mode");
         Active = (safe || selfTest) ? BrowserPrefs.Default() : BrowserPrefs.Load();
@@ -57,6 +86,7 @@ internal static class Program
             settings.CefCommandLineArgs.Add("disable-background-timer-throttling", "1");
             settings.CefCommandLineArgs.Add("disable-backgrounding-occluded-windows", "1");
         }
+        Log("FPS startup flags: requested="+Active.UncapFps+"; native Chromium switches appended="+Active.UncapFps);
         // Called by the installer after publishing; checks that the native CEF
         // runtime can initialize on THIS Windows machine, without opening Kirka.
         try
@@ -67,13 +97,13 @@ internal static class Program
                 Log("CEF runtime initialization self-test: PASS");
                 return;
             }
-            Application.Run(new ClientForm());
+            Application.Run(new ClientForm(SwitchProbe));
         }
         catch (Exception e)
         {
             Log("CEF startup failure: " + e);
             if (selfTest) Environment.ExitCode = 1;
-            else MessageBox.Show(e.Message,"KS Client alpha 1.1.8 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
+            else MessageBox.Show(e.Message,"KS Client alpha 1.1.9 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
         }
         finally { if (global::CefSharp.Cef.IsInitialized == true) global::CefSharp.Cef.Shutdown(); }
     }

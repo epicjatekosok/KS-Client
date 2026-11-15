@@ -1,4 +1,14 @@
-# KS Client alpha 1.1.8
+# KS Client alpha 1.1.9
+
+- Supervised CEF ↔ Electron native engine switching with launcher-owned readiness, persisted selection only after native host confirmation and 45-second timeout.
+- Engine readiness independent of Kirka.io network loads. Failed engine starts retain the previously selected browser and produce local logs.
+- Direct '--engine electron' and '--engine cef' commands now wait for real native window acknowledgment.
+- Windows CI starts actual native Electron and CEF windows and verifies switching in both directions using offline probes.
+- Display native Chromium FPS launch switch status and estimated rAF callback frequency separately, without claiming measured GPU or Kirka.io render FPS.
+- Preserve shared UI, graphics preferences, crosshair, Eye Comfort and existing offline installer behavior.
+
+## Earlier changes
+# KS Client alpha 1.1.9
 
 - Add native engine identification, handshake retries and actionable switch status in Client > General.
 - Prevent losing the current window when switching Electron/CEF: nonce-based new-engine acknowledgment and 20-second timeout.
@@ -7,7 +17,7 @@
 - Chromium can still be capped by the game, the driver, VSync, compositor or monitor. CI does not claim to prove unlimited GPU FPS.
 
 ## Earlier releases
-# KS Client alpha 1.1.8
+# KS Client alpha 1.1.9
 
 - Fix CEF local dotnet.exe by bundling .NET 10 base and Windows Desktop runtimes together.
 - Preserve Electron downloads without mandatory libEGL.dll.
@@ -15,7 +25,7 @@
 - Require successful Windows process smoke tests for both engines before creating the offline installer.
 
 ## Prior changes
-# KS Client — Alpha 1.1.8
+# KS Client — Alpha 1.1.9
 
 ## CEF compilation repair
 
@@ -26,7 +36,7 @@
 ## Install verification
 
 - Electron and CEF installers now check required files and run a 30-second runtime-startup self-test BEFORE replacing the current runtime. Failed checks preserve the previous installed engine.
-- Engine version markers force an upgrade when alpha 1.1.8 is installed over older builds.
+- Engine version markers force an upgrade when alpha 1.1.9 is installed over older builds.
 - Added a standalone, non-destructive Windows verification script: `Verify-Installed.ps1`.
 - Retained official Electron SHA-256 verification, CEF NuGet restore/build, PowerShell syntax checking and the installer's transaction-like file replacement.
 
