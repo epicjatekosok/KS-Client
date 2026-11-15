@@ -26,4 +26,5 @@ if(location.protocol==='https:' && ALLOWED.has(location.hostname)){
     const src=ipcRenderer.sendSync('ks:early-graphics');
     if(typeof src==='string'&&src.length<18000)webFrame.executeJavaScript(src).catch(()=>{});
   }catch(_){}
+  try{const src=ipcRenderer.sendSync('ks:early-freeze');if(typeof src==='string'&&src.length<10000)webFrame.executeJavaScript(src).catch(()=>{});}catch(_){}
 }

@@ -24,6 +24,7 @@ internal sealed class ClientForm : Form
     private readonly string integrationCore;
     private readonly string graphics;
     private readonly string advanced;
+    private readonly string freezeGuard;
     private BrowserPrefs desired=Program.Active;
     private string menuResolution="native";
     private string gameResolution="native";
@@ -54,6 +55,7 @@ internal sealed class ClientForm : Form
         integrationCore=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_core.js"));
         graphics=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","webgl_cosmetics.js"));
         advanced=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","advanced_integration.js"));
+        freezeGuard=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","freeze_guard.js"));
         // A real CEF renderer->host PostMessage test. This is an offline page,
         // never an injected live Kirka script or external test dependency.
         var bridgeHtml="<html><body><script>setTimeout(function(){if(window.CefSharp && window.CefSharp.PostMessage){window.CefSharp.PostMessage(JSON.stringify({type:'ks-bridge-probe'}));}},350);</script>KS bridge probe</body></html>";
@@ -84,6 +86,7 @@ internal sealed class ClientForm : Form
                 e.Frame.ExecuteJavaScriptAsync(pacer);
                 e.Frame.ExecuteJavaScriptAsync(integrationBoot);
                 e.Frame.ExecuteJavaScriptAsync(graphics);
+                e.Frame.ExecuteJavaScriptAsync(freezeGuard);
             }
         };
         browser.FrameLoadEnd += (_,e)=>{
@@ -96,6 +99,7 @@ internal sealed class ClientForm : Form
             e.Frame.ExecuteJavaScriptAsync(integrationCore);
             e.Frame.ExecuteJavaScriptAsync(graphics);
             e.Frame.ExecuteJavaScriptAsync(advanced);
+            e.Frame.ExecuteJavaScriptAsync(freezeGuard);
             // This post-injection request fixes the lost initial handshake that
             // could leave Active Browser Engine permanently on "Loading...".
             e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setEngineInfo?.('CEF (CefSharp)');");

@@ -8,6 +8,8 @@
  if(location.protocol!=='https:' || !['kirka.io','www.kirka.io'].includes(location.hostname))return;
  const KEY='ksclient.workshop.v1';
  const WG='ksclient.webgl.v114';
+ const ADV='ksclient.advanced.v114';
+ const advancedCfg=()=>{try{return JSON.parse(localStorage.getItem(ADV)||'{}')||{}}catch(_){return {}}};
  const glCfg=()=>{try{return JSON.parse(localStorage.getItem(WG)||'{}')||{}}catch(_){return {}}};
  const glStatus=()=>window.__KS_WEBGL_COSMETICS__?.getStatus?.()||{};
  const deepSnapshot=()=>window.__KS_DEEP__?.getSnapshot?.()||{};
@@ -92,7 +94,11 @@
      card('Local asset replacement','<p class="ks-hint">Copy permitted PNG, JPG, WebP, MP3, WAV, OGG or CSS files to Documents/KSClient/Swapper/assets/img, media or css, matching Kirka.io /assets/ subpaths. No remote downloads and no JavaScript replacements.</p>'+
        '<label class="ks-row">Enable replacements at startup <input type="checkbox" id="ks-wk-swap-on" '+(cfg.swapEnabled?'checked':'')+'></label>'+
        btn('swap-toggle','Save swapper state')+' '+btn('swap-folder','Open asset folder')+' '+btn('swap-scan','Scan files')+
-       '<p class="ks-hint">Changes are applied to new network requests; reload the game after changing files. Some resources are cached, loaded from other hosts or protected by CSP.</p>')+notice;
+       '<p class="ks-hint">Exact Kirka image/audio/font/CSS resource matching only. Reload after changing files; no game JavaScript interception.</p>')+
+     card('Mouse-held freeze workaround (experimental)',
+       '<label class="ks-row">Enable optional frame-yield guard (reload required) <input type="checkbox" id="ks-wk-freeze-on" '+(advancedCfg().freezeGuard?'checked':'')+'></label>'+
+       btn('freeze-save','Save frame-yield setting')+
+       '<p class="ks-hint">Status: '+escape(JSON.stringify(window.__KS_FREEZE_GUARD__?.getStatus?.()||{}).slice(0,260))+'</p>')+notice;
    if(tab==='Plugins')return '<h2 class="ks-title">Safe JavaScript plugins</h2><p class="ks-sub">'+escape(srcmsg)+'</p>'+
      '<p class="ks-hint">Example: ks.message("Hello!"); ks.tint("hud","#ffaa22"); ks.snapshot().then(s=>ks.message(s.scene)); The snapshot includes only visible game data. Each run requires a click.</p>'+
      card('Add local plugin',input('plugin-name','Plugin name')+'<textarea id="ks-wk-plugin-code" class="ks-input" rows="7" placeholder="document.body.textContent = &#39;Hello from a sandboxed plugin!&#39;"></textarea>'+btn('plugin-save','Save code'))+
@@ -186,7 +192,10 @@
    const val=id=>ui.getElementById('ks-wk-'+id)?.value??'';
    const flag=id=>!!ui.getElementById('ks-wk-'+id)?.checked;
    const number=(id,min,max,def)=>clamp(val(id),min,max,def);
-   if(a==='gl-apply'){
+   if(a==='freeze-save'){
+     localStorage.setItem(ADV,JSON.stringify({freezeGuard:flag('freeze-on')}));
+     status='Frame-yield setting saved. Reload Kirka to apply safely.';
+   }else if(a==='gl-apply'){
      const x={enabled:flag('gl-enabled'),assetURL:trim(val('gl-source'),450),skinURL:imgURL(val('gl-skin'))||'',
        hue:number('gl-hue',0,360,0),saturation:number('gl-saturation',20,300,100),
        brightness:number('gl-brightness',20,250,100),scale:number('gl-scale',50,150,100),
