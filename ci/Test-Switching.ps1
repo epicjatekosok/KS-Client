@@ -53,7 +53,7 @@ try {
       }
     }
   }
-  foreach($source in @('electron-1.1.11.log','cef-1.1.11.log')){
+  foreach($source in @('electron-1.1.12.log','cef-1.1.12.log')){
     if(-not (Test-Path (Join-Path $folder $source) -PathType Leaf)){throw "Missing engine log: $source"}
   }
   # Probe windows can exit asynchronously after the supervising launcher has

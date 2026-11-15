@@ -45,7 +45,16 @@ assert 'setPermissionCheckHandler' in electron_host
 assert 'ClientGamePermissionHandler' in cef_host
 assert 'game-screenshot' in electron_host and 'game-screenshot' in cef_host
 assert 'game-join' in electron_host and 'game-join' in cef_host
+workshop=(root/'electron-app/overlay/workshop.js').read_text()
+assert workshop==(root/'cef/overlay/workshop.js').read_text()
+assert 'ksWorkshopPlugin' in workshop and "sandbox','allow-scripts" in workshop
+assert 'getConfig' in workshop and 'room-save' in workshop and 'item-save' in workshop
+assert 'workshopJS' in electron_host and 'case \'resource-save\'' in electron_host
+assert 'KSResourceSwap.Match' in cef_host and 'case "resource-save"' in cef_host
+assert 'ResourceHandler.FromFilePath' in (root/'cef/ResourceSwap.cs').read_text()
+assert 'protocol.handle' in (root/'electron-app/swapper.cjs').read_text()
+assert 'executeJavaScript(workshopJS' in electron_host
 workflow=(root/'.github/workflows/windows-build.yml').read_text()
 assert 'needs: [source-check, electron, cef]' in workflow
 assert 'tests/test_ci_release_gates.py' in workflow
-print('PASS: alpha 1.1.11 source, runtimes and gated offline package')
+print('PASS: alpha 1.1.12 source, runtimes and gated offline package')

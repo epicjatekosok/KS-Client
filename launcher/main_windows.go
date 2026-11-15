@@ -1,6 +1,6 @@
 //go:build windows
 
-// KS Client alpha 1.1.11: engine-neutral Windows launcher.
+// KS Client alpha 1.1.12: engine-neutral Windows launcher.
 // A switch is committed only after the newly started native host acknowledges
 // its own readiness. A transient game page/network failure is not engine failure.
 package main
@@ -18,7 +18,7 @@ import (
  "time"
 )
 
-const version = "1.1.11"
+const version = "1.1.12"
 const switchTimeout = 45 * time.Second
 
 func message(title, body string, _ uintptr) { ksui.Alert(title, body) }
@@ -183,7 +183,7 @@ func main(){
    appendLog("Switch failure: "+err.Error())
    reportSwitchFailure(token,err.Error())
    if explicitEngine && !probe {
-    message("KS Client - Engine Launch Error",err.Error()+"\nCheck %LOCALAPPDATA%\\KSClient\\launcher-1.1.11.log",0)
+    message("KS Client - Engine Launch Error",err.Error()+"\nCheck %LOCALAPPDATA%\\KSClient\\launcher-1.1.12.log",0)
    }
   }
   return

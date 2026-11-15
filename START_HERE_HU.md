@@ -1,6 +1,6 @@
 # KS Client - Windowsos fordítás és ellenőrzés
 
-Ez a ZIP **fejlesztői forráscsomag**, nem a végleges telepítő. Az alapja a korábbi **alpha 1.1.11**. A régi, a felhasználó számítógépén futó CEF-fordítás helyett a GitHub Actions Windowson fordítja és ellenőrzi a motorokat.
+Ez a ZIP **fejlesztői forráscsomag**, nem a végleges telepítő. Az alapja a korábbi **alpha 1.1.12**. A régi, a felhasználó számítógépén futó CEF-fordítás helyett a GitHub Actions Windowson fordítja és ellenőrzi a motorokat.
 
 ## Indítás programozási ismeretek nélkül
 
@@ -28,13 +28,13 @@ A valódi Kirka.io-belépést, játékbeli megjelenítést, monitor-Hz fölötti
 A Windows CI internetet használ a GitHub, NuGet és a Microsoft hivatalos letöltéseihez, és a GitHub Actions használata a fiókod számára rendelkezésre álló futtatási időt fogyaszthatja. A teljes futtatást ebben a ChatGPT-környezetben nem tudtam elindítani; a kész forráscsomagot és a helyben lehetséges teszteket ellenőriztem. A kétmotoros telepítő nem lett ezáltal automatikusan megjavítva a gépeden.
 
 
-**Alpha 1.1.11:** A CEF-hez helyben telepített .NET 10 alap- és Windows Desktop Runtime tartozik. A telepítő csak mindkét Windowsos motorteszt sikeres futása után készül el.
+**Alpha 1.1.12:** A CEF-hez helyben telepített .NET 10 alap- és Windows Desktop Runtime tartozik. A telepítő csak mindkét Windowsos motorteszt sikeres futása után készül el.
 
 
-**Alpha 1.1.11:** a motorváltás csak a másik motor sikeres indulásának visszaigazolása után zárja be a korábbit. Az Aktív böngészőmotor állapotát ismételten ellenőrzi. A kísérleti FPS-feloldás külön gombbal is kérhető; újraindítást igényel, a monitor Hz-e fölötti FPS nem garantált.
+**Alpha 1.1.12:** a motorváltás csak a másik motor sikeres indulásának visszaigazolása után zárja be a korábbit. Az Aktív böngészőmotor állapotát ismételten ellenőrzi. A kísérleti FPS-feloldás külön gombbal is kérhető; újraindítást igényel, a monitor Hz-e fölötti FPS nem garantált.
 
 
-## Alpha 1.1.11 használat
+## Alpha 1.1.12 használat
 A Client > General alatt a motorváltás most a natív ablak indulására vár, és csak sikeres indulás után zárja be az előző motort. Az új motor játékoldala hálózati hiba esetén később is betölthet. A hibaüzenetek és a naplók itt találhatók: %LOCALAPPDATA%\KSClient.
 
 A Gameplay > Performance oldalon külön látszanak a böngésző FPS-feloldási indítási kapcsolói és a mért animációs hívások. A 60/144 Hz-es érték nem jelenti automatikusan, hogy a játék GPU-val renderelt FPS-e is ennyi. A valós Kirka.io FPS-feloldás nincs igazolva.
@@ -42,12 +42,16 @@ A Gameplay > Performance oldalon külön látszanak a böngésző FPS-feloldási
 A Windows CI külön próbát indít mindkét motorral, CEF->Electron és Electron->CEF irányban. Ez valódi natív ablakpróba, de nem helyettesíti a saját gépen végzett Kirka.io-játékbeli tesztet.
 
 
-## Alpha 1.1.11 motorváltás
+## Alpha 1.1.12 motorváltás
 A Client > General > Electron gomb most tartalék váltási útvonalat használ, ha a CefSharp JavaScript-híd nem válaszol. Egy helyben, natívan elfogott URL-es jelzés kezdeményezi a váltást a Kirka.io oldalról; a játékoldal nem navigál el. A CI a tényleges CEF JavaScript->C# üzenetküldést külön teszteli. Ha a váltás nem sikerül, ellenőrizd az indítási naplót a %LOCALAPPDATA%\\KSClient mappában; Ctrl+Alt+E közvetlen váltási lehetőség.
 
 
-### Alpha 1.1.11
+### Alpha 1.1.12
 - Az egérbefogás most az Electron és CEF natív engedélykezelőjét is használja. A játék vásznára KATTINTVA kérhető Pointer Lock. ESC felszabadítja az egeret. F1: KS beállítások.
 - Gameplay → Game Integration: opcionális billentyűkijelzés, HTML játékstatisztika, hitmarker-szín/maximum méret, ellenőrzött Kirka.io játéklink és képernyőkép.
 - Screenshot: Képek/Pictures/KSClient. A CEF a képernyőn látható böngészőterületet fényképezi, takarás esetén más ablak is rákerülhet.
 - A mély WebGL fegyvercsere, a külső JS-modok, Discord RPC és automatikus frissítés még nincsenek megvalósítva. A játékbeli HUD függ a Kirka.io HTML-kódjától.
+
+
+### Alpha 1.1.12 – Workshop
+A külön Workshop menüben fegyverszínek és helyi weapon/skin előnézetek, szobapresetek, kedvenc szobák, játékosjegyzetek, inventory-kedvencek és kézzel megadott piacárbecslések találhatók. A Resource Swapper a Dokumentumok/KSClient/Swapper/assets/{img,media,css} mappában lévő, a Kirka.io pontos /assets útvonalának megfelelő fájlokat cserélheti Electronban és CEF-ben. A JavaScript-bővítmények nem a játékban, hanem elkülönített, hálózattól és fióktól elválasztott sandbox-előnézetben futnak, és csak a korlátozott ks.message/ks.tint API-t használhatják. A WebGL 3D fegyvertextúrák cseréjét ez a verzió nem garantálja. A játék látható HTML-je verziónként változhat, a funkciókat élő meccsben ellenőrizni kell.
