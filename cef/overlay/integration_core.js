@@ -39,7 +39,9 @@
     if(module.active)return;
     try{
       const cleanup=module.start();
-      module.dispose=typeof cleanup==='function'?cleanup:null;
+      // If the relevant Kirka DOM is not ready, retry on the next scan.
+      if(typeof cleanup!=='function')return;
+      module.dispose=cleanup;
       module.active=true;
       delete status.errors[name];
     }catch(e){
