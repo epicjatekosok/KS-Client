@@ -1,3 +1,7 @@
+# KS Client 1.1.14 – telepítési és fejlesztési tudnivalók
+
+Az 1.1.14 a korábbi változatokat megtartva bővíti a Kirka.io-integrációt. A GitHub Actions készít offline Portable ZIP-et és külön Setup EXE-t kizárólag sikeres Windows-ellenőrzések után. A 3D skincseréhez pontos eredeti játék-textúra URL és CORS-kompatibilis kép kell. A CEF egérbefogását csak valódi játékban lehet véglegesen ellenőrizni. Részletek: DEEP_INTEGRATION_114_HU.md.
+
 # KS Client 1.1.13 – új kiadási jelölt
 
 A korábbi 1.1.12-re épülő mélyebb játék-integráció. A Windowsos ZIP és külön telepítő EXE kizárólag akkor keletkezik, ha a GitHub Actions mindkét motort és az offline csomagot tesztelte. Az új modulokról és az éles játékbeli egérteszt korlátairól: `DEEP_INTEGRATION_HU.md`.
