@@ -1,4 +1,4 @@
-"""Engine-independent KS Client 1.1.9 UI smoke test in local Chromium.
+"""Engine-independent KS Client 1.1.10 UI smoke test in local Chromium.
 Not a live test of Windows Electron, CEF, or FPS unlock.
 """
 from pathlib import Path
@@ -63,6 +63,10 @@ with sync_playwright() as play:
 
   page.locator('[data-action="engine-cef"]').click()
   assert page.evaluate("window.__out.some(m=>m.type==='engine-switch' && m.engine==='cef')")
+  # A missing native status must not keep the original Requesting banner forever.
+  page.evaluate("window.__KS_CLIENT__.setEngineSwitchStatus('Native host reached')")
+  assert 'Native host reached' in page.locator('#ks-body').inner_text()
+
   page.locator('.ks-tab[data-group="Gameplay"]').click()
   assert page.locator('.ks-subtab[data-tab="Performance"]').count()==1
   assert page.locator('.ks-subtab[data-tab="Eye Comfort"]').count()==1
@@ -73,8 +77,8 @@ with sync_playwright() as play:
   assert page.locator('[data-setting="crosshairEnabled"]').count()==1
   page.locator('.ks-tab[data-group="Client"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
-  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.9')
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.10')
   assert not errors,(width,errors)
-  print('PASS 1.1.9 engine UI',width,height)
+  print('PASS 1.1.10 engine UI',width,height)
   page.close()
  browser.close()

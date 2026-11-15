@@ -28,10 +28,13 @@ internal sealed class ClientForm : Form
     private bool engineSwitching;
     private System.Windows.Forms.Timer? engineSwitchTimer;
     private string? switchNonce;
+    private readonly bool bridgeProbe;
+    private System.Windows.Forms.Timer? bridgeProbeTimeout;
 
-    internal ClientForm(bool switchProbe = false)
+    internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
-        Text="KS Client alpha 1.1.9 – CEF";
+        this.bridgeProbe=bridgeProbe;
+        Text="KS Client alpha 1.1.10 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -39,9 +42,17 @@ internal sealed class ClientForm : Form
         KeyPreview=true;
         overlay=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","overlay.js"));
         pacer=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","frame_pacer.js"));
-        browser=new ChromiumWebBrowser(switchProbe ? "about:blank" : Game) {Dock=DockStyle.Fill};
+        // A real CEF renderer->host PostMessage test. This is an offline page,
+        // never an injected live Kirka script or external test dependency.
+        var bridgeHtml="<html><body><script>setTimeout(function(){if(window.CefSharp && window.CefSharp.PostMessage){window.CefSharp.PostMessage(JSON.stringify({type:'ks-bridge-probe'}));}},350);</script>KS bridge probe</body></html>";
+        var initial=bridgeProbe ? "data:text/html;charset=utf-8;base64,"+Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(bridgeHtml))
+            : switchProbe ? "about:blank" : Game;
+        browser=new ChromiumWebBrowser(initial) {Dock=DockStyle.Fill};
         browser.MenuHandler = new ClientMenuHandler(() => desired.ContextMenu);
-        if (!switchProbe) browser.RequestHandler = new ClientRequestHandler();
+        if (!switchProbe && !bridgeProbe)
+            browser.RequestHandler = new ClientRequestHandler(() => {
+                if(IsHandleCreated)BeginInvoke((Action)(() => SwitchToElectron()));
+            });
         Controls.Add(browser);
         browser.FrameLoadStart += (_,e)=>{
             if(e.Frame.IsMain && Trust(e.Url,gameOnly:true))
@@ -62,14 +73,34 @@ internal sealed class ClientForm : Form
             // Readiness is signalled by WinForms Shown, not FrameLoadEnd.
         };
         browser.JavascriptMessageReceived += (_,e)=>{
+            // Diagnostic test verifies the real Chromium->CefSharp bridge. A
+            // successfully launched native window alone is insufficient.
+            if(bridgeProbe) {
+                var rawProbe=e.Message?.ToString() ?? "";
+                Program.Log("CEF bridge probe received: "+rawProbe[..Math.Min(128,rawProbe.Length)]);
+                if(rawProbe.Contains("ks-bridge-probe",StringComparison.Ordinal)) {
+                    if(IsHandleCreated)BeginInvoke((Action)(() => {
+                        bridgeProbeTimeout?.Stop();
+                        Program.Log("CEF JavascriptMessageReceived bridge probe PASS");
+                        Close();
+                    }));
+                }
+                return;
+            }
             // Main-frame URL and current browser address must both stay allowlisted.
-            if(!e.Frame.IsMain || !Trust(e.Frame.Url) || !Trust(browser.Address)) return;
+            if(!e.Frame.IsMain || !Trust(e.Frame.Url) || !Trust(browser.Address)) {
+                Program.Log("CEF bridge request rejected (origin, frame or address)");
+                return;
+            }
             string? raw=e.Message?.ToString();
             if(string.IsNullOrEmpty(raw) || raw.Length>8192) return;
             try
             {
                 var msg=JsonSerializer.Deserialize<BridgeMsg>(raw,BrowserPrefs.JsonOpts);
-                if(msg!=null && IsHandleCreated)BeginInvoke((Action)(()=>Receive(msg, e.Frame.Url)));
+                if(msg!=null && IsHandleCreated) {
+                    if(msg.Type is "engine-switch" or "engine-info" or "browser-config") Program.Log("CEF bridge received: "+msg.Type);
+                    BeginInvoke((Action)(()=>Receive(msg, e.Frame.Url)));
+                }
             }
             catch(Exception ex){Program.Log("Bad JS message: "+ex.Message);}
         };
@@ -80,7 +111,20 @@ internal sealed class ClientForm : Form
             if(e.KeyCode==Keys.F10){RunJS("window.__KS_CLIENT__?.toggleHud?.()");e.Handled=true;}
         };
         // Never require Kirka.io to load before reporting native window readiness.
-        Shown += (_, _) => BeginInvoke((Action)(() => Program.SignalSwitchReady()));
+        Shown += (_, _) => {
+            if(bridgeProbe) {
+                bridgeProbeTimeout=new System.Windows.Forms.Timer {Interval=15000};
+                bridgeProbeTimeout.Tick+=(_,_)=>{
+                    bridgeProbeTimeout.Stop();
+                    Program.Log("CEF JavascriptMessageReceived bridge probe timed out");
+                    Environment.ExitCode=17;
+                    Close();
+                };
+                bridgeProbeTimeout.Start();
+                return;
+            }
+            BeginInvoke((Action)(() => Program.SignalSwitchReady()));
+        };
         Program.Log("CEF native window created; gameplay loading is independent");
     }
 
@@ -276,7 +320,7 @@ internal sealed class ClientForm : Form
     }
     protected override void Dispose(bool disposing)
     {
-        if(disposing){StopSwitchTimer();browser?.Dispose();}
+        if(disposing){StopSwitchTimer();bridgeProbeTimeout?.Stop();bridgeProbeTimeout?.Dispose();browser?.Dispose();}
         base.Dispose(disposing);
     }
 }
@@ -303,6 +347,23 @@ internal sealed class ClientMenuHandler : CefSharp.Handler.ContextMenuHandler
 // Navigate the main frame only to the game and its approved stats websites.
 internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
 {
+    private readonly Action requestSwitchToElectron;
+    internal ClientRequestHandler(Action requestSwitchToElectron)
+      => this.requestSwitchToElectron=requestSwitchToElectron;
     protected override bool OnBeforeBrowse(IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame,IRequest request,bool userGesture,bool isRedirect)
-      => frame.IsMain && !ClientForm.Trust(request.Url);
+    {
+        // Independent navigation fallback if CefSharp.PostMessage is present but
+        // the asynchronous JS->native message is dropped by a renderer.
+        // Restrict the action to a single, exact URL on the trusted game origin.
+        if(frame.IsMain && string.Equals(
+            request.Url?.TrimEnd('/'),"https://kirka.io/__ksclient_internal_switch_electron__",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            if(ClientForm.Trust(frame.Url,gameOnly:true) &&
+                ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true))
+                requestSwitchToElectron();
+            return true; // Do not actually navigate the game to this internal path.
+        }
+        return frame.IsMain && !ClientForm.Trust(request.Url);
+    }
 }

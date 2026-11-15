@@ -7,7 +7,7 @@ internal static class Program
 {
     internal static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KSClient");
     internal static readonly string PrefsPath = Path.Combine(Root,"browser-settings.json");
-    internal static readonly string LogPath = Path.Combine(Root,"cef-1.1.9.log");
+    internal static readonly string LogPath = Path.Combine(Root,"cef-1.1.10.log");
     internal static BrowserPrefs Active = BrowserPrefs.Default();
     internal static string? SwitchToken;
     internal static bool SwitchProbe;
@@ -54,6 +54,7 @@ internal static class Program
         var switchArg=args.FirstOrDefault(a=>a.StartsWith("--ks-switch-token=",StringComparison.Ordinal));
         SwitchToken=switchArg is null?null:switchArg.Substring("--ks-switch-token=".Length);
         SwitchProbe = args.Contains("--ks-switch-probe") && SwitchToken is not null;
+        bool bridgeProbe = args.Contains("--ks-bridge-probe");
         bool selfTest = args.Contains("--ks-self-test");
         bool safe = args.Contains("--ks-browser-safe-mode");
         Active = (safe || selfTest) ? BrowserPrefs.Default() : BrowserPrefs.Load();
@@ -97,13 +98,13 @@ internal static class Program
                 Log("CEF runtime initialization self-test: PASS");
                 return;
             }
-            Application.Run(new ClientForm(SwitchProbe));
+            Application.Run(new ClientForm(SwitchProbe,bridgeProbe));
         }
         catch (Exception e)
         {
             Log("CEF startup failure: " + e);
             if (selfTest) Environment.ExitCode = 1;
-            else MessageBox.Show(e.Message,"KS Client alpha 1.1.9 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
+            else MessageBox.Show(e.Message,"KS Client alpha 1.1.10 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
         }
         finally { if (global::CefSharp.Cef.IsInitialized == true) global::CefSharp.Cef.Shutdown(); }
     }
