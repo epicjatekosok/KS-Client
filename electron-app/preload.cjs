@@ -16,4 +16,10 @@ if(location.protocol==='https:' && ALLOWED.has(location.hostname)){
     const src=ipcRenderer.sendSync('ks:early-pacer');
     if(typeof src==='string' && src.length<25000)webFrame.executeJavaScript(src).catch(()=>{});
   }catch(_){}
+  // Install passive render observation before the game's DOM-ready UI layers.
+  // This does not grant Node.js access or modify 3D drawing operations.
+  try{
+    const src=ipcRenderer.sendSync('ks:early-integration');
+    if(typeof src==='string' && src.length<12000)webFrame.executeJavaScript(src).catch(()=>{});
+  }catch(_){}
 }
