@@ -67,13 +67,23 @@ function inventorySnapshot(){
  }
  return {visibleCount:items.length,items:items.slice(0,50),source:'visible inventory elements, not a market API'};
 }
+function marketSnapshot(){
+ const rows=[...document.querySelectorAll('.market .listing,.market .item-card,.marketplace .listing,.market-card')].slice(0,100);
+ const listings=[];
+ for(const row of rows){
+  const item=trim(row.querySelector('.name,.item-name')?.textContent||row.querySelector('img')?.alt||row.getAttribute('title'),70);
+  const price=trim(row.querySelector('.price,.item-price,.cost')?.textContent,55);
+  if(item&&price)listings.push({item,price,source:'visible market listing'});
+ }
+ return {visibleCount:listings.length,listings:listings.slice(0,50),note:'Read-only visible listings; not a quote or account valuation'};
+}
 function serverSnapshot(){
  const rows=[...document.querySelectorAll('.server-item,.servers .list > *, .server')].slice(0,70);
  return {visibleCount:rows.length,items:rows.map(el=>trim(el.textContent,90)).filter(Boolean).slice(0,25)};
 }
 function getSnapshot(){
  return {scene:scene(),stats:{...stats},observed:{assists:seenAssists,headshotAchievements:seenHS,killfeedItems:seenKills},
-  profile:profileSnapshot(),inventory:inventorySnapshot(),servers:serverSnapshot(),
+  profile:profileSnapshot(),inventory:inventorySnapshot(),market:marketSnapshot(),servers:serverSnapshot(),
   render:window.__KS_WEBGL_COSMETICS__?.getStatus?.()||null,
   input:{pointerLocked:!!document.pointerLockElement},
   source:'visible Kirka.io DOM; absence means unavailable'};
