@@ -41,12 +41,13 @@ function loadImage(){
 }
 function reload(){read();loadImage();}
 reload();
-const original=HTMLCanvasElement.prototype.getContext;
+let fallbackOriginal=null, fallbackWrapped=null, unsubscribe=null, hookup='not-installed';
 function install(gl,canvas){
  if(!gl||hooked.has(gl))return;
  hooked.add(gl);contexts++;
- const origTex=gl.texImage2D.bind(gl);
- const origMatrix=gl.uniformMatrix4fv.bind(gl);
+ const rawTex=gl.texImage2D, rawMatrix=gl.uniformMatrix4fv;
+ const origTex=(...args)=>Reflect.apply(rawTex,gl,args);
+ const origMatrix=(...args)=>Reflect.apply(rawMatrix,gl,args);
  function tex(...args){
    if(cfg.enabled&&replacement&&replacementFor===cfg.skinURL&&cfg.assetURL&&args.length===6){
      const src=args[5];
@@ -84,23 +85,46 @@ function install(gl,canvas){
  try{
   gl.texImage2D=tex;
   gl.uniformMatrix4fv=matrix;
-  records.add({gl,origTex,origMatrix,tex,matrix});
+  records.add({gl,origTex:rawTex,origMatrix:rawMatrix,tex,matrix});
  }catch(e){diagnostic='Read-only WebGL context; hook refused: '+String(e.message).slice(0,100)}
  canvas.addEventListener('webglcontextlost',()=>{replacement=null;diagnostic='Context lost, awaiting recovery'},{passive:true});
  canvas.addEventListener('webglcontextrestored',()=>reload(),{passive:true});
 }
-function wrapped(kind,...args){
- const gl=Reflect.apply(original,this,[kind,...args]);
- if((kind==='webgl'||kind==='webgl2')&&this.id==='game')try{install(gl,this)}catch(_){}
- return gl;
+// Prefer the shared early observer. It replays contexts which already existed
+// before the cosmetic module loaded, so no late getContext() call is necessary.
+function connect(){
+ const shared=window.__KS_RENDER_OBSERVER__;
+ if(shared?.onContext&&hookup!=='shared'){
+   unsubscribe?.();
+   unsubscribe=shared.onContext((gl,canvas)=>{try{install(gl,canvas)}catch(e){diagnostic='Renderer attach error: '+String(e.message).slice(0,100)}});
+   hookup='shared';
+   // If a fallback wrapper was installed first, it remains in the chain but
+   // WeakSet prevents duplicate hooks; no existing GPU contexts are created.
+ }
 }
-try{HTMLCanvasElement.prototype.getContext=wrapped}catch(e){diagnostic='Could not install WebGL hook'}
+function installFallback(){
+ if(window.__KS_RENDER_OBSERVER__?.onContext)return connect();
+ fallbackOriginal=HTMLCanvasElement.prototype.getContext;
+ fallbackWrapped=function(kind,...args){
+   const gl=Reflect.apply(fallbackOriginal,this,[kind,...args]);
+   if((kind==='webgl'||kind==='webgl2'||kind==='experimental-webgl')&&this.id==='game')try{install(gl,this)}catch(_){}
+   return gl;
+ };
+ try{
+   HTMLCanvasElement.prototype.getContext=fallbackWrapped;
+   hookup='late-fallback';
+   diagnostic='Early render registry unavailable: late fallback observes future context calls only';
+ }catch(e){diagnostic='WebGL fallback hook failed: '+String(e.message).slice(0,100)}
+}
+connect();
+if(hookup!=='shared')installFallback();
+window.addEventListener('ks-render-observer-ready',connect);
 window.addEventListener('ks-webgl-settings',reload);
 window.__KS_WEBGL_COSMETICS__=Object.freeze({
- getStatus:()=>({enabled:cfg.enabled,contexts,textureReplacements:textures,matrixTransforms:transforms,
+ getStatus:()=>({enabled:cfg.enabled,contexts,hookup,textureReplacements:textures,matrixTransforms:transforms,
   fallbacks:missed,ready:!!replacement,diagnostic,assetURL:cfg.assetURL,signature:cfg.matrixSignature,
   sampledSignatures:[...candidates.entries()].map(([signature,count])=>({signature,count})).slice(0,20)}),
  refresh:reload,
- restore:()=>{for(const r of records){if(r.gl.texImage2D===r.tex)r.gl.texImage2D=r.origTex;if(r.gl.uniformMatrix4fv===r.matrix)r.gl.uniformMatrix4fv=r.origMatrix;}if(HTMLCanvasElement.prototype.getContext===wrapped)HTMLCanvasElement.prototype.getContext=original;}
+ restore:()=>{unsubscribe?.();window.removeEventListener('ks-render-observer-ready',connect);window.removeEventListener('ks-webgl-settings',reload);for(const r of records){if(r.gl.texImage2D===r.tex)r.gl.texImage2D=r.origTex;if(r.gl.uniformMatrix4fv===r.matrix)r.gl.uniformMatrix4fv=r.origMatrix;}if(fallbackWrapped&&HTMLCanvasElement.prototype.getContext===fallbackWrapped)HTMLCanvasElement.prototype.getContext=fallbackOriginal;}
 });
 })();
