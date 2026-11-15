@@ -60,7 +60,7 @@ for name in ('integration_bootstrap.js','integration_core.js','webgl_cosmetics.j
  assert bootstrap==(root/'cef/overlay'/name).read_text(),name+' differs between engines'
  assert "kirka.io" in bootstrap,name+' must be game-origin scoped'
 assert "ks:early-integration" in electron_host
-assert "ks:early-integration" in (root/'electron-app/preload.cjs').read_text()
+assert "ks:early-bundle" in (root/'electron-app/preload.cjs').read_text()
 assert 'RenderProcessMessageHandler' in cef_host and 'KSEarlyIntegrationHandler' in cef_host
 assert (root/'cef/EarlyIntegrationHandler.cs').is_file()
 assert 'ExecuteJavaScriptAsync(graphics)' in cef_host
@@ -69,6 +69,21 @@ assert 'ExecuteJavaScriptAsync(integrationCore)' in cef_host
 assert 'ExecuteJavaScriptAsync(integrationBoot)' in cef_host
 assert 'integrationCoreJS' in electron_host and 'advancedJS' in electron_host and 'graphicsJS' in electron_host
 assert 'ks:early-graphics' in electron_host and 'ks:early-freeze' in electron_host
+# The core integration now installs all early main-world hooks in one ordered script.
+assert "ks:early-bundle" in electron_host
+preload=(root/'electron-app/preload.cjs').read_text()
+assert "ks:early-bundle" in preload
+assert "executeJavaScriptInIsolatedWorld(0" in preload
+assert "earlyGameJS=[frameJS,integrationBootJS,graphicsJS,freezeJS]" in electron_host
+cef_early=(root/'cef/EarlyIntegrationHandler.cs').read_text()
+assert "new KSEarlyIntegrationHandler(earlyGameJS)" in cef_host
+assert "frame.ExecuteJavaScriptAsync(earlyGameJS)" in cef_early
+assert "e.Frame.ExecuteJavaScriptAsync(earlyGameJS)" in cef_host
+observer=(root/'electron-app/overlay/integration_bootstrap.js').read_text()
+graphics=(root/'electron-app/overlay/webgl_cosmetics.js').read_text()
+assert "onContext: callback" in observer
+assert "shared.onContext" in graphics
+assert "tests/test_runtime_integration.py" in (root/'.github/workflows/windows-build.yml').read_text()
 assert 'tests/test_game_integration_112.py' in (root/'.github/workflows/windows-build.yml').read_text()
 workflow=(root/'.github/workflows/windows-build.yml').read_text()
 assert 'needs: [source-check, electron, cef]' in workflow
