@@ -20,6 +20,8 @@ internal sealed class ClientForm : Form
     private readonly string pacer;
     private readonly string extras;
     private readonly string workshop;
+    private readonly string integrationBoot;
+    private readonly string integrationCore;
     private BrowserPrefs desired=Program.Active;
     private string menuResolution="native";
     private string gameResolution="native";
@@ -36,7 +38,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client alpha 1.1.12 – CEF";
+        Text="KS Client alpha 1.1.13 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -46,6 +48,8 @@ internal sealed class ClientForm : Form
         pacer=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","frame_pacer.js"));
         extras=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","game_extras.js"));
         workshop=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","workshop.js"));
+        integrationBoot=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_bootstrap.js"));
+        integrationCore=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_core.js"));
         // A real CEF renderer->host PostMessage test. This is an offline page,
         // never an injected live Kirka script or external test dependency.
         var bridgeHtml="<html><body><script>setTimeout(function(){if(window.CefSharp && window.CefSharp.PostMessage){window.CefSharp.PostMessage(JSON.stringify({type:'ks-bridge-probe'}));}},350);</script>KS bridge probe</body></html>";
@@ -59,11 +63,16 @@ internal sealed class ClientForm : Form
                 if(IsHandleCreated)BeginInvoke((Action)(() => SwitchToElectron()));
             });
         Controls.Add(browser);
+        // Keep native keyboard/mouse focus on the embedded Chromium control.
+        // Pointer lock still requires the game's real user gesture and CEF approval.
+        Activated += (_, _) => { if(!bridgeProbe && Trust(browser.Address,gameOnly:true)) browser.Focus(); };
+        browser.MouseDown += (_, _) => { if(!bridgeProbe && Trust(browser.Address,gameOnly:true)) browser.Focus(); };
         browser.FrameLoadStart += (_,e)=>{
             if(e.Frame.IsMain && Trust(e.Url,gameOnly:true))
             {
                 // May run after early page scripts in some CEF builds; re-tested on load end.
                 e.Frame.ExecuteJavaScriptAsync(pacer);
+                e.Frame.ExecuteJavaScriptAsync(integrationBoot);
             }
         };
         browser.FrameLoadEnd += (_,e)=>{
@@ -72,6 +81,8 @@ internal sealed class ClientForm : Form
             e.Frame.ExecuteJavaScriptAsync(overlay);
             e.Frame.ExecuteJavaScriptAsync(extras);
             e.Frame.ExecuteJavaScriptAsync(workshop);
+            e.Frame.ExecuteJavaScriptAsync(integrationBoot);
+            e.Frame.ExecuteJavaScriptAsync(integrationCore);
             // This post-injection request fixes the lost initial handshake that
             // could leave Active Browser Engine permanently on "Loading...".
             e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setEngineInfo?.('CEF (CefSharp)');");
@@ -298,6 +309,9 @@ internal sealed class ClientForm : Form
                 };
                 desired.Save();ReportPrefs("Default preferences saved.");break;
             case "browser-restart":Restart();break;
+            case "game-input-diagnostics":
+                if(m.Message is "locked" or "released" or "pointerlockerror")Program.Log("Kirka pointer lock: "+m.Message);
+                break;
             case "crash-status":Reply("setCrashStatus","CEF log: "+Program.LogPath);break;
             case "game-join":
                 if(Uri.TryCreate(m.Url,UriKind.Absolute,out var targetUrl)

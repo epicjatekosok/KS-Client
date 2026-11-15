@@ -1,5 +1,5 @@
 'use strict';
-// KS Client alpha 1.1.12: real Electron host. No WebView2 dependency.
+// KS Client alpha 1.1.13: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.12';
+const APP_VERSION = 'alpha 1.1.13';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.12.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.1.13.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -24,6 +24,8 @@ const overlayJS = fs.readFileSync(path.join(__dirname,'overlay','overlay.js'),'u
 const frameJS = fs.readFileSync(path.join(__dirname,'overlay','frame_pacer.js'),'utf8');
 const extrasJS = fs.readFileSync(path.join(__dirname,'overlay','game_extras.js'),'utf8');
 const workshopJS=fs.readFileSync(path.join(__dirname,'overlay','workshop.js'),'utf8');
+const integrationBootJS=fs.readFileSync(path.join(__dirname,'overlay','integration_bootstrap.js'),'utf8');
+const integrationCoreJS=fs.readFileSync(path.join(__dirname,'overlay','integration_core.js'),'utf8');
 const SWAPPER=require('./swapper.cjs');
 SWAPPER.registerSchemes();
 const DEFAULT_PREFS = Object.freeze({gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false});
@@ -158,6 +160,7 @@ function createWindow(){
       await win.webContents.executeJavaScript(overlayJS,true);
       await win.webContents.executeJavaScript(extrasJS,true);
       await win.webContents.executeJavaScript(workshopJS,true);
+      await win.webContents.executeJavaScript(integrationCoreJS,true);
       jsCall('setEngineInfo','Electron');
       browserConfig();
     }catch(e){log('Overlay: '+e.message)}
@@ -323,10 +326,19 @@ function receiveMessage(event, raw){
     }
     case 'crash-status':jsCall('setCrashStatus','Electron log: '+LOG_FILE);break;
     case 'open-logs':require('electron').shell.openPath(ROOT);break;
+    case 'game-input-diagnostics':{
+      const detail=String(raw.message||'').slice(0,40);
+      if(['locked','released','pointerlockerror'].includes(detail))log('Kirka pointer lock: '+detail);
+      break;
+    }
     case 'client-error':log('Overlay warning: '+String(raw.message||'').slice(0,240));break;
   }
 }
 ipcMain.on('ks:message',receiveMessage);
+ipcMain.on('ks:early-integration',(event)=>{
+  const source=event.senderFrame?.url||'';
+  event.returnValue=(win && event.sender===win.webContents && validURL(source,true))?integrationBootJS:'';
+});
 ipcMain.on('ks:early-pacer',(event)=>{
   const source=event.senderFrame?.url||'';
   event.returnValue=(win && event.sender===win.webContents && validURL(source,true))?frameJS:'';

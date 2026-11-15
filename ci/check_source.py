@@ -54,6 +54,17 @@ assert 'KSResourceSwap.Match' in cef_host and 'case "resource-save"' in cef_host
 assert 'ResourceHandler.FromFilePath' in (root/'cef/ResourceSwap.cs').read_text()
 assert 'protocol.handle' in (root/'electron-app/swapper.cjs').read_text()
 assert 'executeJavaScript(workshopJS' in electron_host
+# Deep integration must share exactly the same modules across both engines.
+for name in ('integration_bootstrap.js','integration_core.js'):
+ bootstrap=(root/'electron-app/overlay'/name).read_text()
+ assert bootstrap==(root/'cef/overlay'/name).read_text(),name+' differs between engines'
+ assert "kirka.io" in bootstrap,name+' must be game-origin scoped'
+assert "ks:early-integration" in electron_host
+assert "ks:early-integration" in (root/'electron-app/preload.cjs').read_text()
+assert 'ExecuteJavaScriptAsync(integrationCore)' in cef_host
+assert 'ExecuteJavaScriptAsync(integrationBoot)' in cef_host
+assert 'integrationCoreJS' in electron_host
+assert 'tests/test_game_integration_112.py' in (root/'.github/workflows/windows-build.yml').read_text()
 workflow=(root/'.github/workflows/windows-build.yml').read_text()
 assert 'needs: [source-check, electron, cef]' in workflow
 assert 'tests/test_ci_release_gates.py' in workflow
