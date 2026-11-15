@@ -38,7 +38,14 @@ assert "input.alt && input.key.toLowerCase()==='c'" in electron_host
 assert 'setNativeFpsDiagnostics' in (root/'electron-app/overlay/overlay.js').read_text()
 assert 'Test-Switching.ps1' in (root/'.github/workflows/windows-build.yml').read_text()
 assert 'Test-CEF-Bridge.ps1' in (root/'.github/workflows/windows-build.yml').read_text()
+extra=(root/'electron-app/overlay/game_extras.js').read_text()
+assert extra==(root/'cef/overlay/game_extras.js').read_text()
+assert 'requestPointerLock' in extra and 'gameKeystrokes' in extra
+assert 'setPermissionCheckHandler' in electron_host
+assert 'ClientGamePermissionHandler' in cef_host
+assert 'game-screenshot' in electron_host and 'game-screenshot' in cef_host
+assert 'game-join' in electron_host and 'game-join' in cef_host
 workflow=(root/'.github/workflows/windows-build.yml').read_text()
 assert 'needs: [source-check, electron, cef]' in workflow
 assert 'tests/test_ci_release_gates.py' in workflow
-print('PASS: alpha 1.1.10 source, runtimes and gated offline package')
+print('PASS: alpha 1.1.11 source, runtimes and gated offline package')

@@ -1,5 +1,5 @@
 'use strict';
-// KS Client alpha 1.1.10: real Electron host. No WebView2 dependency.
+// KS Client alpha 1.1.11: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session } = require('electron');
 const {spawn}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.10';
+const APP_VERSION = 'alpha 1.1.11';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,12 +16,13 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.10.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.1.11.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
 const overlayJS = fs.readFileSync(path.join(__dirname,'overlay','overlay.js'),'utf8');
 const frameJS = fs.readFileSync(path.join(__dirname,'overlay','frame_pacer.js'),'utf8');
+const extrasJS = fs.readFileSync(path.join(__dirname,'overlay','game_extras.js'),'utf8');
 const DEFAULT_PREFS = Object.freeze({gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false});
 function validURL(value, gameOnly=false) {
   try {
@@ -152,6 +153,7 @@ function createWindow(){
     try{
       await win.webContents.executeJavaScript(frameJS,true);
       await win.webContents.executeJavaScript(overlayJS,true);
+      await win.webContents.executeJavaScript(extrasJS,true);
       jsCall('setEngineInfo','Electron');
       browserConfig();
     }catch(e){log('Overlay: '+e.message)}
@@ -260,6 +262,27 @@ function receiveMessage(event, raw){
       if(win){app.relaunch({args:process.argv.slice(1).filter(a=>a!=='--ks-browser-safe-mode')});app.exit(0)}
       break;
     }
+    case 'game-join':{
+      const requested=String(raw.url||'');
+      try{
+        const u=new URL(requested);
+        if(!validURL(u.toString(),true) || !/^\/(games\/|hub\/ranked|servers\/)/.test(u.pathname))throw Error('Invalid Kirka.io game link');
+        navigate(u.toString());
+      }catch(e){log('Quick join blocked: '+e.message);}
+      break;
+    }
+    case 'game-screenshot':{
+      const folder=path.join(os.homedir(),'Pictures','KSClient');
+      fs.mkdirSync(folder,{recursive:true});
+      const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+      const output=path.join(folder,'KSClient-'+stamp+'.png');
+      win.webContents.capturePage().then(img=>{
+        fs.writeFileSync(output,img.toPNG());
+        log('Screenshot saved to '+output);
+        jsCall('setGameExtraStatus','Screenshot saved: '+output);
+      }).catch(e=>{log('Screenshot failed: '+e.message);jsCall('setGameExtraStatus','Screenshot failed: '+e.message)});
+      break;
+    }
     case 'fps-diagnostics':{
       jsCall('setNativeFpsDiagnostics',{
         engine:'Electron',
@@ -294,9 +317,20 @@ app.whenReady().then(()=>{
     return;
   }
   // Use the browser permissions necessary for an FPS game, deny unrelated access.
+  const allowGamePermission=(wc,permission,origin)=>{
+    const isGame=validURL(origin||wc?.getURL?.()||'',true);
+    return isGame && (permission==='pointerLock'||permission==='fullscreen');
+  };
   session.defaultSession.setPermissionRequestHandler((contents,permission,callback,details)=>{
-    const origin=contents.getURL();
-    callback(validURL(origin,true) && (permission==='pointerLock'||permission==='fullscreen'));
+    const origin=details?.requestingUrl||contents?.getURL()||'';
+    const allow=allowGamePermission(contents,permission,origin);
+    if(permission==='pointerLock')log('PointerLock permission request '+(allow?'ALLOW':'DENY'));
+    callback(allow); // Synchronous: do not hold a native permission callback.
+  });
+  // Chromium checks permissions before requesting them; both handlers are needed.
+  session.defaultSession.setPermissionCheckHandler((contents,permission,origin,details)=>{
+    const requestOrigin=details?.requestingUrl||origin||contents?.getURL()||'';
+    return allowGamePermission(contents,permission,requestOrigin);
   });
   log('FPS startup flags: '+JSON.stringify({
     requested:active.uncapFps,

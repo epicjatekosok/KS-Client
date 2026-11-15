@@ -1,4 +1,4 @@
-"""Engine-independent KS Client 1.1.10 UI smoke test in local Chromium.
+"""Engine-independent KS Client 1.1.11 UI smoke test in local Chromium.
 Not a live test of Windows Electron, CEF, or FPS unlock.
 """
 from pathlib import Path
@@ -20,6 +20,12 @@ with sync_playwright() as play:
   page.evaluate('''() => {window.__out=[];window.__KS_NATIVE__={post: m=>window.__out.push(m)};const store={'ksclient.settings.alpha':JSON.stringify({language:'hu',showFPS:true,uiScale:100,eyeEnabled:true,eyeContrast:90,shape:'circle',crosshairEnabled:true})};Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem(k){return store[k]||null},setItem(k,v){store[k]=v},removeItem(k){delete store[k]}}});}''')
   page.add_script_tag(content=pacer)
   page.add_script_tag(content=js)
+  extras=(root/'electron-app/overlay/game_extras.js').read_text()
+  extras=extras.replace("if(location.protocol!=='https:' || !['kirka.io','www.kirka.io'].includes(location.hostname))return;",'/* Offline integration test */')
+  extras=extras.replace("const match=()=>/^\\/(games\\/|hub\\/ranked)/.test(location.pathname);","const match=()=>true;")
+  page.add_script_tag(content=extras)
+  assert page.evaluate("!!window.__KS_GAME_EXTRAS__")
+
   page.wait_for_function('!!window.__KS_CLIENT__')
   assert page.evaluate("window.__out.some(m=>m.type==='engine-info')")
   page.evaluate('window.__KS_CLIENT__.setEngineInfo("Electron")')
@@ -68,6 +74,15 @@ with sync_playwright() as play:
   assert 'Native host reached' in page.locator('#ks-body').inner_text()
 
   page.locator('.ks-tab[data-group="Gameplay"]').click()
+  page.locator('.ks-subtab[data-tab="Game Integration"]').click()
+  assert page.locator('[data-setting="gameAutoMouseCapture"]').count()==1
+  assert page.locator('[data-setting="gameKeystrokes"]').count()==1
+  page.locator('[data-setting="gameKeystrokes"]').check()
+  assert page.evaluate("window.__KS_GAME_EXTRAS__.getStatus().keystrokes")
+  assert page.locator('[data-setting="gameStats"]').count()==1
+  assert page.locator('[data-setting="gameHitmarker"]').count()==1
+  page.locator('[data-action="game-screenshot"]').click()
+  assert page.evaluate("window.__out.some(m=>m.type==='game-screenshot')")
   assert page.locator('.ks-subtab[data-tab="Performance"]').count()==1
   assert page.locator('.ks-subtab[data-tab="Eye Comfort"]').count()==1
   assert page.locator('.ks-subtab[data-tab="Frame Stability"]').count()==1
@@ -77,8 +92,8 @@ with sync_playwright() as play:
   assert page.locator('[data-setting="crosshairEnabled"]').count()==1
   page.locator('.ks-tab[data-group="Client"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
-  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.10')
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.11')
   assert not errors,(width,errors)
-  print('PASS 1.1.10 engine UI',width,height)
+  print('PASS 1.1.11 engine UI',width,height)
   page.close()
  browser.close()
