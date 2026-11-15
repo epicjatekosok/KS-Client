@@ -48,6 +48,7 @@ jobs:
           python -m pip install playwright
           python -m playwright install --with-deps chromium
           python tests/test_overlay_112.py
+          python tests/test_game_integration_112.py
 
   electron:
     name: Build and smoke test Electron
