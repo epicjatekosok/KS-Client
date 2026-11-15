@@ -2,15 +2,33 @@
 """Pack ONLY prebuilt, locally smoke-tested Windows runtimes (no builds on user PCs)."""
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
-import hashlib
+import hashlib, json
 root=Path(__file__).resolve().parents[1]
-version='1.1.6'
+version='1.1.7'
 zipname=f'KS-Client-alpha-{version}-Portable.zip'
 zipfile=root/zipname
+def verify_engine(name, exe_name):
+ folder=root/'runtime'/name
+ exe=folder/exe_name
+ marker=folder/'ks-smoke-pass.json'
+ if not exe.is_file() or not marker.is_file():raise SystemExit(f'{name}: missing smoke-test marker; refusing release')
+ data=json.loads(marker.read_text(encoding='utf-8-sig'))
+ digest=hashlib.sha256(exe.read_bytes()).hexdigest()
+ if not (data.get('version')=='1.1.7' and data.get('engine')==name and data.get('exeName')==exe_name and data.get('runner')=='windows' and data.get('result')=='PASS' and data.get('exeSha256')==digest):
+  raise SystemExit(f'{name}: test marker does not match executable')
+ return folder
+verify_engine('Electron','electron.exe')
+cef=verify_engine('CEF','KS.Cef.Client.exe')
+for framework in ('Microsoft.NETCore.App','Microsoft.WindowsDesktop.App'):
+ folder=cef/'dotnet'/'shared'/framework
+ if not folder.is_dir() or not any(p.is_dir() and p.name.startswith('10.') for p in folder.iterdir()):
+  raise SystemExit(f'CEF missing local .NET 10 framework: {framework}')
 required=[
  'KS-Client.exe','Uninstall-KS-Client.exe',
  'runtime/Electron/electron.exe','runtime/Electron/resources/app/main.cjs',
  'runtime/CEF/KS.Cef.Client.exe','runtime/CEF/dotnet/dotnet.exe',
+ 'runtime/CEF/libcef.dll','runtime/CEF/CefSharp.BrowserSubprocess.exe',
+ 'runtime/CEF/ks-smoke-pass.json','runtime/Electron/ks-smoke-pass.json',
 ]
 for rel in required:
  p=root/rel

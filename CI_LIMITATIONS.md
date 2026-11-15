@@ -10,4 +10,7 @@ Important gaps: these engine startup self-tests do not load the online Kirka.io 
 
 System prerequisites like the Windows MSVC runtime may still need verification on a clean, non-developer Windows installation. A custom Go uninstaller self-copies to a temporary path; its GUI logic is not automatically tested here.
 
-Version: alpha 1.1.6 source baseline. Do not republish old alpha 1.1.6 binaries under new CI results. Increment version only after release verification.
+Version: alpha 1.1.7 source baseline. Do not republish old alpha 1.1.7 binaries under new CI results. Increment version only after release verification.
+
+
+Alpha 1.1.7: CI-only CEF GPU fallback verifies runtime initialization but does not prove real Kirka.io GPU/FPS performance on all machines.

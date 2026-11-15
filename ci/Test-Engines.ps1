@@ -3,6 +3,7 @@
 param([ValidateSet('Electron','CEF','Both')][string]$Engine='Both')
 $ErrorActionPreference='Stop'
 $repo = Split-Path -Parent $PSScriptRoot
+$releaseVersion = '1.1.7'
 function Test-Executable([string]$exe,[string]$working,[string]$name,[hashtable]$variables) {
   Write-Host "Starting $name self-test on this Windows runner: $exe"
   if (-not (Test-Path $exe)) { throw "$name EXE not found: $exe" }
@@ -22,9 +23,15 @@ function Test-Executable([string]$exe,[string]$working,[string]$name,[hashtable]
       try {$process.Kill()} catch {}
       throw "$name timed out during self-test (60 seconds)"
     }
-    if ($process.ExitCode -ne 0) { throw "$name crashed or failed startup: exit code $($process.ExitCode)" }
+    if ($process.ExitCode -ne 0) {
+      $hex=[System.BitConverter]::ToUInt32([System.BitConverter]::GetBytes([int]$process.ExitCode),0).ToString('X8')
+      if($hex -eq 'C0000005'){throw "$name 0xC0000005 native access violation. Inspect Windows Event Viewer and cef-native-debug.log. Offline packaging blocked."}
+      throw "$name self-test failed: exit=$($process.ExitCode) hex=$hex"
+    }
   } finally { $process.Dispose() }
-  Write-Host "PASS: $name runtime started and passed its self-test."
+  $passMarker = [ordered]@{version=$releaseVersion;engine=$name;exeName=[IO.Path]::GetFileName($exe);exeSha256=(Get-FileHash -Algorithm SHA256 -LiteralPath $exe).Hash.ToLowerInvariant();runner='windows';result='PASS'}
+  $passMarker | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $working 'ks-smoke-pass.json') -Encoding utf8
+  Write-Host "PASS: $name runtime startup and EXE hash recorded."
 }
 if ($Engine -eq 'Electron' -or $Engine -eq 'Both') {
   $dir=Join-Path $repo 'runtime\Electron'

@@ -26,7 +26,7 @@ Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force
 $app = Join-Path $dest 'resources\app'
 New-Item -ItemType Directory -Force -Path $app | Out-Null
 Copy-Item (Join-Path $repo 'electron-app\*') $app -Recurse -Force
-# Never require libEGL.dll: Electron builds differ in their deployed binaries.
+# Never require libEGL.dll: optional in some Electron distributions.
 foreach ($relative in @('electron.exe','resources\app\package.json','resources\app\main.cjs','resources\app\preload.cjs','resources\app\overlay\overlay.js')) {
   if (-not (Test-Path (Join-Path $dest $relative))) { throw "Electron package is missing $relative" }
 }
