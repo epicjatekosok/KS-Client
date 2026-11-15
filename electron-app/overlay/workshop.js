@@ -99,7 +99,8 @@
  }
  function captureLobby(){
    const obj={};
-   const area=document.querySelector('.general-content, .create-game, .create-room');
+   // Include Kirka's modal with custom game-mode, map and weapon selectors.
+   const area=document.querySelector('.create-modal,.general-content,.create-game,.create-room');
    if(!area)return obj;
    const inputs=Array.from(area.querySelectorAll('input,select')).slice(0,32);
    for(const el of inputs){
@@ -108,12 +109,22 @@
      if(!name||el.type==='password'||el.type==='file'||el.type==='hidden')continue;
      obj[name]=el.type==='checkbox'?String(el.checked):trim(el.value,100);
    }
+   // Custom Kirka selectors are not standard input rows; preserve them by
+   // category and visible label, rather than guessing a private game state.
+   const groups={modes:'.mods .custom-checkbox',maps:'.maps .custom-checkbox',weapons:'.weapons-cont .custom-checkbox'};
+   for(const [group,selector] of Object.entries(groups)){
+     for(const item of Array.from(area.querySelectorAll(selector)).slice(0,64)){
+       const box=item.querySelector('input[type="checkbox"]');
+       const label=trim(item.querySelector('span,label')?.textContent||'',70);
+       if(box&&label)obj['ks-group:'+group+':'+label]=String(box.checked);
+     }
+   }
    return obj;
  }
  function applyLobby(room){
    const entries=Object.entries(room.settings||{});
    if(!entries.length){status='Saved room has no HTML form settings; use Join to navigate.';return}
-   const container=document.querySelector('.general-content,.create-game,.create-room');
+   const container=document.querySelector('.create-modal,.general-content,.create-game,.create-room');
    if(!container){status='Kirka.io lobby creation form is not visible.';return}
    let applied=0;
    for(const el of Array.from(container.querySelectorAll('input,select')).slice(0,80)){
@@ -125,7 +136,20 @@
      el.dispatchEvent(new Event('input',{bubbles:true}));
      el.dispatchEvent(new Event('change',{bubbles:true}));applied++;
    }
-   status=applied+' visible native lobby fields restored; custom game controls may need manual selection.';
+   const groups={modes:'.mods .custom-checkbox',maps:'.maps .custom-checkbox',weapons:'.weapons-cont .custom-checkbox'};
+   for(const [group,selector] of Object.entries(groups)){
+     for(const item of Array.from(container.querySelectorAll(selector)).slice(0,64)){
+       const box=item.querySelector('input[type="checkbox"]');
+       const label=trim(item.querySelector('span,label')?.textContent||'',70);
+       const key='ks-group:'+group+':'+label;
+       if(!box||!label||!Object.prototype.hasOwnProperty.call(room.settings,key))continue;
+       const wanted=room.settings[key]==='true';
+       // A real user initiated the preset action. Let the game's own event
+       // handler process checkbox changes rather than silently changing state.
+       if(box.checked!==wanted){box.click();applied++;}
+     }
+   }
+   status=applied+' visible lobby fields (including supported mode/map/weapon choices) restored.';
  }
  function recordJoin(value){
    const url=kirkaURL(value);if(!url)return false;
