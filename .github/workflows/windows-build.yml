@@ -132,6 +132,9 @@ jobs:
       - name: Validate engine switch-token handling
         working-directory: launcher
         run: go test -timeout 5m -v .
+      - name: Test native CEF to Electron and Electron to CEF switching
+        shell: pwsh
+        run: ./ci/Test-Switching.ps1
       - name: Run both runtime smoke tests again after artifact transfer
         shell: pwsh
         run: ./ci/Test-Engines.ps1 -Engine Both
@@ -148,10 +151,10 @@ jobs:
       - name: Upload candidate ONLY after all Windows checks succeed
         uses: actions/upload-artifact@v4
         with:
-          name: KS-Client-alpha-1.1.8-Windows-CI-PASSED
+          name: KS-Client-alpha-1.1.9-Windows-CI-PASSED
           path: |
-            KS-Client-alpha-1.1.8-Setup.exe
-            KS-Client-alpha-1.1.8-Portable.zip
+            KS-Client-alpha-1.1.9-Setup.exe
+            KS-Client-alpha-1.1.9-Portable.zip
             CI-TEST-RESULT.txt
           retention-days: 14
           if-no-files-found: error

@@ -29,9 +29,9 @@ internal sealed class ClientForm : Form
     private System.Windows.Forms.Timer? engineSwitchTimer;
     private string? switchNonce;
 
-    internal ClientForm()
+    internal ClientForm(bool switchProbe = false)
     {
-        Text="KS Client alpha 1.1.8 – CEF";
+        Text="KS Client alpha 1.1.9 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -39,9 +39,9 @@ internal sealed class ClientForm : Form
         KeyPreview=true;
         overlay=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","overlay.js"));
         pacer=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","frame_pacer.js"));
-        browser=new ChromiumWebBrowser(Game) {Dock=DockStyle.Fill};
+        browser=new ChromiumWebBrowser(switchProbe ? "about:blank" : Game) {Dock=DockStyle.Fill};
         browser.MenuHandler = new ClientMenuHandler(() => desired.ContextMenu);
-        browser.RequestHandler = new ClientRequestHandler();
+        if (!switchProbe) browser.RequestHandler = new ClientRequestHandler();
         Controls.Add(browser);
         browser.FrameLoadStart += (_,e)=>{
             if(e.Frame.IsMain && Trust(e.Url,gameOnly:true))
@@ -59,7 +59,7 @@ internal sealed class ClientForm : Form
             e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setEngineInfo?.('CEF (CefSharp)');");
             e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setBrowserConfig?.("+JS(desired)+","+JS(Program.Active)+","+JS(NeedsRestart())+",'');");
             if(gameResolution!="native" && IsHandleCreated)BeginInvoke((Action)(()=>SetGameResolution(gameResolution)));
-            if(IsHandleCreated)BeginInvoke((Action)(()=>Program.SignalSwitchReady()));
+            // Readiness is signalled by WinForms Shown, not FrameLoadEnd.
         };
         browser.JavascriptMessageReceived += (_,e)=>{
             // Main-frame URL and current browser address must both stay allowlisted.
@@ -79,7 +79,9 @@ internal sealed class ClientForm : Form
             if(e.KeyCode==Keys.F1){RunJS("window.__KS_CLIENT__?.toggle?.()");e.Handled=true;}
             if(e.KeyCode==Keys.F10){RunJS("window.__KS_CLIENT__?.toggleHud?.()");e.Handled=true;}
         };
-        Program.Log("CEF host started; WebView2 is not used");
+        // Never require Kirka.io to load before reporting native window readiness.
+        Shown += (_, _) => BeginInvoke((Action)(() => Program.SignalSwitchReady()));
+        Program.Log("CEF native window created; gameplay loading is independent");
     }
 
     internal static bool Trust(string? source,bool gameOnly=false)
@@ -183,13 +185,13 @@ internal sealed class ClientForm : Form
                     try{File.Delete(failed);}catch{}
                     Close();
                 }
-                else if(File.Exists(failed)||++checks>=80){
-                    string reason="Electron did not confirm startup within 20 seconds. CEF remains open.";
+                else if(File.Exists(failed)||++checks>=200){
+                    string reason="Electron did not confirm native startup within 50 seconds. CEF remains open.";
                     if(File.Exists(failed)){
                         try{reason=File.ReadAllText(failed);}catch{}
                     }
                     StopSwitchTimer();
-                    try{File.WriteAllText(Path.Combine(Program.Root,"selected-engine.txt"),"cef\n");}catch{}
+                    // Launcher commits engine selection only after native readiness.
                     try{File.Delete(ready);}catch{}
                     try{File.Delete(failed);}catch{}
                     Reply("setEngineSwitchStatus",reason);
@@ -246,6 +248,16 @@ internal sealed class ClientForm : Form
                 desired.Save();ReportPrefs("Default preferences saved.");break;
             case "browser-restart":Restart();break;
             case "crash-status":Reply("setCrashStatus","CEF log: "+Program.LogPath);break;
+            case "fps-diagnostics":
+                Reply("setNativeFpsDiagnostics",new {
+                    engine="CEF",
+                    requested=desired.UncapFps,
+                    activeAtStartup=Program.Active.UncapFps,
+                    frameRateLimitSwitch=Program.Active.UncapFps,
+                    gpuVsyncSwitch=Program.Active.UncapFps,
+                    gpuAccelerationRequested=Program.Active.Gpu!="disabled",
+                    note="CEF startup flags requested; GPU/game FPS cannot be inferred"
+                });break;
             case "diagnostics-poll":
                 Reply("setDiagnostics",new {browserRAM=(int)(Process.GetCurrentProcess().WorkingSet64/1048576),engine="CEF",note="Host process RAM only"});break;
             case "open-logs":Process.Start(new ProcessStartInfo {FileName="explorer.exe",Arguments="\""+Program.Root+"\"",UseShellExecute=true});break;
@@ -258,6 +270,7 @@ internal sealed class ClientForm : Form
         if(keyData==Keys.F11) {ToggleFull();return true;}
         if(keyData==Keys.F1){RunJS("window.__KS_CLIENT__?.toggle?.()");return true;}
         if(keyData==Keys.F10){RunJS("window.__KS_CLIENT__?.toggleHud?.()");return true;}
+        if(keyData==(Keys.Control|Keys.Alt|Keys.E)){SwitchToElectron();return true;}
         if(keyData==(Keys.Control|Keys.R)){browser.Reload();return true;}
         return base.ProcessCmdKey(ref msg,keyData);
     }

@@ -1,5 +1,5 @@
 'use strict';
-// KS Client alpha 1.1.8: real Electron host. No WebView2 dependency.
+// KS Client alpha 1.1.9: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session } = require('electron');
 const {spawn}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.8';
+const APP_VERSION = 'alpha 1.1.9';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.8.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.1.9.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -47,11 +47,28 @@ const safeMode = process.argv.includes('--ks-browser-safe-mode');
 const tokenArg = process.argv.find(a=>a.startsWith('--ks-switch-token='));
 const tokenValue = tokenArg ? tokenArg.slice('--ks-switch-token='.length) : '';
 const switchToken = /^[a-f0-9]{32}$/i.test(tokenValue) ? tokenValue : '';
+const switchProbe = process.argv.includes('--ks-switch-probe') && Boolean(switchToken);
 let switchInProgress = false;
+let switchProbeTimer = null;
 function signalSwitchReady(){
-  if(!switchToken)return;
-  try{fs.writeFileSync(path.join(ROOT,'engine-switch-'+switchToken+'.ok'),'Electron','utf8');}
-  catch(e){log('Switch ready marker failed: '+e.message);}
+  // Independent of Kirka.io network and renderer timing. Native window exists.
+  if(!switchToken || !win || win.isDestroyed() || !win.isVisible()) return;
+  try{
+    fs.writeFileSync(path.join(ROOT,'engine-switch-'+switchToken+'.ready'),'electron','utf8');
+    log('Native Electron window ready; launcher confirmation pending');
+  }catch(e){log('Switch ready marker failed: '+e.message);}
+  if(switchProbe && !switchProbeTimer){
+    let checks=0;
+    switchProbeTimer=setInterval(()=>{
+      if(fs.existsSync(path.join(ROOT,'engine-switch-'+switchToken+'.ok'))){
+        clearInterval(switchProbeTimer);
+        app.exit(0);
+      }else if(++checks>240){
+        clearInterval(switchProbeTimer);
+        app.exit(3);
+      }
+    },250);
+  }
 }
 const active=safeMode?{...DEFAULT_PREFS}:loadPrefs();
 let desired={...active};
@@ -111,6 +128,9 @@ function installShortcuts(){
     if(input.key==='F1'){event.preventDefault();runJS('window.__KS_CLIENT__?.toggle?.()')}
     if(input.key==='F10'){event.preventDefault();runJS('window.__KS_CLIENT__?.toggleHud?.()')}
     if(input.key==='F12' && desired.devTools){event.preventDefault();win.webContents.openDevTools({mode:'detach'})}
+    if(input.control && input.alt && input.key.toLowerCase()==='c'){
+      event.preventDefault();switchEngine('cef');return;
+    }
     if(input.control && input.key.toLowerCase()==='r'){event.preventDefault();win.webContents.reload()}
   });
 }
@@ -125,6 +145,7 @@ function createWindow(){
   win.webContents.on('will-navigate',(event,target)=>{if(!validURL(target)){event.preventDefault();log('Blocked navigation outside client allowlist')}});
   win.webContents.on('context-menu',(event)=>{if(!desired.contextMenu)event.preventDefault()});
   win.webContents.on('dom-ready',async()=>{
+    if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
     // The overlay runs after the page DOM exists, retaining its 1.0.11 settings UI.
@@ -133,15 +154,22 @@ function createWindow(){
       await win.webContents.executeJavaScript(overlayJS,true);
       jsCall('setEngineInfo','Electron');
       browserConfig();
-      signalSwitchReady();
     }catch(e){log('Overlay: '+e.message)}
     setGameResolution(gameResolution);
   });
   win.webContents.on('render-process-gone',(e,d)=>log('Renderer gone: '+d.reason));
   win.on('closed',()=>{win=null});
   installShortcuts();
-  navigate(GAME);
-  log('Electron host started; native WebView2 not used');
+  // A completed BrowserWindow creation is a native engine startup, even if
+  // Kirka.io is offline. The old engine closes only after the launcher confirms.
+  if(switchProbe){
+    win.loadURL('data:text/html,<html><body>KS Client native Electron switch probe</body></html>').catch(e=>log(e.message));
+  }else{
+    navigate(GAME);
+  }
+  win.show();
+  signalSwitchReady();
+  log('Electron native window started; game load is checked separately');
 }
 // Preserve the old window until the new engine has actually loaded its UI.
 // The launcher relays a one-time nonce; the new engine acknowledges from DOM-ready.
@@ -165,8 +193,7 @@ function switchEngine(target) {
   }
   function fail(message){
     tidy();
-    // The launcher may have persisted the target even though it did not load.
-    try{fs.writeFileSync(path.join(ROOT,'selected-engine.txt'),'electron\n','utf8');}catch(_){}
+    // The launcher owns the persisted engine preference and rolls back.
     jsCall('setEngineSwitchStatus',String(message).slice(0,280));
     log('Engine switch failed: '+message);
   }
@@ -187,8 +214,8 @@ function switchEngine(target) {
           let reason='Engine launcher failed';
           try{reason=fs.readFileSync(failed,'utf8').slice(0,260)}catch(_){}
           fail(reason);
-        }else if(++count>=80){
-          fail('No startup confirmation from '+target.toUpperCase()+' within 20 seconds. The current engine remains open.');
+        }else if(++count>=200){
+          fail('No native startup confirmation from '+target.toUpperCase()+' within 50 seconds. The current engine remains open.');
         }
       },250);
     });
@@ -233,6 +260,18 @@ function receiveMessage(event, raw){
       if(win){app.relaunch({args:process.argv.slice(1).filter(a=>a!=='--ks-browser-safe-mode')});app.exit(0)}
       break;
     }
+    case 'fps-diagnostics':{
+      jsCall('setNativeFpsDiagnostics',{
+        engine:'Electron',
+        requested:desired.uncapFps,
+        activeAtStartup:active.uncapFps,
+        frameRateLimitSwitch:app.commandLine.hasSwitch('disable-frame-rate-limit'),
+        gpuVsyncSwitch:app.commandLine.hasSwitch('disable-gpu-vsync'),
+        gpuAccelerationRequested:active.gpu!=='disabled',
+        note:'Native startup switches only; no claim of actual game/GPU FPS.'
+      });
+      break;
+    }
     case 'diagnostics-poll':{
       const bytes=process.memoryUsage().rss;
       jsCall('setDiagnostics',{browserRAM:Math.round(bytes/1048576),note:'Electron host process RAM only',gpuAcceleration:active.gpu,engine:'Electron',platform:'Windows'});
@@ -259,6 +298,11 @@ app.whenReady().then(()=>{
     const origin=contents.getURL();
     callback(validURL(origin,true) && (permission==='pointerLock'||permission==='fullscreen'));
   });
+  log('FPS startup flags: '+JSON.stringify({
+    requested:active.uncapFps,
+    frameRateLimitSwitch:app.commandLine.hasSwitch('disable-frame-rate-limit'),
+    gpuVsyncSwitch:app.commandLine.hasSwitch('disable-gpu-vsync')
+  }));
   createWindow();
 }).catch(e=>{log(e.stack||e);dialog.showErrorBox('KS Client Electron',String(e.message||e));app.exit(1)});
 app.on('window-all-closed',()=>app.quit());

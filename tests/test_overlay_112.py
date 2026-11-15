@@ -1,4 +1,4 @@
-"""Engine-independent KS Client 1.1.8 UI smoke test in local Chromium.
+"""Engine-independent KS Client 1.1.9 UI smoke test in local Chromium.
 Not a live test of Windows Electron, CEF, or FPS unlock.
 """
 from pathlib import Path
@@ -51,6 +51,12 @@ with sync_playwright() as play:
   page.locator('[data-action="enable-unlimited-fps"]').click()
   assert page.evaluate("window.__out.some(m=>m.type==='browser-save' && m.browser.uncapFps===true)")
   assert page.locator('[data-action="browser-restart"]').count()==1
+  page.evaluate("""() => window.__KS_CLIENT__.setNativeFpsDiagnostics({
+    engine:'Electron',requested:true,activeAtStartup:true,frameRateLimitSwitch:true,
+    gpuVsyncSwitch:true,gpuAccelerationRequested:true})""")
+  assert 'REQUESTED' in page.locator('#ks-fps-native-diag').inner_text()
+  assert page.locator('#ks-fps-callback-diag').count()==1
+
 
   page.locator('.ks-tab[data-group="Client"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
@@ -67,8 +73,8 @@ with sync_playwright() as play:
   assert page.locator('[data-setting="crosshairEnabled"]').count()==1
   page.locator('.ks-tab[data-group="Client"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
-  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.8')
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.9')
   assert not errors,(width,errors)
-  print('PASS 1.1.8 engine UI',width,height)
+  print('PASS 1.1.9 engine UI',width,height)
   page.close()
  browser.close()

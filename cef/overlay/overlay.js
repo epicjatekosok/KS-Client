@@ -1,4 +1,4 @@
-/* KS Client alpha 1.1.8 – Electron/CEF unified game overlay. */
+/* KS Client alpha 1.1.9 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
@@ -56,7 +56,7 @@
   function stored() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; } }
   const previousSettings = stored();
   let state = { ...defaults, ...previousSettings };
-  // One-time alpha 1.1.8 migration: undo the previous forced 150% default.
+  // One-time alpha 1.1.9 migration: undo the previous forced 150% default.
   // Non-150% choices remain unchanged. Users can select 150% again afterwards.
   try {
     if (localStorage.getItem('ksclient.menu-scale-alpha109') !== '1') {
@@ -339,7 +339,7 @@
       #ks-quick { top: 70px; right: 12px; }
     }
 
-    /* alpha 1.1.8: native CSS zoom (layout-level, vector-sharp), responsive bounds. */
+    /* alpha 1.1.9: native CSS zoom (layout-level, vector-sharp), responsive bounds. */
     #ks-panel {width:min(1180px,calc((100vw - 24px) / var(--ks-ui-scale,1)));max-height:min(920px,calc((100vh - 24px) / var(--ks-ui-scale,1)));border-radius:12px;}
     #ks-main {grid-template-columns:174px minmax(0,1fr);flex:1;}
     #ks-nav {overflow-y:auto; gap:5px; padding:17px 10px; background:var(--ks-soft,#101217); min-height:0;}
@@ -385,7 +385,7 @@
     #ks-nav::-webkit-scrollbar-thumb:hover,#ks-body::-webkit-scrollbar-thumb:hover {background:var(--ks-accent,#f0aa35);}
     #ks-nav::-webkit-scrollbar-button,#ks-body::-webkit-scrollbar-button,.ks-select-popup::-webkit-scrollbar-button,#ks-panel textarea::-webkit-scrollbar-button {display:none!important;width:0!important;height:0!important;}
 
-    /* alpha 1.1.8: scale is committed only after releasing the slider.
+    /* alpha 1.1.9: scale is committed only after releasing the slider.
        CSS zoom reflows text sharply; never raster-stretch with transform. */
     #ks-panel {transform:none!important;transform-origin:center center;}
     #ks-preview-svg {width:162px;height:162px;max-width:100%;}
@@ -452,18 +452,18 @@
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge">KS CLIENT <span style="color:#ffe2a8">alpha 1.1.8</span></div>
+    <div id="ks-badge">KS CLIENT <span style="color:#ffe2a8">alpha 1.1.9</span></div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings"><span class="ks-gear-icon">⚙</span> <span class="ks-quick-label">Settings</span></button>
     </div>
     <div id="ks-dimmer"><div id="ks-panel" role="dialog" aria-label="KS Client Settings" aria-modal="true">
       <div id="ks-top">
-        <div id="ks-brand"><img id="ks-brand-icon" alt="KS Client Logo"><div id="ks-brand-main">KS CLIENT</div><div id="ks-brand-sub">Custom Kirka.io Client · alpha 1.1.8</div></div>
-        <div class="ks-stack"><span class="ks-pill">● CHROMIUM</span><span class="ks-alpha">alpha 1.1.8</span><button id="ks-close" aria-label="Close Settings">✕</button></div>
+        <div id="ks-brand"><img id="ks-brand-icon" alt="KS Client Logo"><div id="ks-brand-main">KS CLIENT</div><div id="ks-brand-sub">Custom Kirka.io Client · alpha 1.1.9</div></div>
+        <div class="ks-stack"><span class="ks-pill">● CHROMIUM</span><span class="ks-alpha">alpha 1.1.9</span><button id="ks-close" aria-label="Close Settings">✕</button></div>
       </div>
       <div id="ks-main"><div id="ks-nav"></div>
       <div id="ks-body"></div></div>
-      <div id="ks-foot"><span>F1 Settings · F10 Hide Client HUD · F11 Fullscreen</span><span>Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.8</span></div>
+      <div id="ks-foot"><span>F1 Settings · F10 Hide Client HUD · F11 Fullscreen</span><span>Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.9</span></div>
     </div></div>
   </div>`;
 
@@ -486,6 +486,15 @@
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
   let browserStatus = 'Waiting for native Electron/CEF settings…';
+  let fpsNativeInfo=null;
+  function fpsDiagnosticText(){
+    if(!fpsNativeInfo)return 'Native startup flags: waiting for engine response';
+    const x=fpsNativeInfo;
+    return String(x.engine||'Unknown')+
+      ' · Chromium uncap switches: '+(x.frameRateLimitSwitch&&x.gpuVsyncSwitch?'REQUESTED':'NOT BOTH REQUESTED')+
+      ' · Applied at launch: '+(x.activeAtStartup?'ON':'OFF')+
+      ' · Saved setting: '+(x.requested?'ON':'OFF');
+  }
   let browserWebGL = { webgl:'Not tested', webgl2:'Not tested', renderer:'Not checked', compositing:'Not accessible from WebGL' };
   const browserGroups = new Set(['Browser Graphics','Browser Controls','Browser GPU Info']);
   function browserSelect(label, description, key, options) {
@@ -542,7 +551,7 @@
   "Saved profiles":"Elmentett profilok",
   "Save, load or delete up to 12 complete presets, including outlines and shadows.":"Legfeljebb 12 teljes profilt menthetsz, betölthetsz vagy törölhetsz, körvonallal és árnyékkal együtt.",
   "Preview uses the same vector drawing as the in-game overlay. Center dot and outlines are independent.":"Az előnézet ugyanazt a vektoros rajzolást használja, mint a játék feletti jelölés. A középpont és a körvonal külön beállítható.",
-  "alpha 1.1.8":"alpha 1.1.8",
+  "alpha 1.1.9":"alpha 1.1.9",
     "Gameplay":"Játékmenet","Personalization":"Testreszabás","Client":"Kliens",
     "Customize accent, surface, text and typography for the client interface.":"A kliens kiemelőszíneinek, hátterének, szövegének és betűtípusának testreszabása.",
     "Color palette":"Színpaletta","Accent color of active elements":"Az aktív elemek kiemelőszíne",
@@ -561,9 +570,9 @@
   "Settings": "Beállítások",
   "Open KS Client settings": "KS Client beállításainak megnyitása",
   "KS Client Settings": "KS Client beállítások",
-  "Custom Kirka.io Client · alpha 1.1.8": "Egyedi Kirka.io-kliens · alpha 1.1.8",
+  "Custom Kirka.io Client · alpha 1.1.9": "Egyedi Kirka.io-kliens · alpha 1.1.9",
   "F1 Settings · F10 Hide Client HUD · F11 Fullscreen": "F1 Beállítások · F10 Kliens-HUD elrejtése · F11 Teljes képernyő",
-  "Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.8": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · alpha 1.1.8",
+  "Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.9": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · alpha 1.1.9",
   "Close Settings": "Beállítások bezárása",
   "● ACTIVE": "● AKTÍV",
   "Client Overview": "A kliens áttekintése",
@@ -574,7 +583,7 @@
   "Toggle fullscreen · F11": "Teljes képernyő be/ki · F11",
   "Reset client settings": "Kliensbeállítások visszaállítása",
   "Reset all settings": "Összes beállítás visszaállítása",
-  "This build uses the visible label alpha 1.1.8. Game files and player data still come from Kirka.io.": "Ez a kiadás az alpha 1.1.8 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
+  "This build uses the visible label alpha 1.1.9. Game files and player data still come from Kirka.io.": "Ez a kiadás az alpha 1.1.9 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
   "Settings Backup & Language": "Beállításmentés és nyelv",
   "Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.": "Mentsd el és oszd meg a KS Client beállításait. Csak JSON-fájl használható; ismeretlen személy mentését ne importáld.",
   "Language": "Nyelv",
@@ -988,6 +997,7 @@
 
 
   const releaseHistory = [
+    {v:'1.1.9',en:['Launcher supervises CEF/Electron native readiness and only then commits switches.','Native switch probes on Windows for both engine directions.','FPS startup flag verification and browser callback diagnostics, without promising GPU FPS.'],hu:['A launcher a natív indulásig felügyeli a CEF/Electron váltást.','Mindkét motorirány valódi Windowsos próbaindítása.','FPS-indítási kapcsolók és böngészős animációs ütem diagnosztikája, GPU-FPS ígérete nélkül.']},
     {v:'1.1.8',en:['Fixed active engine identification and acknowledged engine switching.','Unlimited FPS now enables the experimental Chromium uncapping request.','Preserves the old engine on restart failures.'],hu:['Javított motorfelismerés és visszaigazolt motorváltás.','Korlátlan FPS választásakor kísérleti Chromium-feloldás és újraindítás.','A régi motor nyitva marad hiba esetén.']},
     {v:'1.1.7',en:['Bundle both .NET 10 runtimes for CEF offline startup.','Fix CEF Windows smoke diagnostics and optional Electron graphics DLL.','Require passing engine tests before release packaging.'],hu:['A CEF mellé mindkét .NET 10 futtatókörnyezet bekerül.','Javított CEF-indítási hibakeresés és Electron-függőségek.','Csak mindkét motorteszt után készül telepítő.']},
     {v:'1.1.6',en:['Replaced the empty PowerShell window with a native English engine installer with visible logs.','Setup now automatically installs both engines online; CEF starts by default.','Switch between CEF and Electron in Client > General; changing engines restarts KS Client.'],hu:['Üres terminál helyett saját angol nyelvű motortelepítő ablak naplóval.','Telepítés után mindkét motor automatikusan települ az internetről; az alapmotor CEF.','Motorváltás a Kliens > Általános menüben, automatikus újraindítással.']},
@@ -1019,9 +1029,9 @@
     $('ks-gear').setAttribute('aria-label',L('Open KS Client settings'));
     $('ks-panel').setAttribute('aria-label',L('KS Client Settings'));
     $('ks-close').setAttribute('aria-label',L('Close Settings'));
-    $('ks-brand-sub').textContent=L('Custom Kirka.io Client · alpha 1.1.8');
+    $('ks-brand-sub').textContent=L('Custom Kirka.io Client · alpha 1.1.9');
     $('ks-foot').children[0].textContent=L('F1 Settings · F10 Hide Client HUD · F11 Fullscreen');
-    $('ks-foot').children[1].textContent=L('Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.8');
+    $('ks-foot').children[1].textContent=L('Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.9');
   }
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -1041,15 +1051,15 @@
   function tabContent() {
     switch (selectedTab) {
       case 'General':
-        return title('Client Overview', 'KS Client alpha 1.1.8 starts in CEF by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client alpha 1.1.9 starts in CEF by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
-          `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ. Native shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
           (engineSwitchStatus ? `<p class="ks-hint" id="ks-engine-switch-status">${esc(engineSwitchStatus)}</p>` : '') +
           `<div class="ks-row"><div class="ks-label">Borderless fullscreen</div><button class="ks-btn" data-action="fullscreen">Toggle fullscreen · F11</button></div>` +
           `<div class="ks-row"><div class="ks-label">Reset client settings</div><button class="ks-btn danger" data-action="reset">Reset all settings</button></div>` +
           `</div>` +
-          `<p class="ks-hint">This build uses the visible label alpha 1.1.8. Game files and player data still come from Kirka.io.</p>` + historyHTML();
+          `<p class="ks-hint">This build uses the visible label alpha 1.1.9. Game files and player data still come from Kirka.io.</p>` + historyHTML();
       case 'Sharing':
         return title('Settings Backup & Language','Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.') +
           `<div class="ks-card">` +
@@ -1099,6 +1109,9 @@
           ]) +
           `<div class="ks-row"><div><div class="ks-label">Activate Unlimited FPS</div><div class="ks-desc">Requests Chromium FPS unlocking and removes the KS JavaScript callback cap. Restart required; actual Kirka.io FPS is not guaranteed above monitor Hz.</div></div><button class="ks-btn primary" data-action="enable-unlimited-fps" ${!browserPrefsLoaded?'disabled':''}>Enable experimental unlock</button></div>` +
           `<div class="ks-row"><div><div class="ks-label">Experimental Unlimited FPS (Chromium)</div><div class="ks-desc">Attempts to remove Chromium rAF/vsync limits. Requires a restart and may cause tearing, higher CPU load or network input delays.</div></div><input type="checkbox" data-browser="uncapFps" ${browserPrefs.uncapFps?'checked':''} ${!browserPrefsLoaded?'disabled':''}></div>` +
+          `<div class="ks-row"><div><div class="ks-label">FPS unlock verification</div><div class="ks-desc">Reports native startup requests, NOT measured Kirka.io GPU FPS.</div></div><span class="ks-code" id="ks-fps-native-diag">${esc(fpsDiagnosticText())}</span></div>`+
+          `<div class="ks-row"><div><div class="ks-label">Observed browser animation rate</div><div class="ks-desc">JavaScript requestAnimationFrame callbacks; not necessarily the game's render rate.</div></div><span class="ks-code" id="ks-fps-callback-diag">Measuring…</span></div>`+
+          `<p class="ks-hint">If the rAF rate equals 60/144/165 Hz, this indicates a browser scheduling ceiling. Compare Kirka.io's in-game FPS separately. Above-monitor GPU FPS cannot be guaranteed.</p>`+
           `<div class="ks-row"><div><div class="ks-label">Browser FPS unlock</div><div class="ks-desc">Your selected engine startup request</div></div><span class="ks-code">${browserActive.uncapFps ? L('Requested on startup') : L('Off / normal sync')}</span></div>`+
           (browserPendingRestart ? `<p class="ks-hint">${L('Restart KS Client now')}</p><button class="ks-btn primary" data-action="browser-restart">${L('Restart KS Client now')}</button>` : '') +
           `<p class="ks-hint">Unlimited here only removes the KS JavaScript cap. For above-monitor-Hz FPS enable Experimental Chromium Uncap below and restart.</p>`+
@@ -1137,6 +1150,8 @@
           `<p class="ks-hint">A visible WebGL renderer is not conclusive proof of full GPU acceleration. Fatal native crashes may not yield a full dump. Diagnostics are not uploaded.</p>`;
       case 'Frame Stability':
         return title('Frame Stability Monitor', 'Measures browser animation intervals, not GPU presentation or Kirka.io engine frames.') +
+          `<div class="ks-note" id="ks-stability-native-fps">${esc(fpsDiagnosticText())}</div>`+
+          `<p class="ks-hint">Browser callbacks, native Chromium flag requests and Kirka.io GPU FPS are three different measurements.</p>`+
           `<div class="ks-stability-grid">`+
             `<div class="ks-stability-stat"><div class="ks-metric-name">Median frame interval</div><div class="ks-metric-value" id="ks-stability-median">—</div></div>`+
             `<div class="ks-stability-stat"><div class="ks-metric-name">95th-percentile interval</div><div class="ks-metric-value" id="ks-stability-p95">—</div></div>`+
@@ -1556,7 +1571,7 @@
     const group=currentGroup();
     $('ks-nav').innerHTML = `<div class="ks-sidebar-caption">${state.language==='hu'?'BEÁLLÍTÁSOK':'SETTINGS'}</div>`+
       groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon">${g.icon}</span><span>${translateTab(g.key)}</span></button>`).join('')+
-      `<div class="ks-sidebar-foot">● ${state.language==='hu'?'AUTOMATIKUS MENTÉS':'AUTOSAVED'}<div style="opacity:.66;margin-top:5px">KS Client · alpha 1.1.8</div></div>`;
+      `<div class="ks-sidebar-foot">● ${state.language==='hu'?'AUTOMATIKUS MENTÉS':'AUTOSAVED'}<div style="opacity:.66;margin-top:5px">KS Client · alpha 1.1.9</div></div>`;
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup();
@@ -1864,7 +1879,7 @@
     // Export only supported settings; local assets live in IndexedDB.
     const safe = Object.fromEntries(Object.keys(defaults)
       .map(k=>[k,state[k]]));
-    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client alpha 1.1.8',exportedAt:new Date().toISOString(),settings:safe};
+    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client alpha 1.1.9',exportedAt:new Date().toISOString(),settings:safe};
     const blob = new Blob([JSON.stringify(doc,null,2)],{type:'application/json'});
     const objectURL = URL.createObjectURL(blob);
     const link=document.createElement('a');link.href=objectURL;link.download='KS-Client-alpha-1.0.11-settings.json';
@@ -2134,6 +2149,12 @@
         gameHUDValue=readGameHUDValue();gameHUDReadAt=ts;
       }
       const measured = window.__KS_FRAME_PACER__?.getStats();
+      const callbackEl=$('ks-fps-callback-diag');
+      if(callbackEl){
+        const sample=measured?.estimatedCallbackFPS;
+        callbackEl.textContent=Number.isFinite(sample) && sample>0
+          ? sample+' callbacks/s (rAF, NOT GPU FPS)' : 'Waiting for requestAnimationFrame samples';
+      }
       if(isGamePage && measured && measured.completedFrames>3) {
         displayedGameFPS = measured.estimatedCallbackFPS;
         displayedFrameMs = measured.estimatedCallbackFrameMs;
@@ -2170,6 +2191,7 @@
     animationFrame(animate);
   }
   setInterval(()=>{if(open && selectedTab==='Diagnostics')notify('diagnostics-poll');},2000);
+  setInterval(()=>{if(open && (selectedTab==='Performance'||selectedTab==='Frame Stability'))notify('fps-diagnostics');},1800);
   window.__KS_CLIENT__ = {
     setEngineInfo: name => {const n=String(name||'Unknown');if(activeEngine!==n){activeEngine=n;if(selectedTab==='General')renderTab();}},
     setEngineSwitchStatus: status => {
@@ -2194,6 +2216,13 @@
       browserStatus=status || 'Applied on browser startup';
       if(browserGroups.has(selectedTab) || selectedTab==='Performance')renderTab();
     },
+    setNativeFpsDiagnostics: d => {
+      if(!d || !['CEF','Electron'].includes(d.engine))return;
+      fpsNativeInfo=d;
+      for(const id of ['ks-fps-native-diag','ks-stability-native-fps']){
+        const el=$(id);if(el)el.textContent=fpsDiagnosticText();
+      }
+    },
     setDiagnostics: d => { if(d && Number.isFinite(d.browserRAM)) { diagnostics=d;updateDiagnosticsUI(); } },
     setCrashStatus: s => {crashStatus=String(s);const el=$('ks-crash-status');if(el)el.textContent=L(crashStatus);},
 
@@ -2208,6 +2237,7 @@
     requestAnimationFrame(animate);
     notify('engine-info');
     notify('browser-config');
+    notify('fps-diagnostics');
     let handshakeCount=0;
     const handshakeTimer=setInterval(()=>{
       if(++handshakeCount>8 || (browserPrefsLoaded && !activeEngine.startsWith('Detecting'))){clearInterval(handshakeTimer);return;}

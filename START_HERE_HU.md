@@ -1,6 +1,6 @@
 # KS Client - Windowsos fordítás és ellenőrzés
 
-Ez a ZIP **fejlesztői forráscsomag**, nem a végleges telepítő. Az alapja a korábbi **alpha 1.1.8**. A régi, a felhasználó számítógépén futó CEF-fordítás helyett a GitHub Actions Windowson fordítja és ellenőrzi a motorokat.
+Ez a ZIP **fejlesztői forráscsomag**, nem a végleges telepítő. Az alapja a korábbi **alpha 1.1.9**. A régi, a felhasználó számítógépén futó CEF-fordítás helyett a GitHub Actions Windowson fordítja és ellenőrzi a motorokat.
 
 ## Indítás programozási ismeretek nélkül
 
@@ -28,7 +28,15 @@ A valódi Kirka.io-belépést, játékbeli megjelenítést, monitor-Hz fölötti
 A Windows CI internetet használ a GitHub, NuGet és a Microsoft hivatalos letöltéseihez, és a GitHub Actions használata a fiókod számára rendelkezésre álló futtatási időt fogyaszthatja. A teljes futtatást ebben a ChatGPT-környezetben nem tudtam elindítani; a kész forráscsomagot és a helyben lehetséges teszteket ellenőriztem. A kétmotoros telepítő nem lett ezáltal automatikusan megjavítva a gépeden.
 
 
-**Alpha 1.1.8:** A CEF-hez helyben telepített .NET 10 alap- és Windows Desktop Runtime tartozik. A telepítő csak mindkét Windowsos motorteszt sikeres futása után készül el.
+**Alpha 1.1.9:** A CEF-hez helyben telepített .NET 10 alap- és Windows Desktop Runtime tartozik. A telepítő csak mindkét Windowsos motorteszt sikeres futása után készül el.
 
 
-**Alpha 1.1.8:** a motorváltás csak a másik motor sikeres indulásának visszaigazolása után zárja be a korábbit. Az Aktív böngészőmotor állapotát ismételten ellenőrzi. A kísérleti FPS-feloldás külön gombbal is kérhető; újraindítást igényel, a monitor Hz-e fölötti FPS nem garantált.
+**Alpha 1.1.9:** a motorváltás csak a másik motor sikeres indulásának visszaigazolása után zárja be a korábbit. Az Aktív böngészőmotor állapotát ismételten ellenőrzi. A kísérleti FPS-feloldás külön gombbal is kérhető; újraindítást igényel, a monitor Hz-e fölötti FPS nem garantált.
+
+
+## Alpha 1.1.9 használat
+A Client > General alatt a motorváltás most a natív ablak indulására vár, és csak sikeres indulás után zárja be az előző motort. Az új motor játékoldala hálózati hiba esetén később is betölthet. A hibaüzenetek és a naplók itt találhatók: %LOCALAPPDATA%\KSClient.
+
+A Gameplay > Performance oldalon külön látszanak a böngésző FPS-feloldási indítási kapcsolói és a mért animációs hívások. A 60/144 Hz-es érték nem jelenti automatikusan, hogy a játék GPU-val renderelt FPS-e is ennyi. A valós Kirka.io FPS-feloldás nincs igazolva.
+
+A Windows CI külön próbát indít mindkét motorral, CEF->Electron és Electron->CEF irányban. Ez valódi natív ablakpróba, de nem helyettesíti a saját gépen végzett Kirka.io-játékbeli tesztet.
