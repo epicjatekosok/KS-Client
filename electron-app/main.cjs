@@ -162,6 +162,8 @@ function createWindow(){
     // The overlay runs after the page DOM exists, retaining its 1.0.11 settings UI.
     try{
       await win.webContents.executeJavaScript(frameJS,true);
+      // Late fallback if early main-world evaluation was blocked or missed.
+      await win.webContents.executeJavaScript(integrationBootJS,true);
       await win.webContents.executeJavaScript(overlayJS,true);
       await win.webContents.executeJavaScript(extrasJS,true);
       await win.webContents.executeJavaScript(workshopJS,true);
