@@ -53,7 +53,7 @@ try {
       }
     }
   }
-  foreach($source in @('electron-1.1.9.log','cef-1.1.9.log')){
+  foreach($source in @('electron-1.1.10.log','cef-1.1.10.log')){
     if(-not (Test-Path (Join-Path $folder $source) -PathType Leaf)){throw "Missing engine log: $source"}
   }
   Write-Host 'PASS: both native engine switch directions and local logs'
