@@ -58,7 +58,7 @@
  const card=(title,content)=>'<div class="ks-card"><h3 class="ks-section-heading">'+escape(title)+'</h3>'+content+'</div>';
  const notice='<p class="ks-hint">Local-only appearance and convenience tools; never changes player inventory, server data, weapon damage or hit detection.</p>';
  const list=(items,what)=>items.length?items.map((x,i)=>'<div class="ks-row"><span>'+escape(x.name||x.nick||x.item||x.url||'Item')+'</span>'+btn(what+'-use-'+i,'Use')+btn(what+'-delete-'+i,'Remove')+'</div>').join(''):'<p class="ks-hint">No saved entries yet.</p>';
- const srcmsg='Your own script runs only inside an opaque, sandboxed preview. No game DOM, cookies, Electron, Node.js, network or filesystem access. It never auto-runs.';
+ const srcmsg='Your own script runs only inside an opaque, sandboxed preview. No raw game DOM, cookies, Electron, Node.js, network or filesystem access. The approved ks.snapshot() API returns a sanitized copy of the visible Kirka UI. Scripts never auto-run.';
  function render(tab){
    if(tab==='Weapon Studio')return '<h2 class="ks-title">Weapon Studio / Custom Skin Link</h2><p class="ks-sub">Local weapon and inventory image cosmetics. 3D WebGL material replacement depends on exact supported game assets.</p>'+
      card('Weapon & inventory visual styling',input('weapon-hue','Hue rotation (0–360)',cfg.weapon.hue,'number')+
@@ -94,7 +94,7 @@
        btn('swap-toggle','Save swapper state')+' '+btn('swap-folder','Open asset folder')+' '+btn('swap-scan','Scan files')+
        '<p class="ks-hint">Changes are applied to new network requests; reload the game after changing files. Some resources are cached, loaded from other hosts or protected by CSP.</p>')+notice;
    if(tab==='Plugins')return '<h2 class="ks-title">Safe JavaScript plugins</h2><p class="ks-sub">'+escape(srcmsg)+'</p>'+
-     '<p class="ks-hint">Example: ks.message("Hello!"); ks.tint("hud","#ffaa22"); Available targets: hud, chat, killfeed, inventory. Each run requires a click.</p>'+
+     '<p class="ks-hint">Example: ks.message("Hello!"); ks.tint("hud","#ffaa22"); ks.snapshot().then(s=>ks.message(s.scene)); The snapshot includes only visible game data. Each run requires a click.</p>'+
      card('Add local plugin',input('plugin-name','Plugin name')+'<textarea id="ks-wk-plugin-code" class="ks-input" rows="7" placeholder="document.body.textContent = &#39;Hello from a sandboxed plugin!&#39;"></textarea>'+btn('plugin-save','Save code'))+
      card('Saved plugins',cfg.plugins.length?cfg.plugins.map((p,i)=>'<div class="ks-row"><div><strong>'+escape(p.name)+'</strong><div class="ks-desc">Sandboxed, manual start</div></div>'+btn('plugin-run-'+i,'Run')+btn('plugin-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No scripts saved.</p>')+
      card('Plugin preview','<div id="ks-wk-plugin-preview" class="ks-note">Choose Run to open an isolated preview.</div>'+btn('plugin-stop','Stop preview'))+notice;
@@ -275,11 +275,17 @@
    const html='<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;unsafe-inline&#39; &#39;unsafe-eval&#39;; style-src &#39;unsafe-inline&#39;; img-src data:; connect-src &#39;none&#39;; form-action &#39;none&#39;">'+
      '<style>body{background:#0d1219;color:#f0aa35;font:14px system-ui;padding:12px}</style></head><body>'+
      '<div id="plugin-status">Isolated plugin preview</div>'+
-     '<script>window.ks=Object.freeze({message:function(text){parent.postMessage({ksWorkshopPlugin:1,action:"message",text:String(text).slice(0,140)},"*")},tint:function(target,color){parent.postMessage({ksWorkshopPlugin:1,action:"tint",target:String(target),color:String(color)},"*")}});</script>'+     '<script>try{(new Function(atob("'+code64+'")))()}catch(e){document.getElementById("plugin-status").textContent="Plugin error: "+String(e.message).slice(0,150)}</script></body></html>';
+     '<script>let id=0;const pending=new Map();window.addEventListener("message",e=>{if(e.data?.ksWorkshopReply===1&&pending.has(e.data.id)){pending.get(e.data.id)(e.data.snapshot);pending.delete(e.data.id)}});window.ks=Object.freeze({message:function(text){parent.postMessage({ksWorkshopPlugin:1,action:"message",text:String(text).slice(0,140)},"*")},tint:function(target,color){parent.postMessage({ksWorkshopPlugin:1,action:"tint",target:String(target),color:String(color)},"*")},snapshot:function(){return new Promise(resolve=>{let n=++id;pending.set(n,resolve);parent.postMessage({ksWorkshopPlugin:1,action:"snapshot",id:n},"*")})}});</script>'+     '<script>try{(new Function(atob("'+code64+'")))()}catch(e){document.getElementById("plugin-status").textContent="Plugin error: "+String(e.message).slice(0,150)}</script></body></html>';
    const presets={hud:'.script-ui',chat:'#chat',killfeed:'.kill-bar-cont',inventory:'.inventory'};
    let calls=0;
    pluginListener=e=>{
      if(e.source!==frame.contentWindow||!isObject(e.data)||e.data.ksWorkshopPlugin!==1||++calls>80)return;
+     if(e.data.action==='snapshot'&&Number.isSafeInteger(e.data.id)&&e.data.id>0&&e.data.id<=100){
+       const data=deepSnapshot();
+       const safe={scene:data.scene||'unknown',stats:data.stats||{},observed:data.observed||{},
+         inventory:data.inventory||null,profile:data.profile||null,servers:data.servers||null,input:data.input||{}};
+       frame.contentWindow?.postMessage({ksWorkshopReply:1,id:e.data.id,snapshot:safe},'*');
+     }
      if(e.data.action==='message'){
        status='Plugin message: '+trim(e.data.text,140);
        const node=ui.getElementById('ks-wk-status');if(node)node.textContent=status;
