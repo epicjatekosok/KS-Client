@@ -68,6 +68,7 @@ jobs:
           python tests/test_overlay_112.py
           python tests/test_game_integration_112.py
           python tests/test_advanced_114.py
+          python tests/test_runtime_integration.py
 
   electron:
     if: github.event_name != 'pull_request'
