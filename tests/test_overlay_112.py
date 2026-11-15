@@ -10,7 +10,7 @@ assert js==cef, 'Different overlays shipped to the two engines'
 js=js.replace("if (!allowedHosts.has(location.hostname) || location.protocol !== 'https:') return;",'/* Testing offline origin: allow. */')
 pacer=(root/'electron-app/overlay/frame_pacer.js').read_text().replace("if (location.protocol !== 'https:' || !['kirka.io', 'www.kirka.io'].includes(location.hostname)) return;",'/* Testing offline origin: allow. */')
 with sync_playwright() as play:
- browser=play.chromium.launch(executable_path=('/usr/bin/chromium' if Path('/usr/bin/chromium').exists() else None),headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
+ browser=play.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
  for width,height in [(1280,720),(1600,900),(2560,1440)]:
   page=browser.new_page(viewport={'width':width,'height':height})
   errors=[]
