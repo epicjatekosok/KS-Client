@@ -1,4 +1,4 @@
-/* KS Client alpha 1.1.12 — independently maintained local Game Workshop.
+/* KS Client alpha 1.1.14 — independently maintained local Game Workshop.
    No imported third-party source. Settings stay in this browser profile.
    JS extensions run only after an explicit click, in a sandboxed opaque iframe.
 */
@@ -7,6 +7,10 @@
  if (window.__KS_WORKSHOP__) return;
  if(location.protocol!=='https:' || !['kirka.io','www.kirka.io'].includes(location.hostname))return;
  const KEY='ksclient.workshop.v1';
+ const WG='ksclient.webgl.v114';
+ const glCfg=()=>{try{return JSON.parse(localStorage.getItem(WG)||'{}')||{}}catch(_){return {}}};
+ const glStatus=()=>window.__KS_WEBGL_COSMETICS__?.getStatus?.()||{};
+ const deepSnapshot=()=>window.__KS_DEEP__?.getSnapshot?.()||{};
  const EMPTY=()=>({weapon:{hue:0,saturation:100,brightness:100,skinURL:'',enabled:false,presets:[]},
    swapEnabled:false,plugins:[],rooms:[],history:[],friends:[],inventory:[],killfeedColors:false,gameHudTheme:'original'});
  const isObject=x=>x&&typeof x==='object'&&!Array.isArray(x);
@@ -63,6 +67,21 @@
        input('skin-url','Custom Skin Link (HTTPS image)',cfg.weapon.skinURL)+
        '<label class="ks-row">Enable local cosmetic styling <input type="checkbox" id="ks-wk-weapon-on" '+(cfg.weapon.enabled?'checked':'')+'></label>'+
        btn('weapon-apply','Apply cosmetics')+' '+btn('weapon-reset','Clear cosmetics'))+
+     card('3D Weapon Studio (experimental exact-match WebGL)',
+       '<p class="ks-hint">Replaces a matching WebGL image texture. The exact Kirka /assets/ URL and a CORS-compatible replacement image are required. Viewmodel transforms require a manually selected matrix signature.</p>'+
+       input('gl-source','Original Kirka texture URL (exact HTTPS asset)',glCfg().assetURL||'')+
+       input('gl-skin','Custom 3D Skin Link (HTTPS CORS image)',glCfg().skinURL||'')+
+       input('gl-hue','Texture hue 0–360',glCfg().hue??0,'number')+
+       input('gl-saturation','Texture saturation %',glCfg().saturation??100,'number')+
+       input('gl-brightness','Texture brightness %',glCfg().brightness??100,'number')+
+       input('gl-scale','3D scale % (calibrated target only)',glCfg().scale??100,'number')+
+       input('gl-x','3D X offset',glCfg().offsetX??0,'number')+
+       input('gl-y','3D Y offset',glCfg().offsetY??0,'number')+
+       input('gl-z','3D Z offset',glCfg().offsetZ??0,'number')+
+       input('gl-matrix','Manual WebGL matrix signature',glCfg().matrixSignature||'')+
+       '<label class="ks-row">Enable 3D cosmetics <input type="checkbox" id="ks-wk-gl-enabled" '+(glCfg().enabled?'checked':'')+'></label>'+
+       btn('gl-apply','Apply 3D cosmetics')+' '+btn('gl-reset','Disable 3D cosmetics')+
+       '<p class="ks-hint">Renderer: '+escape(JSON.stringify(glStatus()).slice(0,900))+'</p>')+
      card('Save weapon presets',input('weapon-name','Preset name')+btn('weapon-save','Save preset')+list(cfg.weapon.presets,'weapon'))+
      card('Game HUD appearance','<label class="ks-row">Colored killfeed <input type="checkbox" id="ks-wk-killfeed-on" '+(cfg.killfeedColors?'checked':'')+'></label>'+
        '<label class="ks-row">HUD style <select class="ks-input" id="ks-wk-hud-theme">'+
@@ -83,17 +102,19 @@
      card('Save current room',input('room-name','Room name')+input('room-url','Kirka.io room URL',kirkaURL(location.href)||'')+
        btn('room-save','Save room + visible form values')+' '+btn('room-capture','Capture current lobby options'))+
      card('Favorite rooms',cfg.rooms.length?cfg.rooms.map((r,i)=>'<div class="ks-row"><span>'+escape(r.name)+'</span>'+
-       btn('room-use-'+i,'Apply preset')+btn('room-join-'+i,'Join')+btn('room-delete-'+i,'Remove')+'</div>').join(''):'<p class="ks-hint">No saved rooms.</p>')+
+       btn('room-use-'+i,'Apply preset')+btn('room-join-'+i,'Join')+btn('room-spectate-'+i,'Spectate')+btn('room-delete-'+i,'Remove')+'</div>').join(''):'<p class="ks-hint">No saved rooms.</p>')+
      card('Recently joined',list(cfg.history.map(h=>({name:h.url,url:h.url})), 'history'))+
      '<p class="ks-hint">Applying lobby settings changes only matching visible HTML controls, never hidden server configuration. Joining still follows Kirka.io permissions.</p>';
    if(tab==='Friends & Profiles')return '<h2 class="ks-title">Friends & Profiles</h2><p class="ks-sub">Local labels and notes for profiles you actually see. No access to private friend lists or invented spectate links.</p>'+
      card('Create local player annotation',input('friend-nick','Visible nickname / player ID')+input('friend-note','Personal note')+
        input('friend-color','Tag color', '#f0aa35','color')+btn('friend-save','Save note'))+
+     card('Visible profile details','<p class="ks-hint">'+escape(JSON.stringify(deepSnapshot().profile||{}).slice(0,700))+'</p>')+
      card('Saved annotations',cfg.friends.length?cfg.friends.map((f,i)=>'<div class="ks-row"><div><strong>'+escape(f.nick)+'</strong><div class="ks-desc">'+escape(f.note)+'</div></div>'+btn('friend-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved player notes.</p>')+notice;
    if(tab==='Inventory & Market')return '<h2 class="ks-title">Inventory / Market</h2><p class="ks-sub">Personal item favorites, notes and manually entered estimates. No trades, purchases or prices are fabricated.</p>'+
      card('Add item to your list',input('item-name','Item / skin name')+input('item-note','Personal note')+
        input('item-price','Estimated price (manual only)',0,'number')+
        '<label class="ks-row">Favorite <input type="checkbox" id="ks-wk-item-favorite" checked></label>'+btn('item-save','Save item'))+
+     card('Visible inventory details','<p class="ks-hint">'+escape(JSON.stringify(deepSnapshot().inventory||{}).slice(0,1200))+'</p>')+
      card('Saved collection',cfg.inventory.length?cfg.inventory.map((x,i)=>'<div class="ks-row"><div><strong>'+(x.favorite?'★ ':'')+escape(x.item)+'</strong><div class="ks-desc">'+escape(x.note)+' · Manual estimate: '+x.price+'</div></div>'+btn('item-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved items.</p>')+notice;
    return '';
  }
@@ -165,7 +186,24 @@
    const val=id=>ui.getElementById('ks-wk-'+id)?.value??'';
    const flag=id=>!!ui.getElementById('ks-wk-'+id)?.checked;
    const number=(id,min,max,def)=>clamp(val(id),min,max,def);
-   if(a==='weapon-apply'){
+   if(a==='gl-apply'){
+     const x={enabled:flag('gl-enabled'),assetURL:trim(val('gl-source'),450),skinURL:imgURL(val('gl-skin'))||'',
+       hue:number('gl-hue',0,360,0),saturation:number('gl-saturation',20,300,100),
+       brightness:number('gl-brightness',20,250,100),scale:number('gl-scale',50,150,100),
+       offsetX:Math.min(2,Math.max(-2,Number(val('gl-x'))||0)),
+       offsetY:Math.min(2,Math.max(-2,Number(val('gl-y'))||0)),
+       offsetZ:Math.min(2,Math.max(-2,Number(val('gl-z'))||0)),
+       matrixSignature:trim(val('gl-matrix'),90)};
+     if(x.enabled&&(!/^https:\/\/(?:www\.)?kirka\.io\/assets\/(?:img|media|textures|skins|ui)\//i.test(x.assetURL)||!x.skinURL)){
+       status='3D texture replacement needs exact Kirka asset URL and HTTPS skin URL.';return true;
+     }
+     if(x.matrixSignature&&!/^[\d., -]{1,90}$/.test(x.matrixSignature)){status='Invalid calibration signature';return true;}
+     localStorage.setItem(WG,JSON.stringify(x));window.dispatchEvent(new Event('ks-webgl-settings'));
+     status='3D cosmetics saved; reload gameplay if the texture was already loaded.';
+   }else if(a==='gl-reset'){
+     localStorage.removeItem(WG);window.dispatchEvent(new Event('ks-webgl-settings'));
+     status='3D cosmetics disabled. Reload game to restore previously uploaded textures.';
+   }else if(a==='weapon-apply'){
      Object.assign(cfg.weapon,{enabled:flag('weapon-on'),hue:number('weapon-hue',0,360,0),saturation:number('weapon-saturation',40,200,100),
        brightness:number('weapon-brightness',50,150,100),skinURL:imgURL(val('skin-url'))||''});
      status='Local weapon and inventory visual settings updated.';save();
@@ -201,6 +239,10 @@
      const r=cfg.rooms[Number(a.slice(9))];if(r)applyLobby(r);
    }else if(a.startsWith('room-join-')){
      const r=cfg.rooms[Number(a.slice(10))];if(r)goRoom(r.url,notify);
+   }else if(a.startsWith('room-spectate-')){
+     const r=cfg.rooms[Number(a.slice('room-spectate-'.length))];
+     if(r&&window.__KS_DEEP__?.join){window.__KS_DEEP__.join(r.url,true);status='Kirka Spectate action requested';}
+     else status='Spectate requires an available Kirka native join modal.';
    }else if(a.startsWith('room-delete-')){cfg.rooms.splice(Number(a.slice(12)),1);save();}
    else if(a.startsWith('history-use-')){const h=cfg.history[Number(a.slice(12))];if(h)goRoom(h.url,notify);}
    else if(a.startsWith('history-delete-')){cfg.history.splice(Number(a.slice(15)),1);save();}
