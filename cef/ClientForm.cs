@@ -64,6 +64,7 @@ internal sealed class ClientForm : Form
         browser=new ChromiumWebBrowser(initial) {Dock=DockStyle.Fill};
         browser.MenuHandler = new ClientMenuHandler(() => desired.ContextMenu);
         browser.PermissionHandler = new ClientGamePermissionHandler();
+        browser.RenderProcessMessageHandler = new KSEarlyIntegrationHandler(pacer,integrationBoot,graphics,freezeGuard);
         if (!switchProbe && !bridgeProbe)
             browser.RequestHandler = new ClientRequestHandler(() => {
                 if(IsHandleCreated)BeginInvoke((Action)(() => SwitchToElectron()));
