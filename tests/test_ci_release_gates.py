@@ -19,6 +19,9 @@ with TemporaryDirectory() as temp:
  for rel in ('KS-Client.exe','Uninstall-KS-Client.exe','README_EN.md','LICENSE',
              'runtime/Electron/electron.exe','runtime/Electron/resources/app/main.cjs',
              'runtime/Electron/resources/app/preload.cjs',
+             'runtime/Electron/resources/app/overlay/workshop.js',
+             'runtime/Electron/resources/app/swapper.cjs',
+             'runtime/CEF/overlay/workshop.js',
              'runtime/CEF/KS.Cef.Client.exe','runtime/CEF/libcef.dll',
              'runtime/CEF/CefSharp.dll','runtime/CEF/CefSharp.BrowserSubprocess.exe',
              'runtime/CEF/dotnet/dotnet.exe'):
