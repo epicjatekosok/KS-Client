@@ -8,8 +8,11 @@ const ROOT=path.join(process.env.LOCALAPPDATA||path.join(os.homedir(),'AppData',
 const SETTINGS=path.join(ROOT,'resource-swap.json');
 const FOLDER=path.join(app.getPath('documents'),'KSClient','Swapper','assets');
 const TYPES=Object.freeze({'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif',
- '.svg':'image/svg+xml','.mp3':'audio/mpeg','.wav':'audio/wav','.ogg':'audio/ogg','.css':'text/css'});
+ '.svg':'image/svg+xml','.woff':'font/woff','.woff2':'font/woff2','.ttf':'font/ttf','.otf':'font/otf','.mp3':'audio/mpeg','.wav':'audio/wav','.ogg':'audio/ogg','.css':'text/css'});
 const ALLOWED=Object.freeze({img:new Set(['.png','.jpg','.jpeg','.webp','.gif','.svg']),
+ textures:new Set(['.png','.jpg','.jpeg','.webp','.gif']),skins:new Set(['.png','.jpg','.jpeg','.webp']),
+ ui:new Set(['.png','.jpg','.jpeg','.webp','.gif','.svg']),audio:new Set(['.mp3','.wav','.ogg']),
+ fonts:new Set(['.woff','.woff2','.ttf','.otf']),
  media:new Set(['.mp3','.wav','.ogg']),css:new Set(['.css'])});
 function settings(){try{return JSON.parse(fs.readFileSync(SETTINGS,'utf8')).enabled===true}catch(_){return false}}
 function setEnabled(enabled){fs.mkdirSync(ROOT,{recursive:true});fs.writeFileSync(SETTINGS,JSON.stringify({enabled:enabled===true}),{mode:0o600});return settings()}
@@ -24,6 +27,8 @@ function resolve(request){
   if(!ALLOWED[parts[1]].has(ext))return null;
   const root=path.resolve(FOLDER),candidate=path.resolve(root,...rel);
   if(!candidate.startsWith(root+path.sep))return null;
+  const physical=fs.realpathSync(candidate),realRoot=fs.realpathSync(root);
+  if(!physical.startsWith(realRoot+path.sep))return null;
   const st=fs.lstatSync(candidate);
   if(!st.isFile()||st.isSymbolicLink()||st.size===0||st.size>16*1024*1024)return null;
   return {file:candidate,mime:TYPES[ext]};
@@ -60,7 +65,7 @@ function install(log=()=>{}){
  session.defaultSession.webRequest.onBeforeRequest({
   urls:['https://kirka.io/assets/*','https://www.kirka.io/assets/*']
  },(details,done)=>{
-  if(!settings()||!['image','media','stylesheet'].includes(details.resourceType))return done({});
+  if(!settings()||!['image','media','stylesheet','font','xhr','other'].includes(details.resourceType))return done({});
   const match=resolve(details.url);
   if(!match)return done({});
   const next='ksclient-asset://asset.local/?origin='+encodeURIComponent(details.url);

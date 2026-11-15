@@ -10,11 +10,16 @@ internal static class KSResourceSwap
     private static readonly string Assets=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),"KSClient","Swapper","assets");
     private static readonly Dictionary<string,string> Mime=new(StringComparer.OrdinalIgnoreCase){
       [".png"]="image/png",[".jpg"]="image/jpeg",[".jpeg"]="image/jpeg",[".webp"]="image/webp",
-      [".gif"]="image/gif",[".svg"]="image/svg+xml",[".mp3"]="audio/mpeg",
+      [".gif"]="image/gif",[".svg"]="image/svg+xml",[".woff"]="font/woff",[".woff2"]="font/woff2",[".ttf"]="font/ttf",[".otf"]="font/otf",[".mp3"]="audio/mpeg",
       [".wav"]="audio/wav",[".ogg"]="audio/ogg",[".css"]="text/css"
     };
     private static readonly Dictionary<string,string[]> Types=new(StringComparer.Ordinal){
       ["img"]=new[]{".png",".jpg",".jpeg",".webp",".gif",".svg"},
+      ["textures"]=new[]{".png",".jpg",".jpeg",".webp",".gif"},
+      ["skins"]=new[]{".png",".jpg",".jpeg",".webp"},
+      ["ui"]=new[]{".png",".jpg",".jpeg",".webp",".gif",".svg"},
+      ["audio"]=new[]{".mp3",".wav",".ogg"},
+      ["fonts"]=new[]{".woff",".woff2",".ttf",".otf"},
       ["media"]=new[]{".mp3",".wav",".ogg"},
       ["css"]=new[]{".css"}
     };
@@ -63,6 +68,15 @@ internal static class KSResourceSwap
         if(parts.Any(x=>x is "." or ".."||x.Contains('/')||x.Contains('\\')||x.Contains('\0')||x.Contains(':')))return null;
         var candidate=Path.GetFullPath(Path.Combine(new[]{Assets}.Concat(parts.Skip(1)).ToArray()));
         if(!candidate.StartsWith(Path.GetFullPath(Assets)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))return null;
+        // Resolve all existing path segments to prevent reparse-point escapes.
+        var part=Path.GetFullPath(Assets);
+        foreach(var segment in parts.Skip(1)){
+            part=Path.Combine(part,segment);
+            if(File.Exists(part)||Directory.Exists(part)){
+                var attr=File.GetAttributes(part);
+                if(attr.HasFlag(FileAttributes.ReparsePoint))return null;
+            }
+        }
         var ext=Path.GetExtension(candidate);
         if(!allowed.Contains(ext,StringComparer.OrdinalIgnoreCase))return null;
         try{
