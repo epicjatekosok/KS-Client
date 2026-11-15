@@ -14,9 +14,9 @@
   const seen = { webgl: 0, webgl2: 0, contextLost: 0, restored: 0, lastCanvas: '', notifications: 0, subscriberErrors: 0 };
   let installed = false;
 
-  function publish(canvas, kind, gl) {
+  function publish(canvas, kind, gl, receiver = null) {
     if (!gl || canvas.id !== 'game') return;
-    for (const subscriber of subscribers) {
+    for (const subscriber of receiver ? [receiver] : subscribers) {
       try { subscriber(gl, canvas, kind); seen.notifications++; }
       catch (_) { seen.subscriberErrors++; }
     }
@@ -60,7 +60,7 @@
       subscribers.add(callback);
       // Replay is crucial when native injection is later than game initialization;
       // replaying never calls getContext or creates additional GPU contexts.
-      for (const [gl, info] of known) publish(info.canvas, info.kind, gl);
+      for (const [gl, info] of known) publish(info.canvas, info.kind, gl, callback);
       return () => subscribers.delete(callback);
     },
     getStatus: () => ({ ...seen, installed: proto.getContext === wrappedGetContext,
