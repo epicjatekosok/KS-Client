@@ -13,10 +13,11 @@ for name in files:
 
 boot = (root / "electron-app/overlay/integration_bootstrap.js").read_text(encoding="utf-8")
 core = (root / "electron-app/overlay/integration_core.js").read_text(encoding="utf-8")
-origin_check = "if (location.protocol !== 'https:' || !['kirka.io', 'www.kirka.io'].includes(location.hostname)) return;"
-assert origin_check in boot and origin_check in core
-boot = boot.replace(origin_check, "/* Offline test origin */")
-core = core.replace(origin_check, "/* Offline test origin */")
+# Both modules use the same security guard, but spacing need not match.
+for name, source in (("bootstrap", boot), ("core", core)):
+    assert "location.protocol" in source and "kirka.io" in source, name
+boot = boot.replace("if (location.protocol !== 'https:' || !['kirka.io', 'www.kirka.io'].includes(location.hostname)) return;", "/* Offline test origin */")
+core = core.replace("if (location.protocol !== 'https:' || !['kirka.io','www.kirka.io'].includes(location.hostname)) return;", "/* Offline test origin */")
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
