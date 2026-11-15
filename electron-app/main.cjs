@@ -26,6 +26,8 @@ const extrasJS = fs.readFileSync(path.join(__dirname,'overlay','game_extras.js')
 const workshopJS=fs.readFileSync(path.join(__dirname,'overlay','workshop.js'),'utf8');
 const integrationBootJS=fs.readFileSync(path.join(__dirname,'overlay','integration_bootstrap.js'),'utf8');
 const integrationCoreJS=fs.readFileSync(path.join(__dirname,'overlay','integration_core.js'),'utf8');
+const graphicsJS=fs.readFileSync(path.join(__dirname,'overlay','webgl_cosmetics.js'),'utf8');
+const advancedJS=fs.readFileSync(path.join(__dirname,'overlay','advanced_integration.js'),'utf8');
 const SWAPPER=require('./swapper.cjs');
 SWAPPER.registerSchemes();
 const DEFAULT_PREFS = Object.freeze({gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false});
@@ -161,6 +163,8 @@ function createWindow(){
       await win.webContents.executeJavaScript(extrasJS,true);
       await win.webContents.executeJavaScript(workshopJS,true);
       await win.webContents.executeJavaScript(integrationCoreJS,true);
+      await win.webContents.executeJavaScript(graphicsJS,true);
+      await win.webContents.executeJavaScript(advancedJS,true);
       jsCall('setEngineInfo','Electron');
       browserConfig();
     }catch(e){log('Overlay: '+e.message)}
@@ -335,6 +339,10 @@ function receiveMessage(event, raw){
   }
 }
 ipcMain.on('ks:message',receiveMessage);
+ipcMain.on('ks:early-graphics',(event)=>{
+  const source=event.senderFrame?.url||'';
+  event.returnValue=(win&&event.sender===win.webContents&&validURL(source,true))?graphicsJS:'';
+});
 ipcMain.on('ks:early-integration',(event)=>{
   const source=event.senderFrame?.url||'';
   event.returnValue=(win && event.sender===win.webContents && validURL(source,true))?integrationBootJS:'';
