@@ -305,6 +305,9 @@ internal sealed class ClientForm : Form
                 };
                 desired.Save();ReportPrefs("Default preferences saved.");break;
             case "browser-restart":Restart();break;
+            case "game-input-diagnostics":
+                if(m.Message is "locked" or "released" or "pointerlockerror")Program.Log("Kirka pointer lock: "+m.Message);
+                break;
             case "crash-status":Reply("setCrashStatus","CEF log: "+Program.LogPath);break;
             case "game-join":
                 if(Uri.TryCreate(m.Url,UriKind.Absolute,out var targetUrl)
