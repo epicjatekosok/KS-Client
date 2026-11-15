@@ -88,6 +88,9 @@ jobs:
       - name: Real Windows CEF initialization smoke test
         shell: pwsh
         run: ./ci/Test-Engines.ps1 -Engine CEF
+      - name: Verify real CEF JavaScript-to-native bridge
+        shell: pwsh
+        run: ./ci/Test-CEF-Bridge.ps1
       - name: Upload verified CEF engine
         uses: actions/upload-artifact@v4
         with:
@@ -132,6 +135,9 @@ jobs:
       - name: Validate engine switch-token handling
         working-directory: launcher
         run: go test -timeout 5m -v .
+      - name: Recheck CEF renderer-to-native bridge after transfer
+        shell: pwsh
+        run: ./ci/Test-CEF-Bridge.ps1
       - name: Test native CEF to Electron and Electron to CEF switching
         shell: pwsh
         run: ./ci/Test-Switching.ps1
@@ -151,10 +157,10 @@ jobs:
       - name: Upload candidate ONLY after all Windows checks succeed
         uses: actions/upload-artifact@v4
         with:
-          name: KS-Client-alpha-1.1.9-Windows-CI-PASSED
+          name: KS-Client-alpha-1.1.10-Windows-CI-PASSED
           path: |
-            KS-Client-alpha-1.1.9-Setup.exe
-            KS-Client-alpha-1.1.9-Portable.zip
+            KS-Client-alpha-1.1.10-Setup.exe
+            KS-Client-alpha-1.1.10-Portable.zip
             CI-TEST-RESULT.txt
           retention-days: 14
           if-no-files-found: error
