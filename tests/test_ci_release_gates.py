@@ -22,6 +22,7 @@ with TemporaryDirectory() as temp:
              'runtime/Electron/resources/app/overlay/workshop.js',
              'runtime/Electron/resources/app/swapper.cjs',
              'runtime/CEF/overlay/workshop.js',
+             'runtime/CEF/overlay/game_extras.js',
              'runtime/CEF/KS.Cef.Client.exe','runtime/CEF/libcef.dll',
              'runtime/CEF/CefSharp.dll','runtime/CEF/CefSharp.BrowserSubprocess.exe',
              'runtime/CEF/dotnet/dotnet.exe'):
