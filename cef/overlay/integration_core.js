@@ -1,4 +1,4 @@
-/* KS Client 1.1.12 – shared game integration modules.
+/* KS Client 1.1.14 – shared game integration modules.
    Supports visible UI only; does not read private state, game packets or tokens.
    No automatic gameplay actions. Errors are isolated to individual modules. */
 (() => {
@@ -127,7 +127,8 @@
       if(!url)return;
       // Existing client navigation already validates the URL on the native side.
       event.preventDefault();event.stopPropagation();
-      if(window.__KS_NATIVE__?.post)window.__KS_NATIVE__.post({type:'game-join',url});
+      if(window.__KS_DEEP__?.join)window.__KS_DEEP__.join(url,false);
+      else if(window.__KS_NATIVE__?.post)window.__KS_NATIVE__.post({type:'game-join',url});
       else if(window.CefSharp?.PostMessage)window.CefSharp.PostMessage(JSON.stringify({type:'game-join',url}));
       emit('quick-join',{url});
     }
@@ -157,8 +158,8 @@
         button.addEventListener('click',e=>{
           if(!e.isTrusted)return;
           e.stopPropagation();
-          if(window.__KS_NATIVE__?.post)window.__KS_NATIVE__.post({type:'game-join',url});
-          else if(window.CefSharp?.PostMessage)window.CefSharp.PostMessage(JSON.stringify({type:'game-join',url}));
+          // Spectate must use Kirka's actual spectator action, never plain Join.
+          if(window.__KS_DEEP__?.join)window.__KS_DEEP__.join(url,true);
         });
         online.insertAdjacentElement('afterend',button);tracked.add(button);
       }
