@@ -20,6 +20,8 @@ internal sealed class ClientForm : Form
     private readonly string pacer;
     private readonly string extras;
     private readonly string workshop;
+    private readonly string integrationBoot;
+    private readonly string integrationCore;
     private BrowserPrefs desired=Program.Active;
     private string menuResolution="native";
     private string gameResolution="native";
@@ -46,6 +48,8 @@ internal sealed class ClientForm : Form
         pacer=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","frame_pacer.js"));
         extras=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","game_extras.js"));
         workshop=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","workshop.js"));
+        integrationBoot=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_bootstrap.js"));
+        integrationCore=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_core.js"));
         // A real CEF renderer->host PostMessage test. This is an offline page,
         // never an injected live Kirka script or external test dependency.
         var bridgeHtml="<html><body><script>setTimeout(function(){if(window.CefSharp && window.CefSharp.PostMessage){window.CefSharp.PostMessage(JSON.stringify({type:'ks-bridge-probe'}));}},350);</script>KS bridge probe</body></html>";
@@ -64,6 +68,7 @@ internal sealed class ClientForm : Form
             {
                 // May run after early page scripts in some CEF builds; re-tested on load end.
                 e.Frame.ExecuteJavaScriptAsync(pacer);
+                e.Frame.ExecuteJavaScriptAsync(integrationBoot);
             }
         };
         browser.FrameLoadEnd += (_,e)=>{
@@ -72,6 +77,8 @@ internal sealed class ClientForm : Form
             e.Frame.ExecuteJavaScriptAsync(overlay);
             e.Frame.ExecuteJavaScriptAsync(extras);
             e.Frame.ExecuteJavaScriptAsync(workshop);
+            e.Frame.ExecuteJavaScriptAsync(integrationBoot);
+            e.Frame.ExecuteJavaScriptAsync(integrationCore);
             // This post-injection request fixes the lost initial handshake that
             // could leave Active Browser Engine permanently on "Loading...".
             e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setEngineInfo?.('CEF (CefSharp)');");
