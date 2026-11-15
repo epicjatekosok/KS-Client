@@ -1,13 +1,13 @@
 'use strict';
-// KS Client alpha 1.1.11: real Electron host. No WebView2 dependency.
-const { app, BrowserWindow, ipcMain, screen, dialog, session } = require('electron');
+// KS Client alpha 1.1.12: real Electron host. No WebView2 dependency.
+const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn}=require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.11';
+const APP_VERSION = 'alpha 1.1.12';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,13 +16,16 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.11.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.1.12.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
 const overlayJS = fs.readFileSync(path.join(__dirname,'overlay','overlay.js'),'utf8');
 const frameJS = fs.readFileSync(path.join(__dirname,'overlay','frame_pacer.js'),'utf8');
 const extrasJS = fs.readFileSync(path.join(__dirname,'overlay','game_extras.js'),'utf8');
+const workshopJS=fs.readFileSync(path.join(__dirname,'overlay','workshop.js'),'utf8');
+const SWAPPER=require('./swapper.cjs');
+SWAPPER.registerSchemes();
 const DEFAULT_PREFS = Object.freeze({gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false});
 function validURL(value, gameOnly=false) {
   try {
@@ -154,6 +157,7 @@ function createWindow(){
       await win.webContents.executeJavaScript(frameJS,true);
       await win.webContents.executeJavaScript(overlayJS,true);
       await win.webContents.executeJavaScript(extrasJS,true);
+      await win.webContents.executeJavaScript(workshopJS,true);
       jsCall('setEngineInfo','Electron');
       browserConfig();
     }catch(e){log('Overlay: '+e.message)}
@@ -283,6 +287,23 @@ function receiveMessage(event, raw){
       }).catch(e=>{log('Screenshot failed: '+e.message);jsCall('setGameExtraStatus','Screenshot failed: '+e.message)});
       break;
     }
+    case 'resource-save':{
+      const enabled=SWAPPER.setEnabled(raw.enabled===true);
+      jsCall('setWorkshopStatus',enabled?'Resource swaps enabled. Reload the game to apply.':'Resource swaps disabled.');
+      break;
+    }
+    case 'resource-folder':{
+      const folder=SWAPPER.folder();
+      shell.openPath(path.dirname(folder)).then(error=>{
+        if(error)jsCall('setWorkshopStatus','Could not open swapper folder: '+error);
+      });
+      break;
+    }
+    case 'resource-scan':{
+      const result=SWAPPER.scan();
+      jsCall('setWorkshopStatus',result.count+' local files ('+Math.round(result.bytes/1024)+' KiB). Swapper '+(result.enabled?'enabled':'disabled')+'.');
+      break;
+    }
     case 'fps-diagnostics':{
       jsCall('setNativeFpsDiagnostics',{
         engine:'Electron',
@@ -332,6 +353,7 @@ app.whenReady().then(()=>{
     const requestOrigin=details?.requestingUrl||origin||contents?.getURL()||'';
     return allowGamePermission(contents,permission,requestOrigin);
   });
+  SWAPPER.install(log);
   log('FPS startup flags: '+JSON.stringify({
     requested:active.uncapFps,
     frameRateLimitSwitch:app.commandLine.hasSwitch('disable-frame-rate-limit'),

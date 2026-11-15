@@ -1,4 +1,4 @@
-"""Engine-independent KS Client 1.1.11 UI smoke test in local Chromium.
+"""Engine-independent KS Client 1.1.12 UI smoke test in local Chromium.
 Not a live test of Windows Electron, CEF, or FPS unlock.
 """
 from pathlib import Path
@@ -25,6 +25,11 @@ with sync_playwright() as play:
   extras=extras.replace("const match=()=>/^\\/(games\\/|hub\\/ranked)/.test(location.pathname);","const match=()=>true;")
   page.add_script_tag(content=extras)
   assert page.evaluate("!!window.__KS_GAME_EXTRAS__")
+  workshop=(root/'electron-app/overlay/workshop.js').read_text()
+  workshop=workshop.replace("if(location.protocol!=='https:' || !['kirka.io','www.kirka.io'].includes(location.hostname))return;",'/* Offline workshop test */')
+  page.add_script_tag(content=workshop)
+  assert page.evaluate("!!window.__KS_WORKSHOP__")
+
 
   page.wait_for_function('!!window.__KS_CLIENT__')
   assert page.evaluate("window.__out.some(m=>m.type==='engine-info')")
@@ -86,14 +91,38 @@ with sync_playwright() as play:
   assert page.locator('.ks-subtab[data-tab="Performance"]').count()==1
   assert page.locator('.ks-subtab[data-tab="Eye Comfort"]').count()==1
   assert page.locator('.ks-subtab[data-tab="Frame Stability"]').count()==1
+  page.locator('.ks-tab[data-group="Workshop"]').click()
+  assert page.locator('.ks-subtab[data-tab="Weapon Studio"]').count()==1
+  assert page.locator('.ks-subtab[data-tab="Resource Swapper"]').count()==1
+  page.locator('.ks-subtab[data-tab="Weapon Studio"]').click()
+  page.locator('#ks-wk-weapon-hue').fill('65')
+  page.locator('[data-action="wk-weapon-apply"]').click()
+  assert page.evaluate("window.__KS_WORKSHOP__.getConfig().weapon.hue===65")
+  page.locator('.ks-subtab[data-tab="Resource Swapper"]').click()
+  page.locator('#ks-wk-swap-on').check()
+  page.locator('[data-action="wk-swap-toggle"]').click()
+  assert page.evaluate("window.__out.some(m=>m.type==='resource-save' && m.enabled===true)")
+  page.locator('.ks-subtab[data-tab="Inventory & Market"]').click()
+  page.locator('#ks-wk-item-name').fill('Test skin')
+  page.locator('[data-action="wk-item-save"]').click()
+  assert page.evaluate("window.__KS_WORKSHOP__.getConfig().inventory.some(x=>x.item==='Test skin')")
+  page.locator('.ks-subtab[data-tab="Plugins"]').click()
+  page.locator('#ks-wk-plugin-name').fill('Test plugin')
+  page.locator('#ks-wk-plugin-code').fill('ks.message("Ready")')
+  page.locator('[data-action="wk-plugin-save"]').click()
+  assert page.evaluate("window.__KS_WORKSHOP__.getConfig().plugins.length===1")
+  page.locator('[data-action="wk-plugin-run-0"]').click()
+  assert page.locator('iframe[title="Isolated local plugin preview"]').count()==1
+  page.locator('.ks-tab[data-group="Gameplay"]').click()
+
   page.locator('.ks-subtab[data-tab="Eye Comfort"]').click()
   assert page.locator('[data-setting="eyeEnabled"]').is_checked()
   page.locator('.ks-subtab[data-tab="Crosshair"]').click()
   assert page.locator('[data-setting="crosshairEnabled"]').count()==1
   page.locator('.ks-tab[data-group="Client"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
-  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.11')
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.12')
   assert not errors,(width,errors)
-  print('PASS 1.1.11 engine UI',width,height)
+  print('PASS 1.1.12 engine UI',width,height)
   page.close()
  browser.close()

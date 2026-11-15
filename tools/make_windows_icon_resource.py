@@ -11,7 +11,7 @@ import io, struct
 root=Path(__file__).resolve().parents[1]
 variant=sys.argv[1] if len(sys.argv)>1 else 'launcher'
 assert variant in ('launcher','installer','uninstaller','engine-setup')
-targetName={'launcher':'KS-Client.exe','installer':'KS-Client-alpha-1.1.11-Setup.exe','uninstaller':'Uninstall-KS-Client.exe','engine-setup':'KS-Engine-Setup.exe'}[variant]
+targetName={'launcher':'KS-Client.exe','installer':'KS-Client-alpha-1.1.12-Setup.exe','uninstaller':'Uninstall-KS-Client.exe','engine-setup':'KS-Engine-Setup.exe'}[variant]
 desc={'launcher':'KS Client Launcher','installer':'KS Client Setup','uninstaller':'KS Client Uninstaller','engine-setup':'KS Client Browser Engine Setup'}[variant]
 image=Image.open(root/'resources'/'ks-logo.png').convert('RGBA')
 image.save(root/'resources'/'ks-logo.ico', format='ICO', sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
@@ -27,7 +27,7 @@ for n in range(count):
   groups.append(struct.pack('<BBBBHHIH',w,h,c,res,planes,bits,length,n+1))
 group=struct.pack('<HHH',0,1,count)+b''.join(groups)
 
-# VERSIONINFO displayed by Explorer: KS Client, alpha 1.1.11.
+# VERSIONINFO displayed by Explorer: KS Client, alpha 1.1.12.
 def wstr(s):return s.encode('utf-16le')+b'\0\0'
 def align4(b):return b+b'\0'*((-len(b))%4)
 def vblock(key,value=b'',children=(),text=False):
@@ -36,7 +36,7 @@ def vblock(key,value=b'',children=(),text=False):
   start=align4(start)+b''.join(children)
   return struct.pack('<H',len(start))+start[2:]
 fileinfo=struct.pack('<13I', 0xFEEF04BD,0x00010000,0x00010001,0x00070000,0x00010001,0x00070000,0x3f,0,0x40004,1,0,0,0)
-strings={'CompanyName':'KS Client', 'FileDescription':desc, 'FileVersion':'1.1.11.0', 'InternalName':'KS Client', 'OriginalFilename':targetName, 'ProductName':'KS Client', 'ProductVersion':'alpha 1.1.11', 'LegalCopyright':'Unofficial Kirka.io client'}
+strings={'CompanyName':'KS Client', 'FileDescription':desc, 'FileVersion':'1.1.12.0', 'InternalName':'KS Client', 'OriginalFilename':targetName, 'ProductName':'KS Client', 'ProductVersion':'alpha 1.1.12', 'LegalCopyright':'Unofficial Kirka.io client'}
 stri=vblock('StringFileInfo',children=[vblock('040904B0',children=[vblock(k,wstr(v),text=True) for k,v in strings.items()])])
 trans=vblock('VarFileInfo',children=[vblock('Translation',struct.pack('<HH',0x409,1200))])
 version=vblock('VS_VERSION_INFO',fileinfo,[stri,trans])

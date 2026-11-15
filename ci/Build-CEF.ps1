@@ -35,7 +35,7 @@ if($LASTEXITCODE -ne 0){throw 'Bundled dotnet.exe failed'}
 foreach($framework in @('Microsoft.NETCore.App','Microsoft.WindowsDesktop.App')){
   if(-not ($runtimes | Where-Object { $_ -match ('^'+[regex]::Escape($framework)+' 10\.') })){throw "Missing local .NET 10 framework: $framework"}
 }
-foreach($nativeFile in @('libcef.dll','icudtl.dat','CefSharp.dll','CefSharp.BrowserSubprocess.exe','CefSharp.BrowserSubprocess.Core.dll','overlay\overlay.js')){
+foreach($nativeFile in @('libcef.dll','icudtl.dat','CefSharp.dll','CefSharp.BrowserSubprocess.exe','CefSharp.BrowserSubprocess.Core.dll','overlay\overlay.js','overlay\workshop.js','overlay\game_extras.js')){
   if(-not (Test-Path (Join-Path $dest $nativeFile) -PathType Leaf)){throw "Incomplete CEF package: $nativeFile"}
 }
 Write-Host 'CEF and .NET 10 base/Desktop runtimes are assembled.'

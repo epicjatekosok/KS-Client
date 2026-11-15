@@ -27,7 +27,7 @@ $app = Join-Path $dest 'resources\app'
 New-Item -ItemType Directory -Force -Path $app | Out-Null
 Copy-Item (Join-Path $repo 'electron-app\*') $app -Recurse -Force
 # Never require libEGL.dll: optional in some Electron distributions.
-foreach ($relative in @('electron.exe','resources\app\package.json','resources\app\main.cjs','resources\app\preload.cjs','resources\app\overlay\overlay.js','resources\app\overlay\game_extras.js')) {
+foreach ($relative in @('electron.exe','resources\app\package.json','resources\app\main.cjs','resources\app\preload.cjs','resources\app\overlay\overlay.js','resources\app\overlay\game_extras.js','resources\app\overlay\workshop.js','resources\app\swapper.cjs')) {
   if (-not (Test-Path (Join-Path $dest $relative))) { throw "Electron package is missing $relative" }
 }
 Write-Host 'Electron runtime and KS Client assets are assembled.'

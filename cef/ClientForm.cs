@@ -19,6 +19,7 @@ internal sealed class ClientForm : Form
     private readonly string overlay;
     private readonly string pacer;
     private readonly string extras;
+    private readonly string workshop;
     private BrowserPrefs desired=Program.Active;
     private string menuResolution="native";
     private string gameResolution="native";
@@ -35,7 +36,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client alpha 1.1.11 – CEF";
+        Text="KS Client alpha 1.1.12 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -44,6 +45,7 @@ internal sealed class ClientForm : Form
         overlay=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","overlay.js"));
         pacer=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","frame_pacer.js"));
         extras=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","game_extras.js"));
+        workshop=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","workshop.js"));
         // A real CEF renderer->host PostMessage test. This is an offline page,
         // never an injected live Kirka script or external test dependency.
         var bridgeHtml="<html><body><script>setTimeout(function(){if(window.CefSharp && window.CefSharp.PostMessage){window.CefSharp.PostMessage(JSON.stringify({type:'ks-bridge-probe'}));}},350);</script>KS bridge probe</body></html>";
@@ -69,6 +71,7 @@ internal sealed class ClientForm : Form
             e.Frame.ExecuteJavaScriptAsync(pacer);
             e.Frame.ExecuteJavaScriptAsync(overlay);
             e.Frame.ExecuteJavaScriptAsync(extras);
+            e.Frame.ExecuteJavaScriptAsync(workshop);
             // This post-injection request fixes the lost initial handshake that
             // could leave Active Browser Engine permanently on "Loading...".
             e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setEngineInfo?.('CEF (CefSharp)');");
@@ -319,6 +322,21 @@ internal sealed class ClientForm : Form
                 }
                 catch(Exception ex){Reply("setGameExtraStatus","Screenshot failed: "+ex.Message);}
                 break;
+            case "resource-save":
+                try{
+                    KSResourceSwap.SetEnabled(m.Enabled==true);
+                    Reply("setWorkshopStatus",m.Enabled==true ? "Resource swaps enabled. Reload game to apply." : "Resource swaps disabled.");
+                }catch(Exception ex){Reply("setWorkshopStatus","Cannot save swapper configuration: "+ex.Message);}
+                break;
+            case "resource-scan":
+                try{var r=KSResourceSwap.Scan();Reply("setWorkshopStatus",r);}
+                catch(Exception ex){Reply("setWorkshopStatus","Swapper scan failed: "+ex.Message);}
+                break;
+            case "resource-folder":
+                try{var folder=KSResourceSwap.Folder();Process.Start(new ProcessStartInfo{
+                    FileName="explorer.exe",Arguments="\""+folder+"\"",UseShellExecute=true
+                });}catch(Exception ex){Reply("setWorkshopStatus","Could not open swapper folder: "+ex.Message);}
+                break;
             case "fps-diagnostics":
                 Reply("setNativeFpsDiagnostics",new {
                     engine="CEF",
@@ -356,6 +374,7 @@ internal sealed class BridgeMsg
     public string? Type {get;set;}
     public string? Preset {get;set;}
     public string? Url {get;set;}
+    public bool? Enabled {get;set;}
     public string? Section {get;set;}
     public string? Message {get;set;}
     public string? Engine {get;set;}
@@ -378,6 +397,14 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
     private readonly Action requestSwitchToElectron;
     internal ClientRequestHandler(Action requestSwitchToElectron)
       => this.requestSwitchToElectron=requestSwitchToElectron;
+    protected override IResourceRequestHandler GetResourceRequestHandler(
+        IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame,IRequest request,
+        bool isNavigation,bool isDownload,string requestInitiator,ref bool disableDefaultHandling)
+    {
+        if(isNavigation||isDownload)return null!;
+        var file=KSResourceSwap.Match(request.Url,requestInitiator);
+        return file is null ? null! : new KSResourceRequestHandler(file);
+    }
     protected override bool OnBeforeBrowse(IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame,IRequest request,bool userGesture,bool isRedirect)
     {
         // Independent navigation fallback if CefSharp.PostMessage is present but
