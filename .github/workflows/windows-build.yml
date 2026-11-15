@@ -52,6 +52,12 @@ jobs:
           node --check electron-app/overlay/integration_core.js
           node --check cef/overlay/integration_bootstrap.js
           node --check cef/overlay/integration_core.js
+          node --check electron-app/overlay/webgl_cosmetics.js
+          node --check electron-app/overlay/advanced_integration.js
+          node --check electron-app/overlay/freeze_guard.js
+          node --check cef/overlay/webgl_cosmetics.js
+          node --check cef/overlay/advanced_integration.js
+          node --check cef/overlay/freeze_guard.js
           node --check electron-app/swapper.cjs
           python ci/check_source.py
           python tests/test_ci_release_gates.py
@@ -61,6 +67,7 @@ jobs:
           python -m playwright install --with-deps chromium
           python tests/test_overlay_112.py
           python tests/test_game_integration_112.py
+          python tests/test_advanced_114.py
 
   electron:
     if: github.event_name != 'pull_request'
@@ -176,10 +183,10 @@ jobs:
       - name: Upload candidate ONLY after all Windows checks succeed
         uses: actions/upload-artifact@v4
         with:
-          name: KS-Client-alpha-1.1.13-Windows-CI-PASSED
+          name: KS-Client-alpha-1.1.14-Windows-CI-PASSED
           path: |
-            KS-Client-alpha-1.1.13-Setup.exe
-            KS-Client-alpha-1.1.13-Portable.zip
+            KS-Client-alpha-1.1.14-Setup.exe
+            KS-Client-alpha-1.1.14-Portable.zip
             CI-TEST-RESULT.txt
           retention-days: 14
           if-no-files-found: error
