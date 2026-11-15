@@ -195,12 +195,21 @@
     if(status.started||!document.body)return;
     status.started=true;
     observer=new MutationObserver(schedule);
-    // Observe top-level transitions; individual modules watch specific children.
-    observer.observe(document.body,{subtree:true,childList:true});
-    timer=setInterval(refresh,2500);
+    // Only watch top-level page children. A deep body observer fires on
+    // nearly every gameplay HUD update and can harm FPS.
+    observer.observe(document.body,{subtree:false,childList:true});
+    window.addEventListener('popstate',schedule);
+    window.addEventListener('hashchange',schedule);
+    timer=setInterval(refresh,1200);
     refresh();
   }
-  function stop(){observer?.disconnect();clearInterval(timer);for(const [name,m] of modules)detach(name,m);status.started=false}
+  function stop(){
+    observer?.disconnect();clearInterval(timer);
+    window.removeEventListener('popstate',schedule);
+    window.removeEventListener('hashchange',schedule);
+    for(const [name,m] of modules)detach(name,m);
+    status.started=false;
+  }
   window.__KS_INTEGRATION__=Object.freeze({
     getStatus:()=>({scene:status.scene,active:[...status.healthy],errors:{...status.errors},
       checks:status.checks,started:status.started,render:window.__KS_RENDER_OBSERVER__?.getStatus?.()||null}),
