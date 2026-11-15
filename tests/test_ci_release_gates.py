@@ -10,7 +10,7 @@ def add(path,content=b'test'):
  path.write_bytes(content)
 def mark(folder,engine,filename):
  blob=(folder/filename).read_bytes()
- value={'version':'1.1.13','engine':engine,'exeName':filename,
+ value={'version':'1.1.14','engine':engine,'exeName':filename,
         'exeSha256':sha256(blob).hexdigest(),'runner':'windows','result':'PASS'}
  add(folder/'ks-smoke-pass.json',json.dumps(value).encode('utf8'))
 with TemporaryDirectory() as temp:
@@ -22,10 +22,16 @@ with TemporaryDirectory() as temp:
              'runtime/Electron/resources/app/overlay/workshop.js',
              'runtime/Electron/resources/app/overlay/integration_core.js',
              'runtime/Electron/resources/app/overlay/integration_bootstrap.js',
+             'runtime/Electron/resources/app/overlay/webgl_cosmetics.js',
+             'runtime/Electron/resources/app/overlay/advanced_integration.js',
+             'runtime/Electron/resources/app/overlay/freeze_guard.js',
              'runtime/Electron/resources/app/swapper.cjs',
              'runtime/CEF/overlay/workshop.js',
              'runtime/CEF/overlay/integration_core.js',
              'runtime/CEF/overlay/integration_bootstrap.js',
+             'runtime/CEF/overlay/webgl_cosmetics.js',
+             'runtime/CEF/overlay/advanced_integration.js',
+             'runtime/CEF/overlay/freeze_guard.js',
              'runtime/CEF/overlay/game_extras.js',
              'runtime/CEF/KS.Cef.Client.exe','runtime/CEF/libcef.dll',
              'runtime/CEF/CefSharp.dll','runtime/CEF/CefSharp.BrowserSubprocess.exe',
@@ -46,5 +52,5 @@ with TemporaryDirectory() as temp:
  mark(root/'runtime/CEF','CEF','KS.Cef.Client.exe')
  ok=run()
  assert ok.returncode==0,(ok.stdout,ok.stderr)
- assert (root/'KS-Client-alpha-1.1.13-Portable.zip').is_file()
+ assert (root/'KS-Client-alpha-1.1.14-Portable.zip').is_file()
  print('PASS: release requires both current Windows smoke markers')
