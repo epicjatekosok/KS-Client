@@ -5,6 +5,7 @@ Ez a változtatás a meglévő 1.1.12-es kódhoz új, közös integrációs rét
 ## Elkészült
 - **Közös játék-integrációs mag:** felismeri a lobby, szerverkínálat, barátlista, profil, inventory, szobakészítés és meccs nézeteit. Modulként kezeli a be- és kikapcsolást; a játékfelület frissítésekor újra ellenőrzi a hiányzó DOM-elemeket.
 - **Játékbeli HTML HUD:** a megjelenített kill-adatok és a megfigyelhető killfeed alapján új, elkülönített KS-statisztikaelemet helyez a már látható meccs-HUD mellé. Nem olvas hálózati csomagokat vagy privát játékállapotot. A headshot becslés a DOM-tól függ.
+- **Workshop szobapresetek:** a Kirka látható egyedi játékmód-, pálya- és fegyvercheckboxait is elmenti, és felhasználói preset-kattintásra a játék saját checkbox-kezelőjén keresztül állítja vissza. A korábbi egyszerű presetmezők megmaradtak.
 - **Lobbyba húzott meccslink:** HTTPS-es Kirka.io-lobby/szerverlinkkel; az Electron/CEF natív csatlakozási szabályai tovább ellenőrzik a címet.
 - **Barát megfigyelése:** kizárólag akkor jelenik meg Spectate gomb, amikor a barátlista *maga* tartalmaz egy érvényes, közvetlen Kirka.io szobalinket. Nem talál ki vagy következtet ki privát szobalinkeket, és nem csatlakozik kattintás nélkül.
 - **Pointer Lock-diagnosztika:** natív naplóba kerülnek a valódi lock/release/error események, mindkét motoron; CEF aktiválás és valódi kattintás esetén a Chromium böngészővezérlő fókuszt kap.
