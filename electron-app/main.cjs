@@ -326,6 +326,11 @@ function receiveMessage(event, raw){
     }
     case 'crash-status':jsCall('setCrashStatus','Electron log: '+LOG_FILE);break;
     case 'open-logs':require('electron').shell.openPath(ROOT);break;
+    case 'game-input-diagnostics':{
+      const detail=String(raw.message||'').slice(0,40);
+      if(['locked','released','pointerlockerror'].includes(detail))log('Kirka pointer lock: '+detail);
+      break;
+    }
     case 'client-error':log('Overlay warning: '+String(raw.message||'').slice(0,240));break;
   }
 }
