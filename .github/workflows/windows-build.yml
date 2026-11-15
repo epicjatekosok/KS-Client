@@ -2,6 +2,14 @@ name: KS Client - Windows verified engines
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cef/**'
+      - 'electron-app/**'
+      - 'ci/**'
+      - 'tests/**'
+      - '.github/workflows/windows-build.yml'
   push:
     branches: [main]
     paths:
@@ -55,6 +63,7 @@ jobs:
           python tests/test_game_integration_112.py
 
   electron:
+    if: github.event_name != 'pull_request'
     name: Build and smoke test Electron
     runs-on: windows-2022
     timeout-minutes: 35
@@ -82,6 +91,7 @@ jobs:
           if-no-files-found: ignore
 
   cef:
+    if: github.event_name != 'pull_request'
     name: Build and smoke test CEF
     runs-on: windows-2022
     timeout-minutes: 45
@@ -115,6 +125,7 @@ jobs:
           if-no-files-found: ignore
 
   offline-installer:
+    if: github.event_name != 'pull_request'
     name: Package only after BOTH engine tests pass
     needs: [source-check, electron, cef]
     runs-on: windows-2022
