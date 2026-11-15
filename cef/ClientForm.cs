@@ -22,6 +22,8 @@ internal sealed class ClientForm : Form
     private readonly string workshop;
     private readonly string integrationBoot;
     private readonly string integrationCore;
+    private readonly string graphics;
+    private readonly string advanced;
     private BrowserPrefs desired=Program.Active;
     private string menuResolution="native";
     private string gameResolution="native";
@@ -50,6 +52,8 @@ internal sealed class ClientForm : Form
         workshop=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","workshop.js"));
         integrationBoot=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_bootstrap.js"));
         integrationCore=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_core.js"));
+        graphics=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","webgl_cosmetics.js"));
+        advanced=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","advanced_integration.js"));
         // A real CEF renderer->host PostMessage test. This is an offline page,
         // never an injected live Kirka script or external test dependency.
         var bridgeHtml="<html><body><script>setTimeout(function(){if(window.CefSharp && window.CefSharp.PostMessage){window.CefSharp.PostMessage(JSON.stringify({type:'ks-bridge-probe'}));}},350);</script>KS bridge probe</body></html>";
@@ -65,7 +69,13 @@ internal sealed class ClientForm : Form
         Controls.Add(browser);
         // Keep native keyboard/mouse focus on the embedded Chromium control.
         // Pointer lock still requires the game's real user gesture and CEF approval.
-        Activated += (_, _) => { if(!bridgeProbe && Trust(browser.Address,gameOnly:true)) browser.Focus(); };
+        Activated += (_, _) => {
+            if(!bridgeProbe && Trust(browser.Address,gameOnly:true)) {
+                browser.Focus();
+                try { if(browser.IsBrowserInitialized) browser.GetBrowser().GetHost().SetFocus(true); }
+                catch(Exception ex){Program.Log("CEF game focus: "+ex.Message);}
+            }
+        };
         browser.MouseDown += (_, _) => { if(!bridgeProbe && Trust(browser.Address,gameOnly:true)) browser.Focus(); };
         browser.FrameLoadStart += (_,e)=>{
             if(e.Frame.IsMain && Trust(e.Url,gameOnly:true))
@@ -73,6 +83,7 @@ internal sealed class ClientForm : Form
                 // May run after early page scripts in some CEF builds; re-tested on load end.
                 e.Frame.ExecuteJavaScriptAsync(pacer);
                 e.Frame.ExecuteJavaScriptAsync(integrationBoot);
+                e.Frame.ExecuteJavaScriptAsync(graphics);
             }
         };
         browser.FrameLoadEnd += (_,e)=>{
@@ -83,6 +94,8 @@ internal sealed class ClientForm : Form
             e.Frame.ExecuteJavaScriptAsync(workshop);
             e.Frame.ExecuteJavaScriptAsync(integrationBoot);
             e.Frame.ExecuteJavaScriptAsync(integrationCore);
+            e.Frame.ExecuteJavaScriptAsync(graphics);
+            e.Frame.ExecuteJavaScriptAsync(advanced);
             // This post-injection request fixes the lost initial handshake that
             // could leave Active Browser Engine permanently on "Loading...".
             e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setEngineInfo?.('CEF (CefSharp)');");
@@ -443,10 +456,11 @@ internal sealed class ClientGamePermissionHandler : CefSharp.Handler.PermissionH
         ulong promptId, string requestingOrigin, PermissionRequestType requestedPermissions,
         IPermissionPromptCallback callback)
     {
-        // Never grant clipboard, notifications, camera or other site permissions.
-        // Chromium/CefSharp revisions that expose PointerLock here may request it.
+        // PermissionRequestType is flags; never grant unrelated permissions.
+        // Some CEF builds handle raw pointer lock without a permission prompt.
+        Program.Log("CEF permission prompt type: "+requestedPermissions);
         if (ClientForm.Trust(requestingOrigin, gameOnly:true) &&
-            string.Equals(requestedPermissions.ToString(), "PointerLock", StringComparison.OrdinalIgnoreCase))
+            requestedPermissions.ToString().Split(',').Any(p=>string.Equals(p.Trim(), "PointerLock", StringComparison.OrdinalIgnoreCase)))
         {
             using(callback) callback.Continue(PermissionRequestResult.Accept);
             Program.Log("CEF trusted Kirka.io pointer lock permission granted");
