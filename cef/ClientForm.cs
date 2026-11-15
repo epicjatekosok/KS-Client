@@ -1,6 +1,8 @@
 using CefSharp;
 using CefSharp.WinForms;
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Threading.Tasks;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -23,10 +25,13 @@ internal sealed class ClientForm : Form
     private Rectangle oldBounds;
     private FormBorderStyle oldBorder;
     private FormWindowState oldWindowState;
+    private bool engineSwitching;
+    private System.Windows.Forms.Timer? engineSwitchTimer;
+    private string? switchNonce;
 
     internal ClientForm()
     {
-        Text="KS Client alpha 1.1.6 – CEF";
+        Text="KS Client alpha 1.1.8 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -49,7 +54,12 @@ internal sealed class ClientForm : Form
             if(!e.Frame.IsMain || !Trust(e.Url))return;
             e.Frame.ExecuteJavaScriptAsync(pacer);
             e.Frame.ExecuteJavaScriptAsync(overlay);
-            if(gameResolution!="native")BeginInvoke((Action)(()=>SetGameResolution(gameResolution)));
+            // This post-injection request fixes the lost initial handshake that
+            // could leave Active Browser Engine permanently on "Loading...".
+            e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setEngineInfo?.('CEF (CefSharp)');");
+            e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setBrowserConfig?.("+JS(desired)+","+JS(Program.Active)+","+JS(NeedsRestart())+",'');");
+            if(gameResolution!="native" && IsHandleCreated)BeginInvoke((Action)(()=>SetGameResolution(gameResolution)));
+            if(IsHandleCreated)BeginInvoke((Action)(()=>Program.SignalSwitchReady()));
         };
         browser.JavascriptMessageReceived += (_,e)=>{
             // Main-frame URL and current browser address must both stay allowlisted.
@@ -138,6 +148,70 @@ internal sealed class ClientForm : Form
         }
         catch(Exception ex){ReportPrefs("Restart failed: "+ex.Message);}
     }
+    // A switch never closes the current window before the new engine reports
+    // that its trusted game document and client overlay have loaded.
+    private void SwitchToElectron()
+    {
+        if(engineSwitching)return;
+        var root=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..",".."));
+        var launcher=Path.Combine(root,"KS-Client.exe");
+        var target=Path.Combine(root,"runtime","Electron","electron.exe");
+        if(!File.Exists(launcher)||!File.Exists(target)){
+            Reply("setEngineSwitchStatus","Electron or KS Client launcher is missing. Repair the installation.");
+            return;
+        }
+        var nonce=Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+        var ready=Path.Combine(Program.Root,"engine-switch-"+nonce+".ok");
+        var failed=Path.Combine(Program.Root,"engine-switch-"+nonce+".error");
+        int checks=0;
+        engineSwitching=true;
+        switchNonce=nonce;
+        Reply("setEngineSwitchStatus","Starting Electron; waiting for the new window...");
+        try
+        {
+            var process=Process.Start(new ProcessStartInfo{
+                FileName=launcher, Arguments="--engine electron --ks-switch-token="+nonce,
+                WorkingDirectory=root, UseShellExecute=false, CreateNoWindow=true
+            });
+            if(process is null)throw new InvalidOperationException("Could not start KS Client launcher.");
+            process.Dispose();
+            engineSwitchTimer=new System.Windows.Forms.Timer{Interval=250};
+            engineSwitchTimer.Tick+=(_,_)=>{
+                if(File.Exists(ready)){
+                    StopSwitchTimer();
+                    try{File.Delete(ready);}catch{}
+                    try{File.Delete(failed);}catch{}
+                    Close();
+                }
+                else if(File.Exists(failed)||++checks>=80){
+                    string reason="Electron did not confirm startup within 20 seconds. CEF remains open.";
+                    if(File.Exists(failed)){
+                        try{reason=File.ReadAllText(failed);}catch{}
+                    }
+                    StopSwitchTimer();
+                    try{File.WriteAllText(Path.Combine(Program.Root,"selected-engine.txt"),"cef\n");}catch{}
+                    try{File.Delete(ready);}catch{}
+                    try{File.Delete(failed);}catch{}
+                    Reply("setEngineSwitchStatus",reason);
+                    Program.Log("CEF->Electron switch failed: "+reason);
+                }
+            };
+            engineSwitchTimer.Start();
+        }
+        catch(Exception ex){
+            StopSwitchTimer();
+            Reply("setEngineSwitchStatus","Could not start Electron: "+ex.Message);
+            Program.Log("CEF->Electron switch error: "+ex);
+        }
+    }
+    private void StopSwitchTimer()
+    {
+        engineSwitchTimer?.Stop();
+        engineSwitchTimer?.Dispose();
+        engineSwitchTimer=null;
+        engineSwitching=false;
+        switchNonce=null;
+    }
     private void Receive(BridgeMsg m,string source)
     {
         if(!Trust(source)||!Trust(browser.Address))return;
@@ -153,16 +227,7 @@ internal sealed class ClientForm : Form
             case "menu-resolution":SetMenuResolution(m.Preset??"native");break;
             case "engine-info":Reply("setEngineInfo","CEF (CefSharp)");break;
             case "engine-switch":
-                if(m.Engine=="cef")break;
-                if(m.Engine!="electron")break;
-                var root=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..",".."));
-                var exe=Path.Combine(root,"KS-Client.exe");
-                if(!File.Exists(exe)) {ReportPrefs("KS Client launcher is missing. Repair the installation.");break;}
-                try {
-                    Process.Start(new ProcessStartInfo{FileName=exe,Arguments="--engine electron",WorkingDirectory=root,UseShellExecute=true});
-                    Close();
-                }
-                catch(Exception ex){ReportPrefs("Failed to restart with Electron: "+ex.Message);}
+                if(m.Engine=="electron")SwitchToElectron();
                 break;
             case "browser-config":ReportPrefs();break;
             case "browser-save":
@@ -198,7 +263,7 @@ internal sealed class ClientForm : Form
     }
     protected override void Dispose(bool disposing)
     {
-        if(disposing)browser?.Dispose();
+        if(disposing){StopSwitchTimer();browser?.Dispose();}
         base.Dispose(disposing);
     }
 }

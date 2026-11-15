@@ -1,12 +1,13 @@
 //go:build windows
 
-// KS Client alpha 1.1.7: engine-neutral launcher. CEF is the default engine.
+// KS Client alpha 1.1.8: engine-neutral launcher. CEF is the default engine.
 // The preference is shared between Electron and CEF, and only real installed
 // runtimes may be launched. No WebView2 dependency.
 package main
 
 import (
 	"fmt"
+	"encoding/hex"
 	"ksclient/ksui"
 	"os"
 	"os/exec"
@@ -48,6 +49,17 @@ func runtimeFile(base, engine string) (string, string) {
 	return filepath.Join(dir, "KS.Cef.Client.exe"), dir
 }
 
+// A switch token is never used as a path unless it is a 32-character hex nonce.
+func validSwitchToken(token string) bool {
+    if len(token) != 32 { return false }
+    _, err := hex.DecodeString(token)
+    return err == nil
+}
+func reportSwitchFailure(token, detail string) {
+    if !validSwitchToken(token) || dataDir() == "" { return }
+    _ = os.MkdirAll(dataDir(), 0700)
+    _ = os.WriteFile(filepath.Join(dataDir(), "engine-switch-"+token+".error"), []byte(detail), 0600)
+}
 func main() {
 	own, err := os.Executable()
 	if err != nil {
@@ -58,6 +70,7 @@ func main() {
 	engine := chosenEngine()
 	args := os.Args[1:]
 	safe := false
+	switchToken := ""
 	for i := 0; i < len(args); i++ {
 		switch {
 		case args[i] == "--engine" && i+1 < len(args):
@@ -70,7 +83,10 @@ func main() {
 			if value == "cef" || value == "electron" {
 				engine = value
 			}
-		case args[i] == "--repair-engines":
+		case strings.HasPrefix(args[i], "--ks-switch-token="):
+            candidate := strings.TrimPrefix(args[i], "--ks-switch-token=")
+            if validSwitchToken(candidate) { switchToken = candidate }
+        case args[i] == "--repair-engines":
 			message("KS Client - Repair", "Please run the complete OFFLINE KS Client setup package. Both engines are prebuilt and included.", 0x10)
 			return
 		case args[i] == "--ks-browser-safe-mode":
@@ -79,13 +95,15 @@ func main() {
 	}
 	file, dir := runtimeFile(base, engine)
 	if st, err := os.Stat(file); err != nil || st.IsDir() {
-		message("KS Client - Engine Missing", "The "+strings.ToUpper(engine)+" engine is missing from the installation.\n\nReinstall using the complete, Windows-tested OFFLINE setup package.", 0x10)
+		reportSwitchFailure(switchToken, "Target "+engine+" engine EXE is missing")
+        message("KS Client - Engine Missing", "The "+strings.ToUpper(engine)+" engine is missing from the installation.\n\nReinstall using the complete, Windows-tested OFFLINE setup package.", 0x10)
 		return
 	}
 	pass := []string{}
 	if safe {
 		pass = append(pass, "--ks-browser-safe-mode")
 	}
+    if switchToken != "" { pass = append(pass, "--ks-switch-token="+switchToken) }
 	cmd := exec.Command(file, pass...)
 	cmd.Dir = dir
 	// The CEF host is framework-dependent. Bundle the supported .NET Windows Desktop
@@ -97,7 +115,8 @@ func main() {
 		}
 	}
 	if err := cmd.Start(); err != nil {
-		message("KS Client - Launch Error", fmt.Sprintf("Cannot start %s:\n%v", engine, err), 0x10)
+        reportSwitchFailure(switchToken, err.Error())
+        message("KS Client - Launch Error", fmt.Sprintf("Cannot start %s:\n%v", engine, err), 0x10)
 		return
 	}
 	_ = cmd.Process.Release()
