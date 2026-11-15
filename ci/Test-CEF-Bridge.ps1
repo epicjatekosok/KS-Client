@@ -26,7 +26,7 @@ try {
     throw 'CEF renderer->native bridge probe timed out; packaging blocked'
   }
   if($process.ExitCode -ne 0){
-    $log=Join-Path $env:LOCALAPPDATA 'KSClient\cef-1.1.10.log'
+    $log=Join-Path $env:LOCALAPPDATA 'KSClient\cef-1.1.11.log'
     if(Test-Path $log){Get-Content $log -Tail 15 | ForEach-Object {Write-Host $_}}
     throw "CEF JavascriptMessageReceived failed, exit $($process.ExitCode); packaging blocked"
   }

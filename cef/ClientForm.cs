@@ -18,6 +18,7 @@ internal sealed class ClientForm : Form
     private readonly ChromiumWebBrowser browser;
     private readonly string overlay;
     private readonly string pacer;
+    private readonly string extras;
     private BrowserPrefs desired=Program.Active;
     private string menuResolution="native";
     private string gameResolution="native";
@@ -34,7 +35,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client alpha 1.1.10 – CEF";
+        Text="KS Client alpha 1.1.11 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -42,6 +43,7 @@ internal sealed class ClientForm : Form
         KeyPreview=true;
         overlay=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","overlay.js"));
         pacer=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","frame_pacer.js"));
+        extras=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","game_extras.js"));
         // A real CEF renderer->host PostMessage test. This is an offline page,
         // never an injected live Kirka script or external test dependency.
         var bridgeHtml="<html><body><script>setTimeout(function(){if(window.CefSharp && window.CefSharp.PostMessage){window.CefSharp.PostMessage(JSON.stringify({type:'ks-bridge-probe'}));}},350);</script>KS bridge probe</body></html>";
@@ -49,6 +51,7 @@ internal sealed class ClientForm : Form
             : switchProbe ? "about:blank" : Game;
         browser=new ChromiumWebBrowser(initial) {Dock=DockStyle.Fill};
         browser.MenuHandler = new ClientMenuHandler(() => desired.ContextMenu);
+        browser.PermissionHandler = new ClientGamePermissionHandler();
         if (!switchProbe && !bridgeProbe)
             browser.RequestHandler = new ClientRequestHandler(() => {
                 if(IsHandleCreated)BeginInvoke((Action)(() => SwitchToElectron()));
@@ -65,6 +68,7 @@ internal sealed class ClientForm : Form
             if(!e.Frame.IsMain || !Trust(e.Url))return;
             e.Frame.ExecuteJavaScriptAsync(pacer);
             e.Frame.ExecuteJavaScriptAsync(overlay);
+            e.Frame.ExecuteJavaScriptAsync(extras);
             // This post-injection request fixes the lost initial handshake that
             // could leave Active Browser Engine permanently on "Loading...".
             e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setEngineInfo?.('CEF (CefSharp)');");
@@ -292,6 +296,29 @@ internal sealed class ClientForm : Form
                 desired.Save();ReportPrefs("Default preferences saved.");break;
             case "browser-restart":Restart();break;
             case "crash-status":Reply("setCrashStatus","CEF log: "+Program.LogPath);break;
+            case "game-join":
+                if(Uri.TryCreate(m.Url,UriKind.Absolute,out var targetUrl)
+                    && Trust(targetUrl.ToString(),gameOnly:true)
+                    && (targetUrl.AbsolutePath.StartsWith("/games/",StringComparison.Ordinal)
+                    || targetUrl.AbsolutePath.StartsWith("/hub/ranked",StringComparison.Ordinal)
+                    || targetUrl.AbsolutePath.StartsWith("/servers/",StringComparison.Ordinal)))
+                    Go(targetUrl.ToString());
+                break;
+            case "game-screenshot":
+                try
+                {
+                    var dir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),"KSClient");
+                    Directory.CreateDirectory(dir);
+                    var output=Path.Combine(dir,"KSClient-"+DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+".png");
+                    // Windows WinForms captures the visible browser rectangle.
+                    // Occluding windows can appear in the screenshot.
+                    using var shot=new Bitmap(Math.Max(1,browser.ClientSize.Width),Math.Max(1,browser.ClientSize.Height));
+                    using(var g=Graphics.FromImage(shot))g.CopyFromScreen(browser.PointToScreen(Point.Empty),Point.Empty,shot.Size);
+                    shot.Save(output,System.Drawing.Imaging.ImageFormat.Png);
+                    Reply("setGameExtraStatus","Screenshot saved: "+output);
+                }
+                catch(Exception ex){Reply("setGameExtraStatus","Screenshot failed: "+ex.Message);}
+                break;
             case "fps-diagnostics":
                 Reply("setNativeFpsDiagnostics",new {
                     engine="CEF",
@@ -328,6 +355,7 @@ internal sealed class BridgeMsg
 {
     public string? Type {get;set;}
     public string? Preset {get;set;}
+    public string? Url {get;set;}
     public string? Section {get;set;}
     public string? Message {get;set;}
     public string? Engine {get;set;}
@@ -365,5 +393,24 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
             return true; // Do not actually navigate the game to this internal path.
         }
         return frame.IsMain && !ClientForm.Trust(request.Url);
+    }
+}
+
+internal sealed class ClientGamePermissionHandler : CefSharp.Handler.PermissionHandler
+{
+    protected override bool OnShowPermissionPrompt(IWebBrowser chromiumWebBrowser, IBrowser browser,
+        ulong promptId, string requestingOrigin, PermissionRequestType requestedPermissions,
+        IPermissionPromptCallback callback)
+    {
+        // Never grant clipboard, notifications, camera or other site permissions.
+        // Chromium/CefSharp revisions that expose PointerLock here may request it.
+        if (ClientForm.Trust(requestingOrigin, gameOnly:true) &&
+            string.Equals(requestedPermissions.ToString(), "PointerLock", StringComparison.OrdinalIgnoreCase))
+        {
+            using(callback) callback.Continue(PermissionRequestResult.Accept);
+            Program.Log("CEF trusted Kirka.io pointer lock permission granted");
+            return true;
+        }
+        return false;
     }
 }
