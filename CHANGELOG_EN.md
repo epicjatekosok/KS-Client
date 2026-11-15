@@ -1,3 +1,11 @@
+# KS Client alpha 1.1.14
+
+- Opt-in real WebGL texImage2D exact-image texture replacement and manual signature-calibrated 3D scale/offset in Workshop.
+- Early CEF V8 integration, focus and Pointer Lock diagnostics; live CEF game mouse capture remains a manual verification item.
+- Kirka original Join and spectator controls, live visible HUD, inventory, profile, server and market DOM snapshots.
+- Safe, sandboxed ks.snapshot() extension API, broader local image/audio/font/CSS resource swapper, optional frame-yield workaround.
+- Integration regression tests and gated dual-engine offline Windows package with a separate Setup EXE and Portable ZIP.
+
 # KS Client alpha 1.1.13
 
 - Added shared scene-aware Kirka.io integration core for CEF and Electron, with read-only HUD augmentation and pointer-lock logging.

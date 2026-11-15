@@ -1,5 +1,5 @@
 'use strict';
-// KS Client alpha 1.1.13: real Electron host. No WebView2 dependency.
+// KS Client alpha 1.1.14: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.13';
+const APP_VERSION = 'alpha 1.1.14';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.13.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.1.14.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -26,6 +26,9 @@ const extrasJS = fs.readFileSync(path.join(__dirname,'overlay','game_extras.js')
 const workshopJS=fs.readFileSync(path.join(__dirname,'overlay','workshop.js'),'utf8');
 const integrationBootJS=fs.readFileSync(path.join(__dirname,'overlay','integration_bootstrap.js'),'utf8');
 const integrationCoreJS=fs.readFileSync(path.join(__dirname,'overlay','integration_core.js'),'utf8');
+const graphicsJS=fs.readFileSync(path.join(__dirname,'overlay','webgl_cosmetics.js'),'utf8');
+const advancedJS=fs.readFileSync(path.join(__dirname,'overlay','advanced_integration.js'),'utf8');
+const freezeJS=fs.readFileSync(path.join(__dirname,'overlay','freeze_guard.js'),'utf8');
 const SWAPPER=require('./swapper.cjs');
 SWAPPER.registerSchemes();
 const DEFAULT_PREFS = Object.freeze({gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false});
@@ -161,6 +164,9 @@ function createWindow(){
       await win.webContents.executeJavaScript(extrasJS,true);
       await win.webContents.executeJavaScript(workshopJS,true);
       await win.webContents.executeJavaScript(integrationCoreJS,true);
+      await win.webContents.executeJavaScript(graphicsJS,true);
+      await win.webContents.executeJavaScript(advancedJS,true);
+      await win.webContents.executeJavaScript(freezeJS,true);
       jsCall('setEngineInfo','Electron');
       browserConfig();
     }catch(e){log('Overlay: '+e.message)}
@@ -335,6 +341,14 @@ function receiveMessage(event, raw){
   }
 }
 ipcMain.on('ks:message',receiveMessage);
+ipcMain.on('ks:early-freeze',(event)=>{
+  const source=event.senderFrame?.url||'';
+  event.returnValue=(win&&event.sender===win.webContents&&validURL(source,true))?freezeJS:'';
+});
+ipcMain.on('ks:early-graphics',(event)=>{
+  const source=event.senderFrame?.url||'';
+  event.returnValue=(win&&event.sender===win.webContents&&validURL(source,true))?graphicsJS:'';
+});
 ipcMain.on('ks:early-integration',(event)=>{
   const source=event.senderFrame?.url||'';
   event.returnValue=(win && event.sender===win.webContents && validURL(source,true))?integrationBootJS:'';
