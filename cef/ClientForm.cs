@@ -25,6 +25,7 @@ internal sealed class ClientForm : Form
     private readonly string graphics;
     private readonly string advanced;
     private readonly string freezeGuard;
+    private readonly string earlyGameJS;
     private BrowserPrefs desired=Program.Active;
     private string menuResolution="native";
     private string gameResolution="native";
@@ -56,6 +57,8 @@ internal sealed class ClientForm : Form
         graphics=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","webgl_cosmetics.js"));
         advanced=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","advanced_integration.js"));
         freezeGuard=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","freeze_guard.js"));
+        // One sequential script evaluation eliminates cross-task injection races.
+        earlyGameJS=string.Join("\n;\n",pacer,integrationBoot,graphics,freezeGuard);
         // A real CEF renderer->host PostMessage test. This is an offline page,
         // never an injected live Kirka script or external test dependency.
         var bridgeHtml="<html><body><script>setTimeout(function(){if(window.CefSharp && window.CefSharp.PostMessage){window.CefSharp.PostMessage(JSON.stringify({type:'ks-bridge-probe'}));}},350);</script>KS bridge probe</body></html>";
@@ -64,7 +67,7 @@ internal sealed class ClientForm : Form
         browser=new ChromiumWebBrowser(initial) {Dock=DockStyle.Fill};
         browser.MenuHandler = new ClientMenuHandler(() => desired.ContextMenu);
         browser.PermissionHandler = new ClientGamePermissionHandler();
-        browser.RenderProcessMessageHandler = new KSEarlyIntegrationHandler(pacer,integrationBoot,graphics,freezeGuard);
+        browser.RenderProcessMessageHandler = new KSEarlyIntegrationHandler(earlyGameJS);
         if (!switchProbe && !bridgeProbe)
             browser.RequestHandler = new ClientRequestHandler(() => {
                 if(IsHandleCreated)BeginInvoke((Action)(() => SwitchToElectron()));
@@ -84,10 +87,7 @@ internal sealed class ClientForm : Form
             if(e.Frame.IsMain && Trust(e.Url,gameOnly:true))
             {
                 // May run after early page scripts in some CEF builds; re-tested on load end.
-                e.Frame.ExecuteJavaScriptAsync(pacer);
-                e.Frame.ExecuteJavaScriptAsync(integrationBoot);
-                e.Frame.ExecuteJavaScriptAsync(graphics);
-                e.Frame.ExecuteJavaScriptAsync(freezeGuard);
+                e.Frame.ExecuteJavaScriptAsync(earlyGameJS);
             }
         };
         browser.FrameLoadEnd += (_,e)=>{

@@ -29,6 +29,8 @@ const integrationCoreJS=fs.readFileSync(path.join(__dirname,'overlay','integrati
 const graphicsJS=fs.readFileSync(path.join(__dirname,'overlay','webgl_cosmetics.js'),'utf8');
 const advancedJS=fs.readFileSync(path.join(__dirname,'overlay','advanced_integration.js'),'utf8');
 const freezeJS=fs.readFileSync(path.join(__dirname,'overlay','freeze_guard.js'),'utf8');
+// One atomic main-world evaluation, in dependency order, before Kirka page scripts.
+const earlyGameJS=[frameJS,integrationBootJS,graphicsJS,freezeJS].join('\n;\n');
 const SWAPPER=require('./swapper.cjs');
 SWAPPER.registerSchemes();
 const DEFAULT_PREFS = Object.freeze({gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false});
@@ -341,6 +343,11 @@ function receiveMessage(event, raw){
   }
 }
 ipcMain.on('ks:message',receiveMessage);
+ipcMain.on('ks:early-bundle',(event)=>{
+  const source=event.senderFrame?.url||event.sender?.getURL?.()||'';
+  event.returnValue=(win&&event.sender===win.webContents&&validURL(source,true))?earlyGameJS:'';
+});
+// Retain individual channels for backward-compatible diagnostics and tools.
 ipcMain.on('ks:early-freeze',(event)=>{
   const source=event.senderFrame?.url||'';
   event.returnValue=(win&&event.sender===win.webContents&&validURL(source,true))?freezeJS:'';

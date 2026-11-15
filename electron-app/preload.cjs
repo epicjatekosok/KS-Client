@@ -9,22 +9,14 @@ if(location.protocol==='https:' && ALLOWED.has(location.hostname)){
   contextBridge.exposeInMainWorld('__KS_NATIVE__',Object.freeze({post:(message)=>{
     if(message && typeof message==='object' && !Array.isArray(message))ipcRenderer.send('ks:message',message);
   }}));
-  // Preload happens before normal website scripts. Ask the main process for the
-  // bundled frame-pacing JS and inject into the page world (never expose FS).
-  // The main window's DOM-ready handler still installs the full visual overlay.
+  // One synchronous main-world evaluation of the vetted, bundled scripts.
+  // Electron world 0 is the Kirka page world. Script order is deterministic:
+  // frame pacing -> passive context registry -> optional cosmetics -> freeze guard.
+  // No Node.js objects, native permissions or raw IPC are exposed to the site.
   try{
-    const src=ipcRenderer.sendSync('ks:early-pacer');
-    if(typeof src==='string' && src.length<25000)webFrame.executeJavaScript(src).catch(()=>{});
+    const src=ipcRenderer.sendSync('ks:early-bundle');
+    if(typeof src==='string'&&src.length>0&&src.length<50000){
+      webFrame.executeJavaScriptInIsolatedWorld(0,[{code:src}],false).catch(()=>{});
+    }
   }catch(_){}
-  // Install passive render observation before the game's DOM-ready UI layers.
-  // This does not grant Node.js access or modify 3D drawing operations.
-  try{
-    const src=ipcRenderer.sendSync('ks:early-integration');
-    if(typeof src==='string' && src.length<12000)webFrame.executeJavaScript(src).catch(()=>{});
-  }catch(_){}
-  try{
-    const src=ipcRenderer.sendSync('ks:early-graphics');
-    if(typeof src==='string'&&src.length<18000)webFrame.executeJavaScript(src).catch(()=>{});
-  }catch(_){}
-  try{const src=ipcRenderer.sendSync('ks:early-freeze');if(typeof src==='string'&&src.length<10000)webFrame.executeJavaScript(src).catch(()=>{});}catch(_){}
 }
