@@ -1,3 +1,9 @@
+# KS Client alpha 1.1.14 – advanced Kirka game integration (Windows release candidate)
+
+Version 1.1.14 extends 1.1.13 with opt-in exact-asset WebGL texture replacement and manually calibrated 3D transforms, early CEF V8-context setup, Kirka's native Join/Spectate controls, visible game events, profile/inventory/market snapshots, audited sandbox plugin snapshots and an optional freeze workaround. All existing dual-engine settings and features remain available.
+
+Offline Portable ZIP and standalone Setup EXE are produced only after both native Windows engine smoke tests, bridge, switching, installer and CRC/hash checks pass. Actual Kirka.io pointer lock, 3D skin behavior and live match integration still require manual Windows game testing. Details: DEEP_INTEGRATION_114_HU.md.
+
 # KS Client alpha 1.1.13 – deep Kirka integration release candidate
 
 Version 1.1.13 adds common CEF/Electron game-scene detection, read-only in-game HUD augmentation, lobby map/mode/weapon presets, drag-and-drop Quick Join, conditional friend spectating, early passive WebGL context diagnostics, and pointer-lock event logging. Both native engines remain available. See `DEEP_INTEGRATION_HU.md`.
