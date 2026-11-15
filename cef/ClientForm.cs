@@ -63,6 +63,10 @@ internal sealed class ClientForm : Form
                 if(IsHandleCreated)BeginInvoke((Action)(() => SwitchToElectron()));
             });
         Controls.Add(browser);
+        // Keep native keyboard/mouse focus on the embedded Chromium control.
+        // Pointer lock still requires the game's real user gesture and CEF approval.
+        Activated += (_, _) => { if(!bridgeProbe && Trust(browser.Address,gameOnly:true)) browser.Focus(); };
+        browser.MouseDown += (_, _) => { if(!bridgeProbe && Trust(browser.Address,gameOnly:true)) browser.Focus(); };
         browser.FrameLoadStart += (_,e)=>{
             if(e.Frame.IsMain && Trust(e.Url,gameOnly:true))
             {
