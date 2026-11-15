@@ -40,6 +40,10 @@ jobs:
           node --check electron-app/overlay/overlay.js
           node --check electron-app/overlay/game_extras.js
           node --check electron-app/overlay/workshop.js
+          node --check electron-app/overlay/integration_bootstrap.js
+          node --check electron-app/overlay/integration_core.js
+          node --check cef/overlay/integration_bootstrap.js
+          node --check cef/overlay/integration_core.js
           node --check electron-app/swapper.cjs
           python ci/check_source.py
           python tests/test_ci_release_gates.py
