@@ -142,9 +142,9 @@ jobs:
       - name: Test native CEF to Electron and Electron to CEF switching
         shell: pwsh
         run: ./ci/Test-Switching.ps1
-      - name: Run both runtime smoke tests again after artifact transfer
+      - name: Recheck Electron after native CEF bridge and dual-engine switch tests
         shell: pwsh
-        run: ./ci/Test-Engines.ps1 -Engine Both
+        run: ./ci/Test-Engines.ps1 -Engine Electron
       - name: Bundle both VERIFIED runtimes into a single OFFLINE payload
         run: python ci/package_offline.py
       - name: Test real installer extraction and in-place update code
