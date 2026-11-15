@@ -16,6 +16,8 @@ internal sealed class ClientForm : Form
     static readonly HashSet<string> Allowed = new(StringComparer.OrdinalIgnoreCase)
        {"kirka.io","www.kirka.io","kirka-stats.lovable.app","kirka-clan-tracker-notpro9.lovable.app"};
     private readonly ChromiumWebBrowser browser;
+    private KSLoadingPanel? loadingPanel;
+    private System.Windows.Forms.Timer? loadingTimeout;
     private readonly string overlay;
     private readonly string pacer;
     private readonly string extras;
@@ -73,6 +75,18 @@ internal sealed class ClientForm : Form
                 if(IsHandleCreated)BeginInvoke((Action)(() => SwitchToElectron()));
             });
         Controls.Add(browser);
+        if(!switchProbe && !bridgeProbe) {
+            loadingPanel=new KSLoadingPanel(Path.Combine(AppContext.BaseDirectory,"assets","ks-logo.png"));
+            Controls.Add(loadingPanel);
+            loadingPanel.BringToFront();
+            loadingTimeout=new System.Windows.Forms.Timer {Interval=18000};
+            loadingTimeout.Tick+=(_,_)=>{
+                loadingTimeout?.Stop();
+                Program.Log("Startup splash timeout; enabling game interaction");
+                CloseLoadingPanel();
+            };
+            loadingTimeout.Start();
+        }
         // Keep native keyboard/mouse focus on the embedded Chromium control.
         // Pointer lock still requires the game's real user gesture and CEF approval.
         Activated += (_, _) => {
@@ -106,6 +120,7 @@ internal sealed class ClientForm : Form
             e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setEngineInfo?.('CEF (CefSharp)');");
             e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setBrowserConfig?.("+JS(desired)+","+JS(Program.Active)+","+JS(NeedsRestart())+",'');");
             if(gameResolution!="native" && IsHandleCreated)BeginInvoke((Action)(()=>SetGameResolution(gameResolution)));
+            if(IsHandleCreated)BeginInvoke((Action)(() => CloseLoadingPanel()));
             // Readiness is signalled by WinForms Shown, not FrameLoadEnd.
         };
         browser.JavascriptMessageReceived += (_,e)=>{
@@ -140,7 +155,12 @@ internal sealed class ClientForm : Form
             }
             catch(Exception ex){Program.Log("Bad JS message: "+ex.Message);}
         };
-        browser.LoadError += (_,e)=>{if(e.Frame.IsMain)Program.Log($"CEF load: {e.ErrorCode} {e.ErrorText}");};
+        browser.LoadError += (_,e)=>{
+            if(e.Frame.IsMain){
+                Program.Log($"CEF load: {e.ErrorCode} {e.ErrorText}");
+                if(IsHandleCreated)BeginInvoke((Action)(() => CloseLoadingPanel()));
+            }
+        };
         KeyDown += (_,e)=>{
             if(e.KeyCode==Keys.F11){ToggleFull();e.Handled=true;}
             if(e.KeyCode==Keys.F1){RunJS("window.__KS_CLIENT__?.toggle?.()");e.Handled=true;}
@@ -162,6 +182,19 @@ internal sealed class ClientForm : Form
             BeginInvoke((Action)(() => Program.SignalSwitchReady()));
         };
         Program.Log("CEF native window created; gameplay loading is independent");
+    }
+
+    private void CloseLoadingPanel()
+    {
+        loadingTimeout?.Stop();
+        loadingTimeout?.Dispose();
+        loadingTimeout=null;
+        var panel=loadingPanel;
+        loadingPanel=null;
+        if(panel!=null){
+            Controls.Remove(panel);
+            panel.Dispose();
+        }
     }
 
     internal static bool Trust(string? source,bool gameOnly=false)
