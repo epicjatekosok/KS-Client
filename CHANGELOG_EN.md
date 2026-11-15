@@ -1,3 +1,12 @@
+# KS Client alpha 1.1.13
+
+- Added shared scene-aware Kirka.io integration core for CEF and Electron, with read-only HUD augmentation and pointer-lock logging.
+- Added validated drag-and-drop Quick Join and conditional Spectate button for available Kirka.io friend room links.
+- Extended Workshop lobby presets to save visible map, mode and weapon checkbox selections.
+- Added passive early WebGL observation as preparation for future cosmetic rendering, without changing game draw calls.
+- Added CEF browser-focus improvements and new cross-engine integration regression tests.
+- Both Windows runtimes, offline Setup.exe and Portable.zip must pass gated CI verification; live Kirka.io and CEF gameplay input still need manual testing.
+
 # KS Client alpha 1.1.12
 
 - Add separate local Workshop menu: weapon preview coloring and Custom Skin Link, saved presets, lobby form/room presets, local player notes and inventory favorites with manual market estimates.

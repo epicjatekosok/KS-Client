@@ -1,3 +1,7 @@
+# KS Client 1.1.13 – új kiadási jelölt
+
+A korábbi 1.1.12-re épülő mélyebb játék-integráció. A Windowsos ZIP és külön telepítő EXE kizárólag akkor keletkezik, ha a GitHub Actions mindkét motort és az offline csomagot tesztelte. Az új modulokról és az éles játékbeli egérteszt korlátairól: `DEEP_INTEGRATION_HU.md`.
+
 # KS Client - Windowsos fordítás és ellenőrzés
 
 Ez a ZIP **fejlesztői forráscsomag**, nem a végleges telepítő. Az alapja a korábbi **alpha 1.1.12**. A régi, a felhasználó számítógépén futó CEF-fordítás helyett a GitHub Actions Windowson fordítja és ellenőrzi a motorokat.

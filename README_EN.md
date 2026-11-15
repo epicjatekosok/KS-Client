@@ -1,3 +1,9 @@
+# KS Client alpha 1.1.13 – deep Kirka integration release candidate
+
+Version 1.1.13 adds common CEF/Electron game-scene detection, read-only in-game HUD augmentation, lobby map/mode/weapon presets, drag-and-drop Quick Join, conditional friend spectating, early passive WebGL context diagnostics, and pointer-lock event logging. Both native engines remain available. See `DEEP_INTEGRATION_HU.md`.
+
+The offline Windows ZIP and standalone Setup.exe are produced **only after** GitHub Actions passes source, UI, Electron, CEF, bridge, switching, installer and ZIP verification. Live Kirka.io match input, FPS and WebGL cosmetic compatibility still require manual testing.
+
 # KS Client - Windows-verified CI source (alpha 1.1.12 codebase)
 
 This is NOT a finished, verified release and does not include Electron/CEF binaries.
