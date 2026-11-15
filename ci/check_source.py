@@ -60,7 +60,7 @@ for name in ('integration_bootstrap.js','integration_core.js','webgl_cosmetics.j
  assert bootstrap==(root/'cef/overlay'/name).read_text(),name+' differs between engines'
  assert "kirka.io" in bootstrap,name+' must be game-origin scoped'
 assert "ks:early-integration" in electron_host
-assert "ks:early-integration" in (root/'electron-app/preload.cjs').read_text()
+assert "ks:early-bundle" in (root/'electron-app/preload.cjs').read_text()
 assert 'RenderProcessMessageHandler' in cef_host and 'KSEarlyIntegrationHandler' in cef_host
 assert (root/'cef/EarlyIntegrationHandler.cs').is_file()
 assert 'ExecuteJavaScriptAsync(graphics)' in cef_host
