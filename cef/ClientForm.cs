@@ -461,11 +461,12 @@ internal sealed class ClientGamePermissionHandler : CefSharp.Handler.PermissionH
         ulong promptId, string requestingOrigin, PermissionRequestType requestedPermissions,
         IPermissionPromptCallback callback)
     {
-        // PermissionRequestType is flags; never grant unrelated permissions.
+        // PermissionRequestType is flags. Accept ONLY a single PointerLock request;
+        // accepting a combined flags prompt would approve unrelated permissions.
         // Some CEF builds handle raw pointer lock without a permission prompt.
         Program.Log("CEF permission prompt type: "+requestedPermissions);
         if (ClientForm.Trust(requestingOrigin, gameOnly:true) &&
-            requestedPermissions.ToString().Split(',').Any(p=>string.Equals(p.Trim(), "PointerLock", StringComparison.OrdinalIgnoreCase)))
+            string.Equals(requestedPermissions.ToString(), "PointerLock", StringComparison.OrdinalIgnoreCase))
         {
             using(callback) callback.Continue(PermissionRequestResult.Accept);
             Program.Log("CEF trusted Kirka.io pointer lock permission granted");

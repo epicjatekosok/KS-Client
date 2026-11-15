@@ -3,7 +3,8 @@
 (() => {
 'use strict';
 if(location.protocol!=='https:'||!['kirka.io','www.kirka.io'].includes(location.hostname)||window.__KS_DEEP__)return;
-const listeners=new Map(), tracked=new WeakSet(), observers=[], errors={};
+const listeners=new Map(), tracked=new WeakSet(), observers=new Map();
+let unsubscribeScene=null;
 const emit=(name,detail)=>{for(const fn of listeners.get(name)||[]){try{fn(detail)}catch(_){}}};
 const on=(name,fn)=>{if(!listeners.has(name))listeners.set(name,new Set());listeners.get(name).add(fn);return()=>listeners.get(name)?.delete(fn)};
 const trim=(x,n=100)=>String(x??'').replace(/\s+/g,' ').trim().slice(0,n);
@@ -27,6 +28,9 @@ function readStats(){
  if(JSON.stringify(stats)!==prev)emit('stats',{...stats,source:'visible HUD'});
 }
 function ingestFeed(root,kind){
+ const previous=observers.get(kind);
+ previous?.disconnect();
+ observers.delete(kind);
  if(!root)return;
  const parse=node=>{
    if(!(node instanceof Element)||tracked.has(node))return;
@@ -43,13 +47,18 @@ function ingestFeed(root,kind){
    }
  };
  const observer=new MutationObserver(changes=>{for(const c of changes)for(const node of c.addedNodes)parse(node)});
- observer.observe(root,{childList:true,subtree:true});observers.push(observer);
+ observer.observe(root,{childList:true,subtree:true});observers.set(kind,observer);
 }
 let feedRoot=null,achRoot=null;
 function attachFeeds(){
  const f=document.querySelector('.kill-bar-cont'),a=document.querySelector('.ach-cont');
- if(f!==feedRoot){feedRoot=f;if(f)ingestFeed(f,'kill');}
- if(a!==achRoot){achRoot=a;if(a)ingestFeed(a,'ach');}
+ if(f!==feedRoot){feedRoot=f;ingestFeed(f,'kill');}
+ if(a!==achRoot){achRoot=a;ingestFeed(a,'ach');}
+}
+function detachFeeds(){
+ feedRoot=null;achRoot=null;
+ for(const watcher of observers.values())watcher.disconnect();
+ observers.clear();
 }
 function profileSnapshot(){
  const panel=document.querySelector('.profile-cont,.card-profile,.profile-page');
@@ -150,12 +159,15 @@ let timer=null;
 function refresh(){
  const current=scene();
  if(matchId!==location.pathname){matchId=location.pathname;seenAssists=0;seenHS=0;seenKills=0;stats={kills:null,deaths:null,assists:null,headshotPercent:null};}
- if(current!==viewState){emit('scene',{from:viewState,to:current});viewState=current;}
+ if(current!==viewState){if(viewState==='match')detachFeeds();emit('scene',{from:viewState,to:current});viewState=current;}
  if(current==='match'){readStats();attachFeeds();}
  if(current==='profile')addProfileNote();
  if(current==='inventory')addInventoryCount();
 }
-function destroy(){clearInterval(timer);for(const o of observers)o.disconnect();observers.length=0;listeners.clear();}
-window.__KS_DEEP__=Object.freeze({getSnapshot,getStatus:()=>({scene:scene(),lastError,lastJoin,joinMode,observers:observers.length}),join,on,refresh,destroy});
-timer=setInterval(refresh,1000);if(document.body)refresh();else document.addEventListener('DOMContentLoaded',refresh,{once:true});
+function destroy(){clearInterval(timer);unsubscribeScene?.();detachFeeds();listeners.clear();}
+window.__KS_DEEP__=Object.freeze({getSnapshot,getStatus:()=>({scene:scene(),lastError,lastJoin,joinMode,observers:observers.size}),join,on,refresh,destroy});
+// Prefer instant transitions from the shared integration core; keep a
+// lightweight timer because Kirka's SPA changes DOM without changing routes.
+unsubscribeScene=window.__KS_INTEGRATION__?.on?.('scene-change',refresh)||null;
+timer=setInterval(refresh,1300);if(document.body)refresh();else document.addEventListener('DOMContentLoaded',refresh,{once:true});
 })();
