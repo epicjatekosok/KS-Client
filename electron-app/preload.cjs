@@ -5,7 +5,7 @@ const ALLOWED=new Set(['kirka.io','www.kirka.io','kirka-stats.lovable.app','kirk
 if(location.protocol==='https:' && ALLOWED.has(location.hostname)){
   // Read-only engine identity is available synchronously, even if the IPC request
   // sent by the overlay races with the native host.
-  contextBridge.exposeInMainWorld('__KS_RUNTIME__',Object.freeze({engine:'Electron',clientVersion:'alpha 1.1.12'}));
+  contextBridge.exposeInMainWorld('__KS_RUNTIME__',Object.freeze({engine:'Electron',clientVersion:'alpha 1.1.13'}));
   contextBridge.exposeInMainWorld('__KS_NATIVE__',Object.freeze({post:(message)=>{
     if(message && typeof message==='object' && !Array.isArray(message))ipcRenderer.send('ks:message',message);
   }}));
@@ -15,5 +15,11 @@ if(location.protocol==='https:' && ALLOWED.has(location.hostname)){
   try{
     const src=ipcRenderer.sendSync('ks:early-pacer');
     if(typeof src==='string' && src.length<25000)webFrame.executeJavaScript(src).catch(()=>{});
+  }catch(_){}
+  // Install passive render observation before the game's DOM-ready UI layers.
+  // This does not grant Node.js access or modify 3D drawing operations.
+  try{
+    const src=ipcRenderer.sendSync('ks:early-integration');
+    if(typeof src==='string' && src.length<12000)webFrame.executeJavaScript(src).catch(()=>{});
   }catch(_){}
 }

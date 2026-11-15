@@ -2,6 +2,14 @@ name: KS Client - Windows verified engines
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cef/**'
+      - 'electron-app/**'
+      - 'ci/**'
+      - 'tests/**'
+      - '.github/workflows/windows-build.yml'
   push:
     branches: [main]
     paths:
@@ -40,6 +48,10 @@ jobs:
           node --check electron-app/overlay/overlay.js
           node --check electron-app/overlay/game_extras.js
           node --check electron-app/overlay/workshop.js
+          node --check electron-app/overlay/integration_bootstrap.js
+          node --check electron-app/overlay/integration_core.js
+          node --check cef/overlay/integration_bootstrap.js
+          node --check cef/overlay/integration_core.js
           node --check electron-app/swapper.cjs
           python ci/check_source.py
           python tests/test_ci_release_gates.py
@@ -48,8 +60,10 @@ jobs:
           python -m pip install playwright
           python -m playwright install --with-deps chromium
           python tests/test_overlay_112.py
+          python tests/test_game_integration_112.py
 
   electron:
+    if: github.event_name != 'pull_request'
     name: Build and smoke test Electron
     runs-on: windows-2022
     timeout-minutes: 35
@@ -77,6 +91,7 @@ jobs:
           if-no-files-found: ignore
 
   cef:
+    if: github.event_name != 'pull_request'
     name: Build and smoke test CEF
     runs-on: windows-2022
     timeout-minutes: 45
@@ -110,6 +125,7 @@ jobs:
           if-no-files-found: ignore
 
   offline-installer:
+    if: github.event_name != 'pull_request'
     name: Package only after BOTH engine tests pass
     needs: [source-check, electron, cef]
     runs-on: windows-2022
@@ -160,10 +176,10 @@ jobs:
       - name: Upload candidate ONLY after all Windows checks succeed
         uses: actions/upload-artifact@v4
         with:
-          name: KS-Client-alpha-1.1.12-Windows-CI-PASSED
+          name: KS-Client-alpha-1.1.13-Windows-CI-PASSED
           path: |
-            KS-Client-alpha-1.1.12-Setup.exe
-            KS-Client-alpha-1.1.12-Portable.zip
+            KS-Client-alpha-1.1.13-Setup.exe
+            KS-Client-alpha-1.1.13-Portable.zip
             CI-TEST-RESULT.txt
           retention-days: 14
           if-no-files-found: error
