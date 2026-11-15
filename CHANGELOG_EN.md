@@ -1,4 +1,12 @@
-# KS Client — Alpha 1.1.6
+# KS Client alpha 1.1.7
+
+- Fix CEF local dotnet.exe by bundling .NET 10 base and Windows Desktop runtimes together.
+- Preserve Electron downloads without mandatory libEGL.dll.
+- Detect CEF 0xC0000005 native failures and retain diagnostic logs.
+- Require successful Windows process smoke tests for both engines before creating the offline installer.
+
+## Prior changes
+# KS Client — Alpha 1.1.7
 
 ## CEF compilation repair
 
@@ -9,7 +17,7 @@
 ## Install verification
 
 - Electron and CEF installers now check required files and run a 30-second runtime-startup self-test BEFORE replacing the current runtime. Failed checks preserve the previous installed engine.
-- Engine version markers force an upgrade when alpha 1.1.6 is installed over older builds.
+- Engine version markers force an upgrade when alpha 1.1.7 is installed over older builds.
 - Added a standalone, non-destructive Windows verification script: `Verify-Installed.ps1`.
 - Retained official Electron SHA-256 verification, CEF NuGet restore/build, PowerShell syntax checking and the installer's transaction-like file replacement.
 

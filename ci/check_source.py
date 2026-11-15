@@ -8,14 +8,18 @@ for needle in [b'engine-switch',b'Eye Comfort',b'Crosshair']:
 ps=(root/'ci/Prepare-Electron.ps1').read_text()
 assert 'SHA256' in ps and 'libEGL.dll' in ps and 'Never require' in ps
 assert 'exec.Command(filepath.Join(folder, "KS-Engine-Setup.exe")' not in (root/'installer/main_windows.go').read_text().split('func main()')[1], 'installer still runs user-side engine compilation'
-# Prevent regressions of the CEF Windows build failure: Desktop alone does not
-# provide the expected local dotnet.exe host. The published apphost must prefer
-# its own bundled runtime, including when launched without the Go launcher.
+# CEF must have the local host and both .NET 10 runtime components.
 cef_build=(root/'ci/Build-CEF.ps1').read_text()
-assert '-Runtime dotnet' in cef_build and '-Runtime windowsdesktop' in cef_build, 'CEF must bundle base and Desktop runtimes'
-assert cef_build.index('-Runtime dotnet') < cef_build.index('-Runtime windowsdesktop'), 'Install the base runtime first'
-assert '-p:AppHostDotNetSearch=AppRelative' in cef_build, 'CEF apphost must use an app-relative runtime'
-assert '-p:AppHostRelativeDotNet=dotnet' in cef_build, 'CEF apphost must point at the bundled dotnet directory'
-for required in ('dotnet.exe','Microsoft.NETCore.App','Microsoft.WindowsDesktop.App'):
- assert required in cef_build, f'CEF runtime completeness check missing: {required}'
-print('PASS: shared overlay, basic menus, offline installer and CEF local runtime source checks')
+assert '-Runtime $kind' in cef_build and "windowsdesktop" in cef_build and "dotnet" in cef_build
+assert 'AppHostDotNetSearch=AppRelative' in cef_build
+for value in ('dotnet.exe','Microsoft.NETCore.App','Microsoft.WindowsDesktop.App','CefSharp.BrowserSubprocess.exe'):
+ assert value in cef_build,value
+smoke=(root/'ci/Test-Engines.ps1').read_text()
+assert 'ks-smoke-pass.json' in smoke and 'C0000005' in smoke
+packager=(root/'ci/package_offline.py').read_text()
+assert "verify_engine('Electron'" in packager and "verify_engine('CEF'" in packager
+assert 'exeSha256' in packager
+workflow=(root/'.github/workflows/windows-build.yml').read_text()
+assert 'needs: [source-check, electron, cef]' in workflow
+assert 'tests/test_ci_release_gates.py' in workflow
+print('PASS: alpha 1.1.7 source, runtimes and gated offline package')

@@ -1,6 +1,6 @@
 # KS Client - Windowsos fordítás és ellenőrzés
 
-Ez a ZIP **fejlesztői forráscsomag**, nem a végleges telepítő. Az alapja a korábbi **alpha 1.1.6**. A régi, a felhasználó számítógépén futó CEF-fordítás helyett a GitHub Actions Windowson fordítja és ellenőrzi a motorokat.
+Ez a ZIP **fejlesztői forráscsomag**, nem a végleges telepítő. Az alapja a korábbi **alpha 1.1.7**. A régi, a felhasználó számítógépén futó CEF-fordítás helyett a GitHub Actions Windowson fordítja és ellenőrzi a motorokat.
 
 ## Indítás programozási ismeretek nélkül
 
@@ -26,3 +26,6 @@ A valódi Kirka.io-belépést, játékbeli megjelenítést, monitor-Hz fölötti
 ### Fontos
 
 A Windows CI internetet használ a GitHub, NuGet és a Microsoft hivatalos letöltéseihez, és a GitHub Actions használata a fiókod számára rendelkezésre álló futtatási időt fogyaszthatja. A teljes futtatást ebben a ChatGPT-környezetben nem tudtam elindítani; a kész forráscsomagot és a helyben lehetséges teszteket ellenőriztem. A kétmotoros telepítő nem lett ezáltal automatikusan megjavítva a gépeden.
+
+
+**Alpha 1.1.7:** A CEF-hez helyben telepített .NET 10 alap- és Windows Desktop Runtime tartozik. A telepítő csak mindkét Windowsos motorteszt sikeres futása után készül el.

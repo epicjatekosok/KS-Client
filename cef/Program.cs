@@ -7,23 +7,33 @@ internal static class Program
 {
     internal static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KSClient");
     internal static readonly string PrefsPath = Path.Combine(Root,"browser-settings.json");
-    internal static readonly string LogPath = Path.Combine(Root,"cef-1.1.6.log");
+    internal static readonly string LogPath = Path.Combine(Root,"cef-1.1.7.log");
     internal static BrowserPrefs Active = BrowserPrefs.Default();
 
     [STAThread]
     static void Main(string[] args)
     {
         Directory.CreateDirectory(Root);
+        bool selfTest = args.Contains("--ks-self-test");
         bool safe = args.Contains("--ks-browser-safe-mode");
-        Active = safe ? BrowserPrefs.Default() : BrowserPrefs.Load();
-        if (safe) Active.Save();
+        Active = (safe || selfTest) ? BrowserPrefs.Default() : BrowserPrefs.Load();
+        if (safe && !selfTest) Active.Save();
         ApplicationConfiguration.Initialize();
         var settings = new global::CefSharp.WinForms.CefSettings
         {
-            CachePath = Path.Combine(Root, "CefProfile"),
-            PersistSessionCookies = true,
-            Locale = "en-US"
+            CachePath = Path.Combine(Root, selfTest ? "CefSmokeProfile" : "CefProfile"),
+            PersistSessionCookies = !selfTest,
+            Locale = "en-US",
+            LogFile = Path.Combine(Root, "cef-native-debug.log"),
+            LogSeverity = global::CefSharp.LogSeverity.Verbose
         };
+        var subprocess = Path.Combine(AppContext.BaseDirectory, "CefSharp.BrowserSubprocess.exe");
+        if (File.Exists(subprocess)) settings.BrowserSubprocessPath = subprocess;
+        if (selfTest)
+        {
+            settings.CefCommandLineArgs.Add("disable-gpu", "1");
+            settings.CefCommandLineArgs.Add("disable-gpu-compositing", "1");
+        }
         if (Active.Gpu == "disabled") settings.CefCommandLineArgs.Add("disable-gpu", "1");
         if (Active.Angle == "d3d11") settings.CefCommandLineArgs.Add("use-angle", "d3d11");
         if (Active.Angle == "opengl") settings.CefCommandLineArgs.Add("use-angle", "gl");
@@ -35,7 +45,6 @@ internal static class Program
         }
         // Called by the installer after publishing; checks that the native CEF
         // runtime can initialize on THIS Windows machine, without opening Kirka.
-        bool selfTest = args.Contains("--ks-self-test");
         try
         {
             if (!global::CefSharp.Cef.Initialize(settings)) throw new InvalidOperationException("CEF initialization returned false.");
@@ -50,7 +59,7 @@ internal static class Program
         {
             Log("CEF startup failure: " + e);
             if (selfTest) Environment.ExitCode = 1;
-            else MessageBox.Show(e.Message,"KS Client alpha 1.1.6 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
+            else MessageBox.Show(e.Message,"KS Client alpha 1.1.7 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
         }
         finally { if (global::CefSharp.Cef.IsInitialized == true) global::CefSharp.Cef.Shutdown(); }
     }

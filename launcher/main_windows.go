@@ -1,6 +1,6 @@
 //go:build windows
 
-// KS Client alpha 1.1.6: engine-neutral launcher. CEF is the default engine.
+// KS Client alpha 1.1.7: engine-neutral launcher. CEF is the default engine.
 // The preference is shared between Electron and CEF, and only real installed
 // runtimes may be launched. No WebView2 dependency.
 package main
