@@ -171,11 +171,19 @@
 
   register('pointer-lock-diagnostics',s=>s==='match',()=>{
     let last=Boolean(document.pointerLockElement);
+    const report=message=>{
+      const payload={type:'game-input-diagnostics',message};
+      try{
+        if(window.__KS_NATIVE__?.post)window.__KS_NATIVE__.post(payload);
+        else if(window.CefSharp?.PostMessage)window.CefSharp.PostMessage(JSON.stringify(payload));
+      }catch(_){}
+    };
     const changed=()=>{
       last=Boolean(document.pointerLockElement);
+      report(last?'locked':'released');
       emit('pointer-lock',{locked:last});
     };
-    const failed=()=>{status.errors.pointerLock='Native browser or game rejected pointer lock';emit('pointer-lock',{locked:false,error:true})};
+    const failed=()=>{status.errors.pointerLock='Native browser or game rejected pointer lock';report('pointerlockerror');emit('pointer-lock',{locked:false,error:true})};
     document.addEventListener('pointerlockchange',changed);
     document.addEventListener('pointerlockerror',failed);
     return ()=>{document.removeEventListener('pointerlockchange',changed);document.removeEventListener('pointerlockerror',failed)};
