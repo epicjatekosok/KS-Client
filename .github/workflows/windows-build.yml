@@ -129,6 +129,9 @@ jobs:
       - name: Build KS Client launcher and uninstaller
         shell: pwsh
         run: ./ci/Build-Native.ps1
+      - name: Validate engine switch-token handling
+        working-directory: launcher
+        run: go test -timeout 5m -v .
       - name: Run both runtime smoke tests again after artifact transfer
         shell: pwsh
         run: ./ci/Test-Engines.ps1 -Engine Both
@@ -145,10 +148,10 @@ jobs:
       - name: Upload candidate ONLY after all Windows checks succeed
         uses: actions/upload-artifact@v4
         with:
-          name: KS-Client-alpha-1.1.7-Windows-CI-PASSED
+          name: KS-Client-alpha-1.1.8-Windows-CI-PASSED
           path: |
-            KS-Client-alpha-1.1.7-Setup.exe
-            KS-Client-alpha-1.1.7-Portable.zip
+            KS-Client-alpha-1.1.8-Setup.exe
+            KS-Client-alpha-1.1.8-Portable.zip
             CI-TEST-RESULT.txt
           retention-days: 14
           if-no-files-found: error

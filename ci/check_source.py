@@ -19,7 +19,16 @@ assert 'ks-smoke-pass.json' in smoke and 'C0000005' in smoke
 packager=(root/'ci/package_offline.py').read_text()
 assert "verify_engine('Electron'" in packager and "verify_engine('CEF'" in packager
 assert 'exeSha256' in packager
+overlay=(root/'electron-app/overlay/overlay.js').read_text()
+assert 'setEngineSwitchStatus' in overlay and 'enable-unlimited-fps' in overlay
+assert 'handshakeTimer' in overlay
+launcher=(root/'launcher/main_windows.go').read_text()
+assert '--ks-switch-token=' in launcher and 'reportSwitchFailure' in launcher
+cef_host=(root/'cef/ClientForm.cs').read_text()
+assert 'SignalSwitchReady' in cef_host and 'SwitchToElectron' in cef_host
+electron_host=(root/'electron-app/main.cjs').read_text()
+assert 'signalSwitchReady' in electron_host and 'switchEngine' in electron_host
 workflow=(root/'.github/workflows/windows-build.yml').read_text()
 assert 'needs: [source-check, electron, cef]' in workflow
 assert 'tests/test_ci_release_gates.py' in workflow
-print('PASS: alpha 1.1.7 source, runtimes and gated offline package')
+print('PASS: alpha 1.1.8 source, runtimes and gated offline package')

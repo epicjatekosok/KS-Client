@@ -1,4 +1,4 @@
-"""Engine-independent KS Client 1.1.7 UI smoke test in local Chromium.
+"""Engine-independent KS Client 1.1.8 UI smoke test in local Chromium.
 Not a live test of Windows Electron, CEF, or FPS unlock.
 """
 from pathlib import Path
@@ -23,11 +23,38 @@ with sync_playwright() as play:
   page.wait_for_function('!!window.__KS_CLIENT__')
   assert page.evaluate("window.__out.some(m=>m.type==='engine-info')")
   page.evaluate('window.__KS_CLIENT__.setEngineInfo("Electron")')
+  # A late native status update must be displayed without leaving Loading.
+  page.evaluate("window.__KS_CLIENT__.setEngineSwitchStatus('Checking new engine startup')")
+
   page.evaluate('window.__KS_CLIENT__.open()')
   page.locator('.ks-tab[data-group="Client"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
   body=page.locator('#ks-body').inner_text()
   assert 'Electron' in body,(width,body[:200])
+  assert 'Checking new engine startup' in body
+  # A native configuration reply enables the FPS setting. The zero FPS cap
+  # must now request the experimental Chromium launch flags on next restart.
+  page.evaluate("""() => window.__KS_CLIENT__.setBrowserConfig(
+    {gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false},
+    {gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false},false,'')""")
+  page.locator('.ks-tab[data-group="Gameplay"]').click()
+  page.locator('.ks-subtab[data-tab="Performance"]').click()
+  page.evaluate("""() => {
+    const select=document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-setting="fpsLimit"]');
+    select.value='0'; select.dispatchEvent(new Event('change',{bubbles:true}));
+  }""")
+  assert page.evaluate("window.__out.some(m=>m.type==='browser-save' && m.browser.uncapFps===true)")
+  # The dedicated button also works when Unlimited is already selected.
+  page.evaluate("""() => window.__KS_CLIENT__.setBrowserConfig(
+    {gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false},
+    {gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false},false,'')""")
+  page.locator('[data-action="enable-unlimited-fps"]').click()
+  assert page.evaluate("window.__out.some(m=>m.type==='browser-save' && m.browser.uncapFps===true)")
+  assert page.locator('[data-action="browser-restart"]').count()==1
+
+  page.locator('.ks-tab[data-group="Client"]').click()
+  page.locator('.ks-subtab[data-tab="General"]').click()
+
   page.locator('[data-action="engine-cef"]').click()
   assert page.evaluate("window.__out.some(m=>m.type==='engine-switch' && m.engine==='cef')")
   page.locator('.ks-tab[data-group="Gameplay"]').click()
@@ -40,8 +67,8 @@ with sync_playwright() as play:
   assert page.locator('[data-setting="crosshairEnabled"]').count()==1
   page.locator('.ks-tab[data-group="Client"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
-  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.7')
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.8')
   assert not errors,(width,errors)
-  print('PASS 1.1.7 engine UI',width,height)
+  print('PASS 1.1.8 engine UI',width,height)
   page.close()
  browser.close()

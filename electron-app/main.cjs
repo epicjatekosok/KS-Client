@@ -1,12 +1,13 @@
 'use strict';
-// KS Client alpha 1.1.7: real Electron host. No WebView2 dependency.
+// KS Client alpha 1.1.8: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session } = require('electron');
 const {spawn}=require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.7';
+const APP_VERSION = 'alpha 1.1.8';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -15,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.7.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.1.8.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -43,6 +44,15 @@ function savePrefs(p){
 function log(message) {try{fs.appendFileSync(LOG_FILE,new Date().toISOString()+' '+String(message).slice(0,400)+'\n')}catch(_){}}
 const selfTest = process.argv.includes('--ks-self-test');
 const safeMode = process.argv.includes('--ks-browser-safe-mode');
+const tokenArg = process.argv.find(a=>a.startsWith('--ks-switch-token='));
+const tokenValue = tokenArg ? tokenArg.slice('--ks-switch-token='.length) : '';
+const switchToken = /^[a-f0-9]{32}$/i.test(tokenValue) ? tokenValue : '';
+let switchInProgress = false;
+function signalSwitchReady(){
+  if(!switchToken)return;
+  try{fs.writeFileSync(path.join(ROOT,'engine-switch-'+switchToken+'.ok'),'Electron','utf8');}
+  catch(e){log('Switch ready marker failed: '+e.message);}
+}
 const active=safeMode?{...DEFAULT_PREFS}:loadPrefs();
 let desired={...active};
 if(safeMode)savePrefs(active);
@@ -50,7 +60,15 @@ if(safeMode)savePrefs(active);
 if(active.gpu==='disabled')app.disableHardwareAcceleration();
 if(active.angle==='d3d11')app.commandLine.appendSwitch('use-angle','d3d11');
 if(active.angle==='opengl')app.commandLine.appendSwitch('use-angle','gl');
-if(active.uncapFps){app.commandLine.appendSwitch('disable-frame-rate-limit');app.commandLine.appendSwitch('disable-gpu-vsync');}
+if(active.uncapFps){
+  // Experimental Chromium startup hints: these do NOT override the game engine,
+  // GPU driver, compositor, or physical monitor refresh limits.
+  for(const flag of ['disable-frame-rate-limit','disable-gpu-vsync','disable-renderer-backgrounding',
+    'disable-background-timer-throttling','disable-backgrounding-occluded-windows']){
+    app.commandLine.appendSwitch(flag);
+  }
+  log('Experimental FPS unlock requested on Electron startup');
+}
 let win=null;
 let currentURL=GAME;
 let menuResolution='native';
@@ -110,7 +128,13 @@ function createWindow(){
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
     // The overlay runs after the page DOM exists, retaining its 1.0.11 settings UI.
-    try{await win.webContents.executeJavaScript(frameJS,true);await win.webContents.executeJavaScript(overlayJS,true);}catch(e){log('Overlay: '+e.message)}
+    try{
+      await win.webContents.executeJavaScript(frameJS,true);
+      await win.webContents.executeJavaScript(overlayJS,true);
+      jsCall('setEngineInfo','Electron');
+      browserConfig();
+      signalSwitchReady();
+    }catch(e){log('Overlay: '+e.message)}
     setGameResolution(gameResolution);
   });
   win.webContents.on('render-process-gone',(e,d)=>log('Renderer gone: '+d.reason));
@@ -118,6 +142,57 @@ function createWindow(){
   installShortcuts();
   navigate(GAME);
   log('Electron host started; native WebView2 not used');
+}
+// Preserve the old window until the new engine has actually loaded its UI.
+// The launcher relays a one-time nonce; the new engine acknowledges from DOM-ready.
+function switchEngine(target) {
+  if(switchInProgress || !['electron','cef'].includes(target))return;
+  const root=path.resolve(__dirname,'..','..','..','..');
+  const launcher=path.join(root,'KS-Client.exe');
+  const targetExe=target==='cef'?path.join(root,'runtime','CEF','KS.Cef.Client.exe'):path.join(root,'runtime','Electron','electron.exe');
+  if(!fs.existsSync(launcher)||!fs.existsSync(targetExe)){
+    jsCall('setEngineSwitchStatus','Engine or launcher missing. Repair the offline installation.');
+    return;
+  }
+  const nonce=crypto.randomBytes(16).toString('hex');
+  const ready=path.join(ROOT,'engine-switch-'+nonce+'.ok');
+  const failed=path.join(ROOT,'engine-switch-'+nonce+'.error');
+  let timer=null;
+  function tidy(){
+    if(timer){clearInterval(timer);timer=null;}
+    for(const file of [ready,failed])try{fs.unlinkSync(file)}catch(_){}
+    switchInProgress=false;
+  }
+  function fail(message){
+    tidy();
+    // The launcher may have persisted the target even though it did not load.
+    try{fs.writeFileSync(path.join(ROOT,'selected-engine.txt'),'electron\n','utf8');}catch(_){}
+    jsCall('setEngineSwitchStatus',String(message).slice(0,280));
+    log('Engine switch failed: '+message);
+  }
+  switchInProgress=true;
+  jsCall('setEngineSwitchStatus','Starting '+target.toUpperCase()+'; waiting for the new window...');
+  try{
+    const child=spawn(launcher,['--engine',target,'--ks-switch-token='+nonce],
+      {cwd:root,detached:true,stdio:'ignore',windowsHide:true});
+    child.once('error',e=>fail('Could not start KS Client launcher: '+e.message));
+    child.once('spawn',()=>{
+      child.unref();
+      let count=0;
+      timer=setInterval(()=>{
+        if(fs.existsSync(ready)){
+          tidy();
+          app.quit();
+        }else if(fs.existsSync(failed)){
+          let reason='Engine launcher failed';
+          try{reason=fs.readFileSync(failed,'utf8').slice(0,260)}catch(_){}
+          fail(reason);
+        }else if(++count>=80){
+          fail('No startup confirmation from '+target.toUpperCase()+' within 20 seconds. The current engine remains open.');
+        }
+      },250);
+    });
+  }catch(e){fail('Failed to start '+target.toUpperCase()+': '+e.message);}
 }
 function receiveMessage(event, raw){
   if(!win || event.sender!==win.webContents || event.senderFrame!==win.webContents.mainFrame)return;
@@ -136,17 +211,7 @@ function receiveMessage(event, raw){
     case 'menu-resolution':setWindowSize(String(raw.preset||'native'));break;
     case 'engine-info':jsCall('setEngineInfo','Electron');break;
     case 'engine-switch':{
-      if(raw.engine==='electron')break;
-      if(raw.engine!=='cef')break;
-      const root=path.resolve(__dirname,'..','..','..','..');
-      const target=path.join(root,'KS-Client.exe');
-      if(!fs.existsSync(target)){browserConfig('KS Client launcher is missing. Repair the installation.');break;}
-      try{
-        const child=spawn(target,['--engine','cef'],{cwd:root,detached:true,stdio:'ignore',windowsHide:true});
-        child.once('error',e=>log('Could not switch to CEF: '+e.message));
-        child.unref();app.quit();
-      }
-      catch(e){browserConfig('Failed to restart with CEF: '+e.message)}
+      if(raw.engine==='cef')switchEngine('cef');
       break;
     }
     case 'browser-config':browserConfig();break;

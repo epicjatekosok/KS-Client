@@ -7,13 +7,24 @@ internal static class Program
 {
     internal static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KSClient");
     internal static readonly string PrefsPath = Path.Combine(Root,"browser-settings.json");
-    internal static readonly string LogPath = Path.Combine(Root,"cef-1.1.7.log");
+    internal static readonly string LogPath = Path.Combine(Root,"cef-1.1.8.log");
     internal static BrowserPrefs Active = BrowserPrefs.Default();
+    internal static string? SwitchToken;
+    internal static void SignalSwitchReady()
+    {
+        string? token = SwitchToken;
+        if (token is null || token.Length != 32 || token.Any(c => !Uri.IsHexDigit(c))) return;
+        SwitchToken = null;
+        try { File.WriteAllText(Path.Combine(Root, "engine-switch-" + token + ".ok"), "CEF"); }
+        catch (Exception ex) { Log("Could not signal CEF engine readiness: " + ex.Message); }
+    }
 
     [STAThread]
     static void Main(string[] args)
     {
         Directory.CreateDirectory(Root);
+        var switchArg=args.FirstOrDefault(a=>a.StartsWith("--ks-switch-token=",StringComparison.Ordinal));
+        SwitchToken=switchArg is null?null:switchArg.Substring("--ks-switch-token=".Length);
         bool selfTest = args.Contains("--ks-self-test");
         bool safe = args.Contains("--ks-browser-safe-mode");
         Active = (safe || selfTest) ? BrowserPrefs.Default() : BrowserPrefs.Load();
@@ -42,6 +53,9 @@ internal static class Program
             // EXPERIMENTAL: attempts to unlock Chromium scheduling. Not guaranteed.
             settings.CefCommandLineArgs.Add("disable-frame-rate-limit", "1");
             settings.CefCommandLineArgs.Add("disable-gpu-vsync", "1");
+            settings.CefCommandLineArgs.Add("disable-renderer-backgrounding", "1");
+            settings.CefCommandLineArgs.Add("disable-background-timer-throttling", "1");
+            settings.CefCommandLineArgs.Add("disable-backgrounding-occluded-windows", "1");
         }
         // Called by the installer after publishing; checks that the native CEF
         // runtime can initialize on THIS Windows machine, without opening Kirka.
@@ -59,7 +73,7 @@ internal static class Program
         {
             Log("CEF startup failure: " + e);
             if (selfTest) Environment.ExitCode = 1;
-            else MessageBox.Show(e.Message,"KS Client alpha 1.1.7 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
+            else MessageBox.Show(e.Message,"KS Client alpha 1.1.8 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
         }
         finally { if (global::CefSharp.Cef.IsInitialized == true) global::CefSharp.Cef.Shutdown(); }
     }
