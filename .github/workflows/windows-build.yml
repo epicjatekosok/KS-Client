@@ -113,6 +113,12 @@ jobs:
       - name: Publish CefSharp and bundle app-local Desktop runtime
         shell: pwsh
         run: ./ci/Build-CEF.ps1
+      - name: Authenticode sign KS CEF host when publisher certificate is configured
+        shell: pwsh
+        env:
+          KS_SIGNING_PFX_BASE64: ${{ secrets.KS_SIGNING_PFX_BASE64 }}
+          KS_SIGNING_PFX_PASSWORD: ${{ secrets.KS_SIGNING_PFX_PASSWORD }}
+        run: ./ci/Sign-Release.ps1 -Stage cef
       - name: Real Windows CEF initialization smoke test
         shell: pwsh
         run: ./ci/Test-Engines.ps1 -Engine CEF
@@ -161,6 +167,12 @@ jobs:
       - name: Build KS Client launcher and uninstaller
         shell: pwsh
         run: ./ci/Build-Native.ps1
+      - name: Authenticode sign KS launcher and uninstaller when configured
+        shell: pwsh
+        env:
+          KS_SIGNING_PFX_BASE64: ${{ secrets.KS_SIGNING_PFX_BASE64 }}
+          KS_SIGNING_PFX_PASSWORD: ${{ secrets.KS_SIGNING_PFX_PASSWORD }}
+        run: ./ci/Sign-Release.ps1 -Stage native
       - name: Validate engine switch-token handling
         working-directory: launcher
         run: go test -timeout 5m -v .
@@ -181,8 +193,19 @@ jobs:
       - name: Compile offline setup embedding complete dual-engine payload
         shell: pwsh
         run: ./ci/Build-Setup.ps1
+      - name: Sign the final standalone setup after its embedded ZIP is compiled
+        shell: pwsh
+        env:
+          KS_SIGNING_PFX_BASE64: ${{ secrets.KS_SIGNING_PFX_BASE64 }}
+          KS_SIGNING_PFX_PASSWORD: ${{ secrets.KS_SIGNING_PFX_PASSWORD }}
+        run: ./ci/Sign-Release.ps1 -Stage setup
       - name: Validate final offline package and setup
         run: python ci/verify_offline.py
+      - name: Audit authentic first-party signatures and publish unsigned status honestly
+        shell: pwsh
+        env:
+          KS_SIGNING_PFX_BASE64: ${{ secrets.KS_SIGNING_PFX_BASE64 }}
+        run: ./ci/Verify-Signing.ps1
       - name: Upload candidate ONLY after all Windows checks succeed
         uses: actions/upload-artifact@v4
         with:
@@ -191,6 +214,7 @@ jobs:
             KS-Client-alpha-1.1.15-Setup.exe
             KS-Client-alpha-1.1.15-Portable.zip
             CI-TEST-RESULT.txt
+            SIGNING-STATUS.txt
           retention-days: 14
           if-no-files-found: error
       - name: Keep diagnostics if installer verification fails
