@@ -33,17 +33,17 @@ func TestPublicAssetPinning(t *testing.T){
 }
 func TestUpdateChannels(t *testing.T){
  releases:=[]updateRelease{
-  {Tag:"v1.1.20-alpha",Prerelease:true,Assets:[]updateAsset{makeAsset("v1.1.20-alpha")}},
-  {Tag:"v1.1.20",Prerelease:false,Assets:[]updateAsset{makeAsset("v1.1.20")}},
+  {Tag:"v1.1.21-alpha",Prerelease:true,Assets:[]updateAsset{makeAsset("v1.1.21-alpha")}},
+  {Tag:"v1.1.21",Prerelease:false,Assets:[]updateAsset{makeAsset("v1.1.21")}},
  }
  choice,ok:=chooseUpdate(releases,"alpha")
- if !ok||choice.release.Tag!="v1.1.20"{t.Fatalf("alpha channel should prefer latest stable %v %v",ok,choice.release.Tag)}
+ if !ok||choice.release.Tag!="v1.1.21"{t.Fatalf("alpha channel should prefer latest stable %v %v",ok,choice.release.Tag)}
  choice,ok=chooseUpdate(releases[:1],"stable")
  if ok {t.Fatal("stable channel accepted alpha release")}
  choice,ok=chooseUpdate(releases[:1],"alpha")
- if !ok||choice.release.Tag!="v1.1.20-alpha"{t.Fatal("alpha channel failed")}
+ if !ok||choice.release.Tag!="v1.1.21-alpha"{t.Fatal("alpha channel failed")}
 }
 func TestNoUnverifiedDownloads(t *testing.T){
- a:=makeAsset("v1.1.20-alpha");a.State="not_uploaded"
- if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.1.20-alpha",Prerelease:true,Assets:[]updateAsset{a}}},"alpha");ok{t.Fatal("unverified asset offered")}
+ a:=makeAsset("v1.1.21-alpha");a.State="not_uploaded"
+ if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.1.21-alpha",Prerelease:true,Assets:[]updateAsset{a}}},"alpha");ok{t.Fatal("unverified asset offered")}
 }
