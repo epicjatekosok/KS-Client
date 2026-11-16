@@ -1,4 +1,4 @@
-/* KS Client alpha 1.1.15 – Electron/CEF unified game overlay. */
+/* KS Client alpha 1.1.16 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
@@ -60,7 +60,7 @@
   function stored() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; } }
   const previousSettings = stored();
   let state = { ...defaults, ...previousSettings };
-  // One-time alpha 1.1.15 migration: undo the previous forced 150% default.
+  // One-time alpha 1.1.16 migration: undo the previous forced 150% default.
   // Non-150% choices remain unchanged. Users can select 150% again afterwards.
   try {
     if (localStorage.getItem('ksclient.menu-scale-alpha109') !== '1') {
@@ -345,7 +345,7 @@
       #ks-quick { top: 70px; right: 12px; }
     }
 
-    /* alpha 1.1.15: native CSS zoom (layout-level, vector-sharp), responsive bounds. */
+    /* alpha 1.1.16: native CSS zoom (layout-level, vector-sharp), responsive bounds. */
     #ks-panel {width:min(1180px,calc((100vw - 24px) / var(--ks-ui-scale,1)));max-height:min(920px,calc((100vh - 24px) / var(--ks-ui-scale,1)));border-radius:12px;}
     #ks-main {grid-template-columns:174px minmax(0,1fr);flex:1;}
     #ks-nav {overflow-y:auto; gap:5px; padding:17px 10px; background:var(--ks-soft,#101217); min-height:0;}
@@ -391,7 +391,7 @@
     #ks-nav::-webkit-scrollbar-thumb:hover,#ks-body::-webkit-scrollbar-thumb:hover {background:var(--ks-accent,#f0aa35);}
     #ks-nav::-webkit-scrollbar-button,#ks-body::-webkit-scrollbar-button,.ks-select-popup::-webkit-scrollbar-button,#ks-panel textarea::-webkit-scrollbar-button {display:none!important;width:0!important;height:0!important;}
 
-    /* alpha 1.1.15: scale is committed only after releasing the slider.
+    /* alpha 1.1.16: scale is committed only after releasing the slider.
        CSS zoom reflows text sharply; never raster-stretch with transform. */
     #ks-panel {transform:none!important;transform-origin:center center;}
     #ks-preview-svg {width:162px;height:162px;max-width:100%;}
@@ -458,18 +458,18 @@
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge">KS CLIENT <span style="color:#ffe2a8">alpha 1.1.15</span></div>
+    <div id="ks-badge">KS CLIENT <span style="color:#ffe2a8">alpha 1.1.16</span></div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings"><span class="ks-gear-icon">⚙</span> <span class="ks-quick-label">Settings</span></button>
     </div>
     <div id="ks-dimmer"><div id="ks-panel" role="dialog" aria-label="KS Client Settings" aria-modal="true">
       <div id="ks-top">
-        <div id="ks-brand"><img id="ks-brand-icon" alt="KS Client Logo"><div id="ks-brand-main">KS CLIENT</div><div id="ks-brand-sub">Custom Kirka.io Client · alpha 1.1.15</div></div>
-        <div class="ks-stack"><span class="ks-pill">● CHROMIUM</span><span class="ks-alpha">alpha 1.1.15</span><button id="ks-close" aria-label="Close Settings">✕</button></div>
+        <div id="ks-brand"><img id="ks-brand-icon" alt="KS Client Logo"><div id="ks-brand-main">KS CLIENT</div><div id="ks-brand-sub">Custom Kirka.io Client · alpha 1.1.16</div></div>
+        <div class="ks-stack"><span class="ks-pill">● CHROMIUM</span><span class="ks-alpha">alpha 1.1.16</span><button id="ks-close" aria-label="Close Settings">✕</button></div>
       </div>
       <div id="ks-main"><div id="ks-nav"></div>
       <div id="ks-body"></div></div>
-      <div id="ks-foot"><span>F1 Settings · F10 Hide Client HUD · F11 Fullscreen</span><span>Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.15</span></div>
+      <div id="ks-foot"><span>F1 Settings · F10 Hide Client HUD · F11 Fullscreen</span><span>Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.16</span></div>
     </div></div>
   </div>`;
 
@@ -558,7 +558,7 @@
   "Saved profiles":"Elmentett profilok",
   "Save, load or delete up to 12 complete presets, including outlines and shadows.":"Legfeljebb 12 teljes profilt menthetsz, betölthetsz vagy törölhetsz, körvonallal és árnyékkal együtt.",
   "Preview uses the same vector drawing as the in-game overlay. Center dot and outlines are independent.":"Az előnézet ugyanazt a vektoros rajzolást használja, mint a játék feletti jelölés. A középpont és a körvonal külön beállítható.",
-  "alpha 1.1.15":"alpha 1.1.15",
+  "alpha 1.1.16":"alpha 1.1.16",
     "Gameplay":"Játékmenet","Personalization":"Testreszabás","Client":"Kliens",
     "Customize accent, surface, text and typography for the client interface.":"A kliens kiemelőszíneinek, hátterének, szövegének és betűtípusának testreszabása.",
     "Color palette":"Színpaletta","Accent color of active elements":"Az aktív elemek kiemelőszíne",
@@ -577,9 +577,9 @@
   "Settings": "Beállítások",
   "Open KS Client settings": "KS Client beállításainak megnyitása",
   "KS Client Settings": "KS Client beállítások",
-  "Custom Kirka.io Client · alpha 1.1.15": "Egyedi Kirka.io-kliens · alpha 1.1.15",
+  "Custom Kirka.io Client · alpha 1.1.16": "Egyedi Kirka.io-kliens · alpha 1.1.16",
   "F1 Settings · F10 Hide Client HUD · F11 Fullscreen": "F1 Beállítások · F10 Kliens-HUD elrejtése · F11 Teljes képernyő",
-  "Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.15": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · alpha 1.1.15",
+  "Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.16": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · alpha 1.1.16",
   "Close Settings": "Beállítások bezárása",
   "● ACTIVE": "● AKTÍV",
   "Client Overview": "A kliens áttekintése",
@@ -590,7 +590,7 @@
   "Toggle fullscreen · F11": "Teljes képernyő be/ki · F11",
   "Reset client settings": "Kliensbeállítások visszaállítása",
   "Reset all settings": "Összes beállítás visszaállítása",
-  "This build uses the visible label alpha 1.1.15. Game files and player data still come from Kirka.io.": "Ez a kiadás az alpha 1.1.15 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
+  "This build uses the visible label alpha 1.1.16. Game files and player data still come from Kirka.io.": "Ez a kiadás az alpha 1.1.16 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
   "Settings Backup & Language": "Beállításmentés és nyelv",
   "Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.": "Mentsd el és oszd meg a KS Client beállításait. Csak JSON-fájl használható; ismeretlen személy mentését ne importáld.",
   "Language": "Nyelv",
@@ -1017,6 +1017,7 @@
 
 
   const releaseHistory = [
+    {v:'1.1.16',en:['Added Game Integration Runtime 2.0: shared visible game scenes, HUD/killfeed events, scoped observers and compatibility fingerprints.','Added passive GPU draw-call and matrix diagnostics, without changing opponent visibility or network/game state.','Kirka compatibility fingerprints, live shared runtime information and GPU diagnostics appear in Game Integration settings.','Direct ZIP and EXE distribution through a verified GitHub Release with SHA256 and truthful publisher-signing reports; Chrome warnings cannot be bypassed.'],hu:['Új Game Integration Runtime 2.0: közös játékállapotok, HUD/killfeed események, felszabaduló megfigyelők és kompatibilitási ujjlenyomatok.','Passzív WebGL-rajzolási és mátrixdiagnosztika; a játékadatokhoz és az ellenfelek láthatóságához nem nyúl.','A kompatibilitás és a közös játék-integráció állapota a Game Integration menüben is látszik.','Ellenőrzött, külön letölthető ZIP és EXE a GitHub Releases oldaláról, SHA256- és kiadói aláírásjelentéssel; a Chrome figyelmeztetéseit nem kerüli meg.']},
     {v:'1.1.15',en:['New animated dark-and-gold KS logo startup screen on both Electron and CEF.','CEF mouse: genuine game canvas pointer-lock request, native Chromium focus/cursor synchronization, and relative-motion diagnostics. Real-game behavior remains to be confirmed.','Single shared WebGL context observer; removes duplicate FPS watcher that previously prevented new integration subscribers from connecting.','Transparent optional publisher signing, unsigned-build warnings, and removal of encoded PowerShell shortcut commands.'],hu:['Új, sötét-arany KS logós betöltőanimáció Electronban és CEF-ben.','CEF egér: valódi játékbeli egérbefogás-kérés, natív Chromium-fókusz és kurzorállapot, relatív mozgás diagnosztikával. Az élő játékbeli működést még ellenőrizni kell.','Egyetlen közös WebGL-környezetfigyelő; a korábbi FPS-megfigyelő ütközésének megszüntetése.','Valódi kiadói aláírás támogatása, átlátható aláírásállapot és a kódolt PowerShell parancs eltávolítása.']},
     {v:'1.1.14',en:['Added optional WebGL exact-texture cosmetics and calibrated 3D viewmodel transforms; game compatibility varies by asset and CORS.','Earlier CEF V8 game integration and better native browser focus; pointer lock still needs live gameplay verification.','Native Kirka Join/Spectate UI, read-only game-event snapshots, visible profile/inventory/market data and sandboxed plugin snapshot API.','More local resource asset folders and optional mouse-held frame-yield workaround; all nonessential modules are opt-in.'],hu:['Választható WebGL 3D textúracsere és kalibrált fegyvermegjelenítés; az eredmény a játékfájloktól és a CORS-tól függ.','Korábbi CEF V8-integráció és jobb böngészőfókusz; az egérrögzítést élő játékban még ellenőrizni kell.','A Kirka saját Join/Spectate felülete, látható statisztika-, profil-, inventory- és marketadatok, korlátozott JS-plugin adatelérés.','További helyi erőforrásmappák és opcionális egérnyomásos fagyáscsökkentés.']},
     {v:'1.1.13',en:['Shared Kirka.io game-integration modules for match, lobby, profile, friends and inventory views.','HUD statistics augmentation, validated drag-and-drop Quick Join, and optional friend spectating when the game exposes a valid room URL.','Passive WebGL diagnostics, pointer lock event logging and improved CEF browser focus; 3D skin replacement and live CEF pointer lock still require testing.','Richer Workshop room presets for visible mode, map and weapon selectors.'],hu:['Közös Kirka.io-integrációs modulok a meccs, lobby, profil, barátlista és inventory képernyőkhöz.','HUD-statisztikák, ellenőrzött behúzható szobalink és feltételes megfigyelési gomb, ha a játék szobalinket mutat.','Passzív WebGL-diagnosztika, egérbefogási naplózás és CEF-fókuszjavítás; a 3D skincsere és a CEF éles egértesztje még hátravan.','Részletes szobapresetek a látható játékmód-, pálya- és fegyverválasztókhoz.']},
@@ -1055,9 +1056,9 @@
     $('ks-gear').setAttribute('aria-label',L('Open KS Client settings'));
     $('ks-panel').setAttribute('aria-label',L('KS Client Settings'));
     $('ks-close').setAttribute('aria-label',L('Close Settings'));
-    $('ks-brand-sub').textContent=L('Custom Kirka.io Client · alpha 1.1.15');
+    $('ks-brand-sub').textContent=L('Custom Kirka.io Client · alpha 1.1.16');
     $('ks-foot').children[0].textContent=L('F1 Settings · F10 Hide Client HUD · F11 Fullscreen');
-    $('ks-foot').children[1].textContent=L('Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.15');
+    $('ks-foot').children[1].textContent=L('Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.16');
   }
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -1080,7 +1081,7 @@
     }
     switch (selectedTab) {
       case 'General':
-        return title('Client Overview', 'KS Client alpha 1.1.15 starts in CEF by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client alpha 1.1.16 starts in CEF by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ. Native shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
@@ -1088,7 +1089,7 @@
           `<div class="ks-row"><div class="ks-label">Borderless fullscreen</div><button class="ks-btn" data-action="fullscreen">Toggle fullscreen · F11</button></div>` +
           `<div class="ks-row"><div class="ks-label">Reset client settings</div><button class="ks-btn danger" data-action="reset">Reset all settings</button></div>` +
           `</div>` +
-          `<p class="ks-hint">This build uses the visible label alpha 1.1.15. Game files and player data still come from Kirka.io.</p>` + historyHTML();
+          `<p class="ks-hint">This build uses the visible label alpha 1.1.16. Game files and player data still come from Kirka.io.</p>` + historyHTML();
       case 'Sharing':
         return title('Settings Backup & Language','Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.') +
           `<div class="ks-card">` +
@@ -1628,7 +1629,7 @@
     const group=currentGroup();
     $('ks-nav').innerHTML = `<div class="ks-sidebar-caption">${state.language==='hu'?'BEÁLLÍTÁSOK':'SETTINGS'}</div>`+
       groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon">${g.icon}</span><span>${translateTab(g.key)}</span></button>`).join('')+
-      `<div class="ks-sidebar-foot">● ${state.language==='hu'?'AUTOMATIKUS MENTÉS':'AUTOSAVED'}<div style="opacity:.66;margin-top:5px">KS Client · alpha 1.1.15</div></div>`;
+      `<div class="ks-sidebar-foot">● ${state.language==='hu'?'AUTOMATIKUS MENTÉS':'AUTOSAVED'}<div style="opacity:.66;margin-top:5px">KS Client · alpha 1.1.16</div></div>`;
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
@@ -1949,7 +1950,7 @@
     // Export only supported settings; local assets live in IndexedDB.
     const safe = Object.fromEntries(Object.keys(defaults)
       .map(k=>[k,state[k]]));
-    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client alpha 1.1.15',exportedAt:new Date().toISOString(),settings:safe};
+    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client alpha 1.1.16',exportedAt:new Date().toISOString(),settings:safe};
     const blob = new Blob([JSON.stringify(doc,null,2)],{type:'application/json'});
     const objectURL = URL.createObjectURL(blob);
     const link=document.createElement('a');link.href=objectURL;link.download='KS-Client-alpha-1.0.11-settings.json';
