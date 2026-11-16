@@ -98,7 +98,7 @@ func chooseUpdate(releases []updateRelease,channel string)(updateChoice,bool){
 }
 func updateHTTP() *http.Client{
  return &http.Client{
-  Timeout:30*time.Second,
+  Timeout:12*time.Second,
   CheckRedirect:func(req *http.Request,via []*http.Request)error{
    if len(via)>8||req.URL.Scheme!="https"{return errors.New("insecure release redirect")}
    host:=strings.ToLower(req.URL.Hostname())
@@ -119,8 +119,9 @@ func getUpdates()(updateChoice,bool,error){
  response,e:=client.Do(request);if e!=nil{return updateChoice{},false,e}
  defer response.Body.Close()
  if response.StatusCode!=200{
-  if response.StatusCode==404{return updateChoice{},false,errors.New("Public update repository not configured yet (KS-Client-Updates).")}
-  return updateChoice{},false,fmt.Errorf("GitHub update service: HTTP %d",response.StatusCode)
+  if response.StatusCode==404{return updateChoice{},false,errors.New("Public auto-update feed is not published. The publisher must create the public KS-Client-Updates repository. Use Open GitHub Releases to download the private release manually.")}
+  if response.StatusCode==403||response.StatusCode==429{return updateChoice{},false,errors.New("GitHub update lookup was rate limited. Try again later or use Open GitHub Releases.")}
+  return updateChoice{},false,fmt.Errorf("GitHub update lookup HTTP %d; use Open GitHub Releases if the public feed is unavailable",response.StatusCode)
  }
  limited:=io.LimitReader(response.Body,2*1024*1024)
  var releases []updateRelease
