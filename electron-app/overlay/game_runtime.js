@@ -4,7 +4,7 @@
 (() => {
   'use strict';
   if(location.protocol!=='https:' || !['kirka.io','www.kirka.io'].includes(location.hostname) || window.__KS_GAME_RUNTIME__)return;
-  const listeners=new Map(), last=new Map(), observerRoots=new Map();
+  const listeners=new Map(), last=new Map(), observerRoots=new Map(), observedFeed=new WeakSet();
   const statsSelectors=Object.freeze({
     kills:'.ui-cell.kill .cell-value,.kill-death .kill .cell-value',
     deaths:'.ui-cell.death .cell-value,.kill-death .death .cell-value',
@@ -88,8 +88,8 @@
         const items=child.matches('.kill-bar-item,.ach-item,.achievement')?[child]:
           Array.from(child.querySelectorAll('.kill-bar-item,.ach-item,.achievement')).slice(0,20);
         for(const item of items){
-          if(item.dataset.ksRuntimeObserved==='1')continue;
-          item.dataset.ksRuntimeObserved='1';
+          if(observedFeed.has(item))continue;
+          observedFeed.add(item);
           const title=safe(item.textContent);
           if(title)emit(kind,{text:title,source:'visible DOM',kind});
         }
