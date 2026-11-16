@@ -21,9 +21,13 @@ $paths=@(
 foreach($path in $paths){if(-not (Test-Path $path -PathType Leaf)){throw "Cannot publish missing file $path"}}
 & gh release view $tag --repo $repo *> $null
 if($LASTEXITCODE -eq 0){
-    Write-Host "GitHub release $tag already exists; preserving its immutable binaries."
+    # Do not overwrite verified EXE/ZIP assets. Release notes are editable
+    # metadata; update them to the correct version's QA notes and warnings.
+    & gh release edit $tag --repo $repo --notes-file 'RELEASE_117_HU.md'
+    if($LASTEXITCODE -ne 0){throw "Could not update the $tag release notes"}
+    Write-Host "GitHub release $tag already exists; verified binaries preserved, notes refreshed."
     return
 }
-& gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client alpha 1.1.17' --prerelease --notes-file 'RELEASE_116_HU.md'
+& gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client alpha 1.1.17' --prerelease --notes-file 'RELEASE_117_HU.md'
 if($LASTEXITCODE -ne 0){throw "GitHub release $tag publishing failed"}
 Write-Host "Published immutable release at https://github.com/$repo/releases/tag/$tag"
