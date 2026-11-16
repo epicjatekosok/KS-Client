@@ -1,3 +1,7 @@
+# KS Client 1.1.15 – új betöltő és egérkezelés
+
+Az eredeti KS logóval készült, sötét-arany animáció CEF-ben és Electronban is megjelenik. A CEF egérbefogásának új natív kezelése kizárólag a játék tényleges Pointer Lock állapotát követi, és egérmozgást is naplóz. További részletek, az aláírt Windows-kiadáshoz szükséges hiteles tanúsítvány és a kézi teszt: RELEASE_115_HU.md.
+
 # KS Client 1.1.14 – telepítési és fejlesztési tudnivalók
 
 Az 1.1.14 a korábbi változatokat megtartva bővíti a Kirka.io-integrációt. A GitHub Actions készít offline Portable ZIP-et és külön Setup EXE-t kizárólag sikeres Windows-ellenőrzések után. A 3D skincseréhez pontos eredeti játék-textúra URL és CORS-kompatibilis kép kell. A CEF egérbefogását csak valódi játékban lehet véglegesen ellenőrizni. Részletek: DEEP_INTEGRATION_114_HU.md.
