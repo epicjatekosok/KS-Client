@@ -1,6 +1,6 @@
 //go:build windows
 
-// KS Client alpha 1.1.20: engine-neutral Windows launcher.
+// KS Client alpha 1.1.21: engine-neutral Windows launcher.
 // A switch is committed only after the newly started native host acknowledges
 // its own readiness. A transient game page/network failure is not engine failure.
 package main
@@ -18,7 +18,7 @@ import (
  "time"
 )
 
-const version = "1.1.20"
+const version = "1.1.21"
 const switchTimeout = 45 * time.Second
 
 func message(title, body string, _ uintptr) { ksui.Alert(title, body) }
@@ -30,8 +30,13 @@ func dataDir() string {
 func prefsFile() string { return filepath.Join(dataDir(), "selected-engine.txt") }
 func chosenEngine() string {
  b,err:=os.ReadFile(prefsFile())
- if err==nil && strings.TrimSpace(strings.ToLower(string(b)))=="electron" {return "electron"}
- return "cef"
+ if err==nil {
+  switch strings.TrimSpace(strings.ToLower(string(b))) {
+  case "electron":return "electron"
+  case "cef":return "cef" // Preserve explicitly saved CEF choice.
+  }
+ }
+ return "electron" // Fresh installations start in Electron.
 }
 func saveEngine(engine string) error {
  folder:=dataDir()
@@ -184,7 +189,7 @@ func main(){
    appendLog("Switch failure: "+err.Error())
    reportSwitchFailure(token,err.Error())
    if explicitEngine && !probe {
-    message("KS Client - Engine Launch Error",err.Error()+"\nCheck %LOCALAPPDATA%\\KSClient\\launcher-1.1.20.log",0)
+    message("KS Client - Engine Launch Error",err.Error()+"\nCheck %LOCALAPPDATA%\\KSClient\\launcher-1.1.21.log",0)
    }
   }
   return
