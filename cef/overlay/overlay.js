@@ -935,9 +935,9 @@
     'Saved. Restart KS Client to apply GPU/ANGLE changes.':'Mentve. A GPU/ANGLE módosítások alkalmazásához indítsd újra a KS Clientet.',
     'Applied on browser startup':'A böngésző indításakor alkalmazva',
     'Disabled GPU may prevent Kirka.io from loading.':'Kikapcsolt GPU mellett a Kirka.io esetleg nem töltődik be.',
-    'Browser Graphics':'Grafika',
-    'Browser Controls':'Böngészőfunkciók',
-    'Browser GPU Info':'GPU diagnosztika',
+    'Browser Graphics':'Grafika bongeszo grafika hardvergyorsitas',
+    'Browser Controls':'Böngészőfunkciók bongeszo vezerles eszkozok',
+    'Browser GPU Info':'GPU diagnosztika videokartya gpu',
     'Graphics engine':'Grafikus motor',
     'Chromium / Electron/CEF Graphics':'Chromium / Electron/CEF grafika',
     'GPU hardware acceleration':'GPU-hardvergyorsítás',
@@ -1083,12 +1083,12 @@
 
   Object.assign(hu,{
     'Workshop':'Műhely',
-    'Weapon Studio':'Fegyverkészítő',
-    'Resource Swapper':'Erőforráscsere',
+    'Weapon Studio':'Fegyverkészítő fegyver skin kinezet',
+    'Resource Swapper':'Erőforráscsere eroforras csere',
     'Plugins':'Bővítmények',
     'Lobby':'Lobby',
-    'Friends & Profiles':'Barátok és profilok',
-    'Inventory & Market':'Raktár és piac',
+    'Friends & Profiles':'Barátok és profilok baratok profilok',
+    'Inventory & Market':'Raktár és piac raktar piac keszlet',
     'Keystroke position':'Billentyűkijelző helye',
     'Keystroke size':'Billentyűkijelző mérete',
     'Colored killfeed':'Színes találatlista',
@@ -1762,39 +1762,40 @@
   // Find existing settings by section name and common option names; never
   // reconstruct or delete controls while searching.
   const settingsSearchTerms = {
-    Display:'resolution fullscreen scaling zoom monitor screen',
-    Performance:'fps unlimited uncap limit low latency high performance renderer frame pacing cpu',
-    'Frame Stability':'stutter frametime jitter webgl antialiasing sync fps graph',
-    'Game Integration':'stats hitmarker keystrokes quick join mouse lock screenshot hud',
-    'Eye Comfort':'brightness contrast warmth saturation softness blue light break reminders',
-    Crosshair:'crosshair dot color shape outline shadow thickness gap',
-    Appearance:'theme accent dark colors background text font',
-    Interface:'menu size ui scale motion animations interface',
-    Resources:'custom image font sound backgrounds audio',
-    'CSS Editor':'custom css styles selectors',
-    General:'client engine cef electron restart settings language',
-    Updates:'update auto download install version channel',
-    Sharing:'export import backup restore settings',
-    Diagnostics:'logs memory cpu gpu crashes renderer',
+    Display:'resolution fullscreen scaling zoom monitor screen felbontas kepernyo kijelzo',
+    Performance:'fps unlimited uncap limit low latency high performance renderer frame pacing cpu teljesitmeny sebesseg korlatlan',
+    'Frame Stability':'stutter frametime jitter webgl antialiasing sync fps graph kepkocka stabilitas akadas',
+    'Game Integration':'stats hitmarker keystrokes quick join mouse lock screenshot hud jatekintegracio billentyu statisztika talalat eger',
+    'Eye Comfort':'brightness contrast warmth saturation softness blue light break reminders szemkimelo szemkomfort fenyero szinhomerseklet',
+    Crosshair:'crosshair dot color shape outline shadow thickness gap celkereszt szin korvonal arnyek',
+    Appearance:'theme accent dark colors background text font megjelenes tema betutipus',
+    Interface:'menu size ui scale motion animations interface felulet menu nagyitas animacio',
+    Resources:'custom image font sound backgrounds audio eroforras kep hang',
+    'CSS Editor':'custom css styles selectors css szerkeszto stilus',
+    General:'client engine cef electron restart settings language altalanos nyelv ujrainditas',
+    Updates:'update auto download install version channel frissites letoltes telepites',
+    Sharing:'export import backup restore settings megosztas biztonsagi mentes',
+    Diagnostics:'logs memory cpu gpu crashes renderer diagnosztika naplo memoria',
     'Browser Graphics':'gpu hardware acceleration angle directx opengl',
     'Browser Controls':'devtools shortcuts context menu',
     'Browser GPU Info':'gpu webgl diagnostics renderer',
     'Weapon Studio':'weapon skin link cosmetics color presets',
     'Resource Swapper':'resource swapping assets image audio css',
-    Plugins:'javascript sandbox extensions',
-    Lobby:'quick join favorite rooms map modes weapon',
+    Plugins:'javascript sandbox extensions bovitmeny',
+    Lobby:'quick join favorite rooms map modes weapon szoba csatlakozas palya jatekmod',
     'Friends & Profiles':'friend player spectate profile',
     'Inventory & Market':'inventory favorites market price items'
   };
+  const normalizeSettingsQuery = value => String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase();
   function updateSettingsSearch(value) {
     const results=$('ks-search-results'),categories=$('ks-sidebar-groups');
     if(!results||!categories)return;
-    const query=String(value||'').trim().toLocaleLowerCase();
+    const query=normalizeSettingsQuery(String(value||'').trim());
     if(!query){results.hidden=true;results.innerHTML='';categories.hidden=false;return;}
     const matching=tabs.filter(name=>{
       const category=groups.find(g=>g.items.includes(name));
       return [name,translateTab(name),category?.key||'',translateTab(category?.key||''),settingsSearchTerms[name]||'']
-        .some(text=>String(text).toLocaleLowerCase().includes(query));
+        .some(text=>normalizeSettingsQuery(text).includes(query));
     });
     results.innerHTML=matching.length ? matching.map(name=>{
       const category=groups.find(g=>g.items.includes(name));
