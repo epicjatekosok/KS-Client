@@ -13,7 +13,6 @@ import (
  "fmt"
  "io"
  "net/http"
- "net/url"
  "os"
  "os/exec"
  "path/filepath"
