@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright
 root=Path(__file__).resolve().parents[1]
 def test_engine(browser,engine):
   page=browser.new_page(viewport={'width':1280,'height':800})
-  page.set_content('<!doctype html><html><head></head><body><main>Mock Kirka lobby</main><a id="discord-original" href="https://discord.gg/other">Discord</a><button id="join-community" aria-label="Join our Discord">Join</button><button id="other-action">Other game button</button></body></html>')
+  page.set_content('<!doctype html><html><head></head><body><main>Mock Kirka lobby</main><aside style="position:fixed;right:40px;bottom:40px;z-index:1"><a id="discord-original" href="https://discord.gg/other">Discord</a><button id="join-community" aria-label="Join our Discord">Join</button><button id="other-action">Other game button</button></aside></body></html>')
   page.evaluate("""() => {
     window.__KS_TEST_LOCATION__={hostname:'kirka.io',protocol:'https:',pathname:'/',href:'https://kirka.io/'};
     window.__out=[];
@@ -39,6 +39,8 @@ def test_engine(browser,engine):
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-search-results [data-tab="Game Integration"]').click()""")
   assert page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-tab="Game Integration"]').classList.contains('active')""")
   page.evaluate('window.__KS_CLIENT__.close()')
+  assert page.evaluate('window.__KS_CLIENT__.isSettingsOpen()') is False
+  assert page.evaluate("getComputedStyle(document.querySelector('#ks-client-root')).pointerEvents")=='none'
   page.locator('#discord-original').click()
   page.locator('#join-community').click()
   page.locator('#other-action').click()
