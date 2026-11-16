@@ -7,7 +7,7 @@ internal static class Program
 {
     internal static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KSClient");
     internal static readonly string PrefsPath = Path.Combine(Root,"browser-settings.json");
-    internal static readonly string LogPath = Path.Combine(Root,"cef-1.1.14.log");
+    internal static readonly string LogPath = Path.Combine(Root,"cef-1.1.15.log");
     internal static BrowserPrefs Active = BrowserPrefs.Default();
     internal static string? SwitchToken;
     internal static bool SwitchProbe;
@@ -104,7 +104,7 @@ internal static class Program
         {
             Log("CEF startup failure: " + e);
             if (selfTest) Environment.ExitCode = 1;
-            else MessageBox.Show(e.Message,"KS Client alpha 1.1.14 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
+            else MessageBox.Show(e.Message,"KS Client alpha 1.1.15 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
         }
         finally { if (global::CefSharp.Cef.IsInitialized == true) global::CefSharp.Cef.Shutdown(); }
     }

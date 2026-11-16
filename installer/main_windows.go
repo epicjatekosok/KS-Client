@@ -1,6 +1,6 @@
 //go:build windows
 
-// KS Client alpha 1.1.14 per-user installer.
+// KS Client alpha 1.1.15 per-user installer.
 // Upgrades registered installations in-place, preserves Electron/CEF runtimes,
 // and uses English-labelled native UI buttons regardless of Windows locale.
 package main
@@ -9,7 +9,6 @@ import (
 	"archive/zip"
 	"bytes"
 	_ "embed"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"ksclient/ksui"
@@ -20,14 +19,13 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"unicode/utf16"
 )
 
-const appVersion = "alpha 1.1.14"
+const appVersion = "alpha 1.1.15"
 const uninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClientTwoEngine`
 const oldUninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClient`
 
-//go:embed KS-Client-alpha-1.1.14-Portable.zip
+//go:embed KS-Client-alpha-1.1.15-Portable.zip
 var archive []byte
 
 var progressSink func(string, string, float64)
@@ -281,13 +279,11 @@ func installFiles(staging, folder string) error {
 	return nil
 }
 
-func psEncoded(source string) error {
-	utf := utf16.Encode([]rune(source))
-	buf := make([]byte, 0, len(utf)*2)
-	for _, r := range utf {
-		buf = append(buf, byte(r), byte(r>>8))
-	}
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-EncodedCommand", base64.StdEncoding.EncodeToString(buf))
+// A readable command line for the Windows shell shortcut operation is less
+// likely to resemble an obfuscated script than -EncodedCommand. All paths are
+// passed through psQuote(); no downloaded or user-provided script is executed.
+func psShortcut(source string) error {
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", source)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	return cmd.Run()
 }
@@ -295,7 +291,7 @@ func psQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + 
 func shortcut(target, link string) error {
 	code := fmt.Sprintf("$ErrorActionPreference='Stop'; $w=New-Object -ComObject WScript.Shell; $x=$w.CreateShortcut(%s); $x.TargetPath=%s; $x.WorkingDirectory=%s; $x.IconLocation=%s; $x.Save()",
 		psQuote(link), psQuote(target), psQuote(filepath.Dir(target)), psQuote(target+",0"))
-	return psEncoded(code)
+	return psShortcut(code)
 }
 func regAdd(name, value string) error {
 	cmd := exec.Command("reg.exe", "add", uninstallKey, "/v", name, "/t", "REG_SZ", "/d", value, "/f")
@@ -310,7 +306,7 @@ func registerInstall(folder string) error {
 	exe := filepath.Join(folder, "KS-Client.exe")
 	uninstall := filepath.Join(folder, "Uninstall-KS-Client.exe")
 	fields := [][2]string{
-		{"DisplayName", "KS Client (Electron + CEF)"}, {"DisplayVersion", "1.1.14"},
+		{"DisplayName", "KS Client (Electron + CEF)"}, {"DisplayVersion", "1.1.15"},
 		{"Publisher", "KS Client"}, {"InstallLocation", folder}, {"DisplayIcon", exe + ",0"},
 		{"UninstallString", "\"" + uninstall + "\""},
 	}
@@ -345,7 +341,7 @@ func writeLog(s string) {
 	}
 	folder := filepath.Join(local, "KSClient")
 	_ = os.MkdirAll(folder, 0700)
-	f, err := os.OpenFile(filepath.Join(folder, "setup-1.1.14.log"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
+	f, err := os.OpenFile(filepath.Join(folder, "setup-1.1.15.log"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		return
 	}
@@ -361,7 +357,7 @@ func removeOldShortcuts() {
 		directories = append(directories, filepath.Join(roaming, "Microsoft", "Windows", "Start Menu", "Programs"))
 	}
 	for _, d := range directories {
-		for _, name := range []string{"KS Client alpha 1.1.0.lnk", "KS Client alpha 1.1.1.lnk", "KS Client alpha 1.1.2.lnk", "KS Client alpha 1.1.3.lnk", "KS Client alpha 1.1.4.lnk", "KS Client alpha 1.1.5.lnk", "KS Client alpha 1.1.12.lnk", "KS Client alpha 1.1.13.lnk", "KS Client alpha 1.1.14.lnk"} {
+		for _, name := range []string{"KS Client alpha 1.1.0.lnk", "KS Client alpha 1.1.1.lnk", "KS Client alpha 1.1.2.lnk", "KS Client alpha 1.1.3.lnk", "KS Client alpha 1.1.4.lnk", "KS Client alpha 1.1.5.lnk", "KS Client alpha 1.1.12.lnk", "KS Client alpha 1.1.13.lnk", "KS Client alpha 1.1.14.lnk", "KS Client alpha 1.1.15.lnk"} {
 			_ = os.Remove(filepath.Join(d, name))
 		}
 	}
@@ -391,18 +387,18 @@ func main() {
 		return
 	}
 	folder := selected.folder
-	description := "Install KS Client alpha 1.1.14 to:\n" + folder + "\n\n"
+	description := "Install KS Client alpha 1.1.15 to:\n" + folder + "\n\n"
 	if selected.existing {
-		description = "Existing KS Client installation detected.\n\nUpgrade in place to alpha 1.1.14:\n" + folder + "\n\n"
+		description = "Existing KS Client installation detected.\n\nUpgrade in place to alpha 1.1.15:\n" + folder + "\n\n"
 		if selected.legacyWebView {
 			description += "The old WebView2 host will be replaced.\n\n"
 		}
 	}
 	description += "Existing browser profiles and settings will be preserved.\n\nBoth prebuilt browser engines are INCLUDED. No build tools or download are needed during setup.\n\nProceed?"
-	if askEnglish("KS Client Setup - alpha 1.1.14", description, dialogButton{"Yes", 6}, dialogButton{"No", 7}) != 6 {
+	if askEnglish("KS Client Setup - alpha 1.1.15", description, dialogButton{"Yes", 6}, dialogButton{"No", 7}) != 6 {
 		return
 	}
-	w := ksui.New("KS Client • Setup 1.1.14", "Installing KS Client", "Dark UI · high-DPI rendering · CEF is the default engine")
+	w := ksui.New("KS Client • Setup 1.1.15", "Installing KS Client", "Dark UI · high-DPI rendering · CEF is the default engine")
 	w.SetButtons(ksui.Button{Label: "Close", ID: "close", Enabled: false})
 	w.OnButton = func(id string) {
 		if id == "close" {

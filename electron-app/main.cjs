@@ -1,5 +1,5 @@
 'use strict';
-// KS Client alpha 1.1.14: real Electron host. No WebView2 dependency.
+// KS Client alpha 1.1.15: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.14';
+const APP_VERSION = 'alpha 1.1.15';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.14.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.1.15.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -98,6 +98,36 @@ if(active.uncapFps){
   log('Experimental FPS unlock requested on Electron startup');
 }
 let win=null;
+let splash=null;
+let splashTimeout=null;
+function closeSplash(){
+  if(splashTimeout){clearTimeout(splashTimeout);splashTimeout=null}
+  if(splash&&!splash.isDestroyed())splash.close();
+  splash=null;
+}
+function startSplash(){
+  if(switchProbe||!win||win.isDestroyed())return;
+  splash=new BrowserWindow({
+    title:'KS Client — Betöltés',width:460,height:302,frame:false,resizable:false,
+    autoHideMenuBar:true,skipTaskbar:true,show:false,parent:win,modal:false,
+    backgroundColor:'#0d1015',
+    webPreferences:{sandbox:true,nodeIntegration:false,contextIsolation:true,webSecurity:true}
+  });
+  splash.setMenu(null);
+  splash.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+  splash.loadFile(path.join(__dirname,'assets','loading.html')).catch(e=>log('Splash asset: '+e.message));
+  const positionSplash=()=>{
+    if(!splash||splash.isDestroyed()||!win||win.isDestroyed())return;
+    const bounds=win.getBounds(),s=splash.getBounds();
+    splash.setPosition(Math.round(bounds.x+(bounds.width-s.width)/2),Math.round(bounds.y+(bounds.height-s.height)/2));
+  };
+  win.on('move',positionSplash);win.on('resize',positionSplash);
+  win.on('closed',closeSplash);
+  positionSplash();
+  splash.showInactive();
+  // Never block login/retry forever on a slow/offline Kirka.io page.
+  splashTimeout=setTimeout(()=>{log('Startup splash timeout; game remains interactive');closeSplash()},18000);
+}
 let currentURL=GAME;
 let menuResolution='native';
 let gameResolution='native';
@@ -175,10 +205,17 @@ function createWindow(){
       browserConfig();
     }catch(e){log('Overlay: '+e.message)}
     setGameResolution(gameResolution);
+    closeSplash();
   });
-  win.webContents.on('render-process-gone',(e,d)=>log('Renderer gone: '+d.reason));
+  win.webContents.on('render-process-gone',(e,d)=>{log('Renderer gone: '+d.reason);closeSplash()});
+  win.webContents.on('did-fail-load',(_e,code,text,validatedURL,isMainFrame)=>{
+    if(isMainFrame){log('Game load failed: '+code+' '+String(text).slice(0,100));closeSplash()}
+  });
   win.on('closed',()=>{win=null});
   installShortcuts();
+  // The logo-based startup animation is a separate sandboxed local window.
+  // It closes at DOM readiness and never overlays an active match.
+  if(!switchProbe)startSplash();
   // A completed BrowserWindow creation is a native engine startup, even if
   // Kirka.io is offline. The old engine closes only after the launcher confirms.
   if(switchProbe){
