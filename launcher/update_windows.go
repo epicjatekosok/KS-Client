@@ -119,7 +119,7 @@ func getUpdates()(updateChoice,bool,error){
  response,e:=client.Do(request);if e!=nil{return updateChoice{},false,e}
  defer response.Body.Close()
  if response.StatusCode!=200{
-  if response.StatusCode==404{return updateChoice{},false,errors.New("Public auto-update feed is not published. The publisher must create the public KS-Client-Updates repository. Use Open GitHub Releases to download the private release manually.")}
+  if response.StatusCode==404{return updateChoice{},false,errors.New("Automatic update downloads unavailable: epicjatekosok/KS-Client-Updates is not a public GitHub repository. Private KS-Client releases require authentication. Publisher setup: create the public binary-only repository and set KS_PUBLIC_RELEASE_TOKEN. Use Open GitHub Releases (manual) for now.")}
   if response.StatusCode==403||response.StatusCode==429{return updateChoice{},false,errors.New("GitHub update lookup was rate limited. Try again later or use Open GitHub Releases.")}
   return updateChoice{},false,fmt.Errorf("GitHub update lookup HTTP %d; use Open GitHub Releases if the public feed is unavailable",response.StatusCode)
  }

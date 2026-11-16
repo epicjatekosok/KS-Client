@@ -41,7 +41,7 @@ def run(browser,engine):
   assert 'Kills: 4' in shown[0] and shown[1]=='block',shown
   assert not errors,errors
   page.close()
-  print('PASS: KS 1.1.22 mock Kirka UI',engine)
+  print('PASS: KS 1.1.23 mock Kirka UI',engine)
 with sync_playwright() as p:
   browser=p.chromium.launch(headless=True)
   for engine in ('Electron','CEF'):run(browser,engine)

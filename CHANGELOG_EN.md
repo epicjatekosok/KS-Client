@@ -1,3 +1,13 @@
+# KS Client alpha 1.1.23
+
+- Fix Electron main-process ReferenceError in the fixed KS Discord link handler; guard IPC messages from uncaught exceptions and report failures.
+- Match the Settings gear design exactly to the KS Discord quick button, sharing background, border, rounded corners, shadow, hover and press effects.
+- Animate Settings opening, content/tab changes, preset cards, switches, sliders, dropdowns and buttons. Respect system and in-app reduced-motion settings.
+- Clarify that a separate public binary-only update repository and a publisher-side secret are prerequisites for anonymous auto-updates; add detailed setup documentation and verify public release assets.
+- Preserve Electron/CEF, Workshop, FPS controls, game integrations, existing settings and dual-engine packaged Windows releases.
+
+---
+
 # KS Client alpha 1.1.22
 
 - Full black/orange gamer-style Settings dashboard, with reference-matched header, sidebar, glowing active navigation and bottom action bar.

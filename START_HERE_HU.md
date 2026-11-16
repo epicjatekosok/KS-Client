@@ -1,3 +1,11 @@
+# KS Client alpha 1.1.23 – Discord, animációk és frissítések
+
+Megszűnt a Discord-gombot érintő Electron-főfolyamat hiba (`openKSDiscord is not defined`). A Discord-meghívó most a Windows alapértelmezett böngészőjében nyílik meg. A bal felső beállítás-fogaskerék és a KS Discord gomb egységes stílust és közös sort kapott. A menü, kártyák, kategóriák, kapcsolók és gombok rövid, letiltható animációkkal működnek.
+
+**Automatikus frissítés:** a privát `KS-Client` GitHub-repository kiadásai nem szolgálhatók ki hitelesítés nélkül. A külön nyilvános `KS-Client-Updates` jelenleg nem érhető el (404); ezért nincs mit letöltenie a frissítőnek. A GitHubon szükséges egyszeri beállításokat részletesen leírtam itt: **[PUBLIC_UPDATES_SETUP_HU.md](PUBLIC_UPDATES_SETUP_HU.md)**. A forráskód ettől továbbra is privát marad. A kézi Releases letöltés működhet, ha be vagy jelentkezve és van hozzáférésed.
+
+---
+
 # KS Client alpha 1.1.22 – új gamer beállítások, Discord és CEF hibajavítás
 
 A beállítások most a küldött mintakép fekete-narancssárga gamer felületére hasonlítanak: teljes szélességű menü, KS-logó, jól olvasható fejléc, narancssárga aktív menük, összeillő kártyák, grafikai presetek és Reset / Cancel / Apply gombok. A korábbi opciók megmaradnak, de hét logikus csoportban találhatók meg: Graphics, Display, Gameplay, Workshop, Controls, Interface, Advanced.
