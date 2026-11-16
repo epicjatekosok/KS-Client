@@ -4,7 +4,7 @@ from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 import hashlib, json
 root=Path(__file__).resolve().parents[1]
-version='1.1.19'
+version='1.1.20'
 zipname=f'KS-Client-alpha-{version}-Portable.zip'
 zipfile=root/zipname
 def verify_engine(name, exe_name):
@@ -14,7 +14,7 @@ def verify_engine(name, exe_name):
  if not exe.is_file() or not marker.is_file():raise SystemExit(f'{name}: missing smoke-test marker; refusing release')
  data=json.loads(marker.read_text(encoding='utf-8-sig'))
  digest=hashlib.sha256(exe.read_bytes()).hexdigest()
- if not (data.get('version')=='1.1.19' and data.get('engine')==name and data.get('exeName')==exe_name and data.get('runner')=='windows' and data.get('result')=='PASS' and data.get('exeSha256')==digest):
+ if not (data.get('version')=='1.1.20' and data.get('engine')==name and data.get('exeName')==exe_name and data.get('runner')=='windows' and data.get('result')=='PASS' and data.get('exeSha256')==digest):
   raise SystemExit(f'{name}: test marker does not match executable')
  return folder
 verify_engine('Electron','electron.exe')

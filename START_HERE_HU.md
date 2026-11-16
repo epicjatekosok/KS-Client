@@ -1,3 +1,13 @@
+# KS Client alpha 1.1.20 – Modern menü és Discord-közösség
+
+Az új kiadásban a meglévő hat menükategória és minden beállítás megmarad, de az elrendezés letisztultabb, a szövegek áttekinthetőbbek, az elemek közötti távolság következetesebb, a menü pedig kapott egy keresőt. A kereső kategória- és beállításnevekkel segít megtalálni a megfelelő lapot, a mentett beállításokat nem módosítja.
+
+A játék bal alsó sarkában látható `KS · 1.1.20` jelzés kisebb, áttetszőbb és közelebb került a sarokhoz. A Kirka.io oldalon található Discord-feliratú gomb a KS Client közösségi meghívóját nyitja a rendszerböngészőben: https://discord.gg/cxP386yGjk. A játékoldal ettől nem navigál el. A két motor (CEF és Electron), a korábbi funkciók és az 1.1.19-es frissítéskezelő megmaradnak.
+
+A Windowsos ZIP/EXE kiadáshoz továbbra is szükségesek az automatizált tesztek. A Kirka.io által éppen használt Discord-gomb tényleges HTML-je és az egérbefogás élő játékban külön ellenőrzendő.
+
+---
+
 # KS Client alpha 1.1.19 – CEF egérhiba vizsgálata és javítása
 
 ## Új: kliensen belüli frissítés 1.1.19

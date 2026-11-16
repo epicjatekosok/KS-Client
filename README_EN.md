@@ -1,3 +1,11 @@
+# KS Client alpha 1.1.20 — Menu refresh and KS Discord community
+
+Alpha 1.1.20 refines the existing six-category KS Client settings menu with calmer dark surfaces, improved visual hierarchy, more consistent spacing and responsive controls. A new section/option keyword search finds existing settings without changing any saved preferences. The unobtrusive in-game lower-left version marker now sits closer to the screen corner. Clicking a Discord-labelled game control opens the verified KS Client community invite (https://discord.gg/cxP386yGjk) in the system browser, without navigating away from Kirka.io. Both Chromium engines share the same UI and native external-link action.
+
+The launcher and verified Windows Portable ZIP / standalone Setup EXE build pipeline now target alpha 1.1.20. Existing Workshop, Game Integration, Resource Swapper, saved preferences and the alpha 1.1.19 update manager are preserved. A live game session is still needed to validate the game's exact Discord DOM and pointer-lock interaction.
+
+---
+
 # KS Client alpha 1.1.19 – CEF pointer-lock and input regression repair
 
 ## 1.1.19: built-in release updates
