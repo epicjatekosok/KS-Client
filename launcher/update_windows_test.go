@@ -6,44 +6,56 @@ import (
  "testing"
 )
 func makeAsset(tag string)updateAsset{
- v:=strings.TrimSuffix(strings.TrimPrefix(tag,"v"),"-alpha")
- name:="KS-Client-alpha-"+v+"-Setup.exe"
- if !strings.HasSuffix(tag,"-alpha"){name="KS-Client-"+v+"-Setup.exe"}
+ v,ok:=parseVersion(tag)
+ if !ok{panic("invalid test release: "+tag)}
+ name:="KS-Client-"+strings.TrimPrefix(tag,"v")+"-Setup.exe"
+ if v.track=="stable"{name="KS-Client-"+strings.TrimPrefix(tag,"v")+"-Setup.exe"}
+ if v.track!="stable"{
+  base:=strings.TrimSuffix(strings.TrimPrefix(tag,"v"),"-"+v.track)
+  name="KS-Client-"+v.track+"-"+base+"-Setup.exe"
+ }
  return updateAsset{Name:name,Size:422370816,Digest:"sha256:"+strings.Repeat("a",64),
    URL:"https://github.com/"+updateRepo+"/releases/download/"+tag+"/"+name,State:"uploaded"}
 }
 func TestVersionComparison(t *testing.T){
- a,ok:=parseVersion("v1.1.19-alpha");if !ok{t.Fatal("current version invalid")}
- b,_:=parseVersion("v1.1.23-alpha")
- c,_:=parseVersion("v1.1.23")
- if compareVersion(a,b)>=0||compareVersion(b,c)>=0||compareVersion(c,a)<=0{t.Fatal("semver ordering broken")}
- for _,invalid:=range []string{"v1.1.19-alpha-evil","v1.1.19-rc1","1.1.20","v1.1.20-"}{
-  if _,ok:=parseVersion(invalid);ok{t.Fatalf("accepted invalid version %s",invalid)}
+ alpha,_:=parseVersion("v1.1.23-alpha")
+ beta,_:=parseVersion("v1.0.0-beta")
+ betaNext,_:=parseVersion("v1.0.1-beta")
+ stable,_:=parseVersion("v1.0.0")
+ if compareVersion(alpha,beta)>=0 {t.Fatal("alpha 1.1.23 must upgrade to beta 1.0.0")}
+ if compareVersion(beta,betaNext)>=0 || compareVersion(betaNext,stable)>=0 {t.Fatal("beta and stable precedence broken")}
+ for _,tag:=range []string{"v1.1.23-alpha-evil","v1.1.19-rc1","1.0.0-beta","v1.0.0-","v0.0.0-preview"}{
+  if _,ok:=parseVersion(tag);ok{t.Fatalf("accepted invalid version: %s",tag)}
  }
 }
 func TestPublicAssetPinning(t *testing.T){
- a:=makeAsset("v1.1.23-alpha")
- if !validUpdateAsset(a,"v1.1.23-alpha"){t.Fatal("valid asset rejected")}
+ a:=makeAsset("v1.0.1-beta")
+ if !validUpdateAsset(a,"v1.0.1-beta"){t.Fatal("valid public beta asset rejected")}
  a.URL="https://example.net/bad.exe"
- if validUpdateAsset(a,"v1.1.23-alpha"){t.Fatal("external update host accepted")}
- a=makeAsset("v1.1.23-alpha");a.Digest="sha256:unverified"
- if validUpdateAsset(a,"v1.1.23-alpha"){t.Fatal("missing digest accepted")}
- a=makeAsset("v1.1.23-alpha");a.Size=updateMaxBytes+1
- if validUpdateAsset(a,"v1.1.23-alpha"){t.Fatal("oversized executable accepted")}
+ if validUpdateAsset(a,"v1.0.1-beta"){t.Fatal("external asset host accepted")}
+ a=makeAsset("v1.0.1-beta");a.Digest="sha256:unverified"
+ if validUpdateAsset(a,"v1.0.1-beta"){t.Fatal("missing digest accepted")}
+ a=makeAsset("v1.0.1-beta");a.Size=updateMaxBytes+1
+ if validUpdateAsset(a,"v1.0.1-beta"){t.Fatal("oversized executable accepted")}
 }
 func TestUpdateChannels(t *testing.T){
  releases:=[]updateRelease{
   {Tag:"v1.1.24-alpha",Prerelease:true,Assets:[]updateAsset{makeAsset("v1.1.24-alpha")}},
-  {Tag:"v1.1.24",Prerelease:false,Assets:[]updateAsset{makeAsset("v1.1.24")}},
+  {Tag:"v1.0.1-beta",Prerelease:true,Assets:[]updateAsset{makeAsset("v1.0.1-beta")}},
+  {Tag:"v1.0.0",Prerelease:false,Assets:[]updateAsset{makeAsset("v1.0.0")}},
  }
- choice,ok:=chooseUpdate(releases,"alpha")
- if !ok||choice.release.Tag!="v1.1.24"{t.Fatalf("alpha channel should prefer latest stable %v %v",ok,choice.release.Tag)}
- choice,ok=chooseUpdate(releases[:1],"stable")
- if ok {t.Fatal("stable channel accepted alpha release")}
- choice,ok=chooseUpdate(releases[:1],"alpha")
- if !ok||choice.release.Tag!="v1.1.24-alpha"{t.Fatal("alpha channel failed")}
+ for _,channel:=range []string{"alpha","beta","stable"}{
+  choice,ok:=chooseUpdate(releases,channel)
+  if !ok||choice.release.Tag!="v1.0.0"{t.Fatalf("%s channel must prefer verified stable: %+v",channel,choice)}
+ }
+ choice,ok:=chooseUpdate(releases[:2],"alpha")
+ if !ok||choice.release.Tag!="v1.0.1-beta"{t.Fatal("alpha channel should include promoted beta")}
+ choice,ok=chooseUpdate(releases[:2],"beta")
+ if !ok||choice.release.Tag!="v1.0.1-beta"{t.Fatal("beta channel should prefer beta, excluding old alpha")}
+ if _,ok=chooseUpdate(releases[:2],"stable");ok{t.Fatal("stable channel accepted beta/alpha")}
+ if _,ok=chooseUpdate(releases[:1],"beta");ok{t.Fatal("beta channel accepted legacy alpha bridge")}
 }
 func TestNoUnverifiedDownloads(t *testing.T){
- a:=makeAsset("v1.1.23-alpha");a.State="not_uploaded"
- if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.1.23-alpha",Prerelease:true,Assets:[]updateAsset{a}}},"alpha");ok{t.Fatal("unverified asset offered")}
+ a:=makeAsset("v1.0.1-beta");a.State="not_uploaded"
+ if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.0.1-beta",Prerelease:true,Assets:[]updateAsset{a}}},"beta");ok {t.Fatal("unverified asset offered")}
 }
