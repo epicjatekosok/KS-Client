@@ -1,4 +1,4 @@
-/* KS Client alpha 1.1.15 — independently maintained local Game Workshop.
+/* KS Client alpha 1.1.16 — independently maintained local Game Workshop.
    No imported third-party source. Settings stay in this browser profile.
    JS extensions run only after an explicit click, in a sandboxed opaque iframe.
 */
