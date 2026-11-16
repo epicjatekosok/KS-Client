@@ -1,6 +1,6 @@
 //go:build windows
 
-// KS Client alpha 1.1.18 per-user installer.
+// KS Client alpha 1.1.19 per-user installer.
 // Upgrades registered installations in-place, preserves Electron/CEF runtimes,
 // and uses English-labelled native UI buttons regardless of Windows locale.
 package main
@@ -21,11 +21,11 @@ import (
 	"time"
 )
 
-const appVersion = "alpha 1.1.18"
+const appVersion = "alpha 1.1.19"
 const uninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClientTwoEngine`
 const oldUninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClient`
 
-//go:embed KS-Client-alpha-1.1.18-Portable.zip
+//go:embed KS-Client-alpha-1.1.19-Portable.zip
 var archive []byte
 
 var progressSink func(string, string, float64)
@@ -45,6 +45,7 @@ func localPrograms() (string, error) {
 	return filepath.Join(local, "Programs"), nil
 }
 func safeProgramDir(folder string) bool {
+ if updateTargetDir!="" && filepath.Clean(folder)==updateTargetDir && safeUpdateTarget(folder){return true}
 	base, err := localPrograms()
 	if err != nil || folder == "" {
 		return false
@@ -64,6 +65,27 @@ func hasInstalledExe(folder string) bool {
 	return err == nil && !info.IsDir()
 }
 
+// Explicit update target is accepted only when it contains a complete existing
+// KS Client installation. It allows updating portable ZIP folders in place.
+var updateTargetDir string
+
+func safeUpdateTarget(folder string) bool {
+ if folder==""||!filepath.IsAbs(folder) {return false}
+ cleaned:=filepath.Clean(folder)
+ if strings.HasPrefix(cleaned,`\\\\`) || cleaned==filepath.VolumeName(cleaned)+string(filepath.Separator) {return false}
+ if info,err:=os.Lstat(cleaned);err!=nil||!info.IsDir()||info.Mode()&os.ModeSymlink!=0{return false}
+ for _,name:=range []string{"KS-Client.exe","runtime/Electron/electron.exe","runtime/CEF/KS.Cef.Client.exe"} {
+  stat,err:=os.Lstat(filepath.Join(cleaned,filepath.FromSlash(name)))
+  if err!=nil||!stat.Mode().IsRegular(){return false}
+ }
+ return true
+}
+func isPortableUpdate(folder string)bool {
+ if updateTargetDir=="" {return false}
+ _,err:=os.Stat(filepath.Join(folder,".ks-installed"))
+ return os.IsNotExist(err)
+}
+
 type installSelection struct {
 	folder        string
 	existing      bool
@@ -71,6 +93,10 @@ type installSelection struct {
 }
 
 func selectInstallDir() (installSelection, error) {
+ if updateTargetDir!="" {
+  if !safeUpdateTarget(updateTargetDir){return installSelection{},fmt.Errorf("invalid existing KS Client update folder")}
+  return installSelection{folder:updateTargetDir,existing:true},nil
+ }
 	programs, err := localPrograms()
 	if err != nil {
 		return installSelection{}, err
@@ -306,7 +332,7 @@ func registerInstall(folder string) error {
 	exe := filepath.Join(folder, "KS-Client.exe")
 	uninstall := filepath.Join(folder, "Uninstall-KS-Client.exe")
 	fields := [][2]string{
-		{"DisplayName", "KS Client (Electron + CEF)"}, {"DisplayVersion", "1.1.18"},
+		{"DisplayName", "KS Client (Electron + CEF)"}, {"DisplayVersion", "1.1.19"},
 		{"Publisher", "KS Client"}, {"InstallLocation", folder}, {"DisplayIcon", exe + ",0"},
 		{"UninstallString", "\"" + uninstall + "\""},
 	}
@@ -341,7 +367,7 @@ func writeLog(s string) {
 	}
 	folder := filepath.Join(local, "KSClient")
 	_ = os.MkdirAll(folder, 0700)
-	f, err := os.OpenFile(filepath.Join(folder, "setup-1.1.18.log"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
+	f, err := os.OpenFile(filepath.Join(folder, "setup-1.1.19.log"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		return
 	}
@@ -357,7 +383,7 @@ func removeOldShortcuts() {
 		directories = append(directories, filepath.Join(roaming, "Microsoft", "Windows", "Start Menu", "Programs"))
 	}
 	for _, d := range directories {
-		for _, name := range []string{"KS Client alpha 1.1.0.lnk", "KS Client alpha 1.1.1.lnk", "KS Client alpha 1.1.2.lnk", "KS Client alpha 1.1.3.lnk", "KS Client alpha 1.1.4.lnk", "KS Client alpha 1.1.5.lnk", "KS Client alpha 1.1.12.lnk", "KS Client alpha 1.1.13.lnk", "KS Client alpha 1.1.14.lnk", "KS Client alpha 1.1.15.lnk", "KS Client alpha 1.1.16.lnk", "KS Client alpha 1.1.18.lnk"} {
+		for _, name := range []string{"KS Client alpha 1.1.0.lnk", "KS Client alpha 1.1.1.lnk", "KS Client alpha 1.1.2.lnk", "KS Client alpha 1.1.3.lnk", "KS Client alpha 1.1.4.lnk", "KS Client alpha 1.1.5.lnk", "KS Client alpha 1.1.12.lnk", "KS Client alpha 1.1.13.lnk", "KS Client alpha 1.1.14.lnk", "KS Client alpha 1.1.15.lnk", "KS Client alpha 1.1.16.lnk", "KS Client alpha 1.1.19.lnk"} {
 			_ = os.Remove(filepath.Join(d, name))
 		}
 	}
@@ -380,25 +406,32 @@ func makeShortcuts(folder string) string {
 	return strings.Join(warnings, "\n")
 }
 func main() {
-	selected, err := selectInstallDir()
+ for _,arg:=range os.Args[1:] {
+  if strings.HasPrefix(arg,"--ks-update-target=") {
+   candidate:=strings.TrimPrefix(arg,"--ks-update-target=")
+   if !safeUpdateTarget(candidate) {message("KS Client Update - Error","Update path does not contain a safe, complete KS Client installation.",0);return}
+   updateTargetDir=filepath.Clean(candidate)
+  }
+ }
+ selected, err := selectInstallDir()
 	if err != nil {
 		writeLog("Detection failed: " + err.Error())
 		message("KS Client Setup - Error", err.Error(), 0)
 		return
 	}
 	folder := selected.folder
-	description := "Install KS Client alpha 1.1.18 to:\n" + folder + "\n\n"
+	description := "Install KS Client alpha 1.1.19 to:\n" + folder + "\n\n"
 	if selected.existing {
-		description = "Existing KS Client installation detected.\n\nUpgrade in place to alpha 1.1.18:\n" + folder + "\n\n"
+		description = "Existing KS Client installation detected.\n\nUpgrade in place to alpha 1.1.19:\n" + folder + "\n\n"
 		if selected.legacyWebView {
 			description += "The old WebView2 host will be replaced.\n\n"
 		}
 	}
 	description += "Existing browser profiles and settings will be preserved.\n\nBoth prebuilt browser engines are INCLUDED. No build tools or download are needed during setup.\n\nProceed?"
-	if askEnglish("KS Client Setup - alpha 1.1.18", description, dialogButton{"Yes", 6}, dialogButton{"No", 7}) != 6 {
+	if askEnglish("KS Client Setup - alpha 1.1.19", description, dialogButton{"Yes", 6}, dialogButton{"No", 7}) != 6 {
 		return
 	}
-	w := ksui.New("KS Client • Setup 1.1.18", "Installing KS Client", "Dark UI · high-DPI rendering · CEF is the default engine")
+	w := ksui.New("KS Client • Setup 1.1.19", "Installing KS Client", "Dark UI · high-DPI rendering · CEF is the default engine")
 	w.SetButtons(ksui.Button{Label: "Close", ID: "close", Enabled: false})
 	w.OnButton = func(id string) {
 		if id == "close" {
@@ -451,7 +484,11 @@ func main() {
 			w.SetButtons(ksui.Button{Label: "Close", ID: "close", Enabled: true})
 			return
 		}
-		w.Update("REGISTERING", "Adding Installed Apps entry and shortcuts…", .84)
+		w.Update("REGISTERING", "Finalizing installed client…", .84)
+        if isPortableUpdate(folder) {
+          w.AddLog("Portable folder updated in place; no Windows registration or shortcuts created.")
+          writeLog("Portable update completed to: "+folder)
+        } else {
 		if err := registerInstall(folder); err != nil {
 			writeLog("Registration warning: " + err.Error())
 			w.AddLog("Installed Apps registration warning: " + err.Error())
@@ -461,6 +498,10 @@ func main() {
 		if warning := makeShortcuts(folder); warning != "" {
 			w.AddLog(warning)
 		}
+		  if err:=os.WriteFile(filepath.Join(folder,".ks-installed"),[]byte("KS Client installed by Setup\\n"),0600);err!=nil{
+            w.AddLog("Could not save installation marker: "+err.Error())
+          }
+        }
 		writeLog("Installed files to: " + folder)
 		w.AddLog("Application files installed successfully.")
 		// All browser engines are part of the VERIFIED offline payload. Never
