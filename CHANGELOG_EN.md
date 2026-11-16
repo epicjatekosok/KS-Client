@@ -1,3 +1,12 @@
+# KS Client alpha 1.1.18
+
+- Keep the icon-only top-left Settings gear visible through matches and SPA transitions.
+- Default the FPS overlay off; place it beneath the gear when enabled in the default position.
+- Suppress the optional game's read-only HUD placeholder when stats aren't exposed in HTML, retaining real data display.
+- Maintain both Windows runtimes and build a complete standalone ZIP and EXE after checks.
+
+---
+
 # KS Client alpha 1.1.17
 
 - CEF: enable native Chromium window activation and default to the Chrome runtime style (diagnostic Alloy switch retained).

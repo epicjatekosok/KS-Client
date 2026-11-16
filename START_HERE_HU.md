@@ -1,4 +1,12 @@
-# KS Client alpha 1.1.17 – CEF egérhiba vizsgálata és javítása
+# KS Client alpha 1.1.18 – CEF egérhiba vizsgálata és javítása
+
+## Újdonságok az 1.1.18-ban
+
+- A beállításokat egyetlen fogaskerék ikon nyitja meg a bal felső sarokban; meccs közben és fegyverválasztás után is ott marad.
+- Az FPS-számláló az új profilokban ki van kapcsolva, bekapcsolva alaphelyzetben a fogaskerék alatt jelenik meg. A mentett egyéni beállítások megmaradnak.
+- Nem jelenik meg a „Kirka HUD data not exposed as HTML” technikai szöveg, ha hiányzik a HTML-ben olvasható játékstatisztika. A valóban elérhető adatok továbbra is látszanak.
+- Az Electron/CEF választás, a korábbi funkciók és a beállítások változatlanul megmaradnak.
+
 
 A CEF-ben a Chromium veszi át a valódi kurzor/egérbefogás kezelését; megszüntettem a C# Win32 egérmutató-elrejtési és erőltetett fókuszmegoldásait. Chrome-stílusú CEF-böngésző és aktiválható natív ablak, Kirka elsőbbsége a kattintás kezelésében, CEF-szemkímélő szűrők elválasztása a tényleges játék-vászontól. Fontos: az élő Kirka-meccses CEF kamerapróba továbbra is szükséges. Részletek: RELEASE_117_HU.md.
 
