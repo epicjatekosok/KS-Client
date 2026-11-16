@@ -1,4 +1,4 @@
-/* KS Client alpha 1.1.17 - optional, game-page-only integrations.
+/* KS Client alpha 1.1.18 - optional, game-page-only integrations.
    All modules are visual/read-only and require no Node.js or page privileges.
    Features should never steal game input or consume pointer events.
 */
@@ -16,7 +16,7 @@
   root.id='ks-game-extras';
   root.style.cssText='position:fixed;inset:0;z-index:2147483640;pointer-events:none;contain:layout style;';
   const shadow=root.attachShadow({mode:'closed'});
-  shadow.innerHTML='<style>:host{pointer-events:none}#keys{position:absolute;bottom:86px;left:18px;display:none;gap:5px;align-items:center;color:#f7f7f7;font:700 12px Segoe UI,Arial,sans-serif;pointer-events:none;} .key{display:grid;place-items:center;width:35px;height:33px;background:#111b;border:1px solid #f0aa3566;border-radius:6px} .key.down{color:#131313;background:#f0aa35;border-color:#f0aa35}#stats{position:absolute;bottom:130px;left:18px;display:none;color:#f0aa35;background:#0a0a0ac9;padding:7px 11px;border:1px solid #f0aa3566;border-radius:7px;font:700 11px Segoe UI,sans-serif;white-space:nowrap}</style><div id="keys"><span class="key" data-code="KeyW">W</span><span class="key" data-code="KeyA">A</span><span class="key" data-code="KeyS">S</span><span class="key" data-code="KeyD">D</span><span class="key" data-code="Space">⎵</span><span class="key" data-code="ShiftLeft">⇧</span></div><div id="stats">Game stats: waiting for HUD</div>';
+  shadow.innerHTML='<style>:host{pointer-events:none}#keys{position:absolute;bottom:86px;left:18px;display:none;gap:5px;align-items:center;color:#f7f7f7;font:700 12px Segoe UI,Arial,sans-serif;pointer-events:none;} .key{display:grid;place-items:center;width:35px;height:33px;background:#111b;border:1px solid #f0aa3566;border-radius:6px} .key.down{color:#131313;background:#f0aa35;border-color:#f0aa35}#stats{position:absolute;bottom:130px;left:18px;display:none;color:#f0aa35;background:#0a0a0ac9;padding:7px 11px;border:1px solid #f0aa3566;border-radius:7px;font:700 11px Segoe UI,sans-serif;white-space:nowrap}</style><div id="keys"><span class="key" data-code="KeyW">W</span><span class="key" data-code="KeyA">A</span><span class="key" data-code="KeyS">S</span><span class="key" data-code="KeyD">D</span><span class="key" data-code="Space">⎵</span><span class="key" data-code="ShiftLeft">⇧</span></div><div id="stats"></div>';
   let domReady=false;
   function install(){if(domReady||!document.body)return;domReady=true;document.body.appendChild(root);refresh();}
   let assistsCount=0,headshotCount=0,observedAchievements=null,observedKills=null;
@@ -95,6 +95,7 @@
   function refresh(){
     state=settings();
     if(!domReady)return;
+    if(document.body && root.parentNode!==document.body)document.body.appendChild(root);
     keys.style.display=state.gameKeystrokes && inGame()?'flex':'none';
     const pos=['bottom-left','bottom-right','top-left','top-right'].includes(state.gameKeysPosition)?state.gameKeysPosition:'bottom-left';
     const scale=Math.max(70,Math.min(170,Number(state.gameKeysScale)||100))/100;
@@ -105,7 +106,7 @@
     keys.style.transform='scale('+scale+')';
     keys.style.transformOrigin=pos.replace('-',' ');
 
-    stats.style.display=state.gameStats && inGame()?'block':'none';
+    stats.style.display=state.gameStats && inGame() && !!stats.textContent?'block':'none';
     const color=/^#[0-9a-f]{6}$/i.test(state.gameHitmarkerColor||'')?state.gameHitmarkerColor:'#ffb42d';
     const size=Math.max(12,Math.min(48,Number(state.gameHitmarkerSize)||24));
     const old=document.getElementById('ks-hitmarker-css');
@@ -186,7 +187,7 @@
   }
   let lastStats=0;
   function updateStats(){
-    if(!domReady || !state.gameStats || !inGame())return;
+    if(!domReady || !state.gameStats || !inGame()){stats.textContent='';stats.style.display='none';return;}
     const kills=firstText(['.ui-cell.kill .cell-value','.kill-death .kill .cell-value']);
     const deaths=firstText(['.ui-cell.death .cell-value','.kill-death .death .cell-value']);
     const assists=firstText(['.ui-cell.assists .cell-value']);
@@ -198,7 +199,8 @@
     if(hs)shown.push('HS: '+hs);
     if(assistsCount && !assists)shown.push('Assists: '+assistsCount);
     if(headshotCount)shown.push('HS: '+headshotCount+(kills&&Number(kills)>0?' ('+Math.round(100*headshotCount/Number(kills))+'%)':''));
-    stats.textContent=shown.length?shown.join(' · '):'Kirka HUD data not exposed as HTML';
+    stats.textContent=shown.join(' · ');
+    stats.style.display=shown.length?'block':'none';
   }
   function loop(ts){
     if(ts-lastStats>1200){
