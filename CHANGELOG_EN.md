@@ -1,3 +1,14 @@
+# KS Client alpha 1.1.22
+
+- Full black/orange gamer-style Settings dashboard, with reference-matched header, sidebar, glowing active navigation and bottom action bar.
+- Reorganize all existing settings into seven coherent categories without removing features.
+- Add visual Low/Medium/High performance preset cards and logical option groupings.
+- Add native Windows default-browser opening of the fixed KS Discord invite, including popup/navigation fallbacks and a direct launcher button.
+- Prevent CefSharp disposed-IFrame crashes on asynchronous WinForms bridge callbacks and frame-load navigation races.
+- Preserve local preferences, Workshop data, FPS features, dual-engine switch, updater and verified ZIP/EXE packaging.
+
+---
+
 # KS Client alpha 1.1.21
 
 - Fix Settings becoming unopenable due to incomplete native diagnostics samples; the dialog stays operable on rendering errors.

@@ -1,3 +1,13 @@
+# KS Client alpha 1.1.22 – új gamer beállítások, Discord és CEF hibajavítás
+
+A beállítások most a küldött mintakép fekete-narancssárga gamer felületére hasonlítanak: teljes szélességű menü, KS-logó, jól olvasható fejléc, narancssárga aktív menük, összeillő kártyák, grafikai presetek és Reset / Cancel / Apply gombok. A korábbi opciók megmaradnak, de hét logikus csoportban találhatók meg: Graphics, Display, Gameplay, Workshop, Controls, Interface, Advanced.
+
+A KS Discord meghívó (https://discord.gg/cxP386yGjk) most a Windows alapértelmezett böngészőjét indítja el akkor is, ha az nincs megnyitva. A natív Electron/CEF rendszer a játék Discord-linkjeit és felugróablakait is kezeli, a saját KS Discord-gomb pedig mindig rendelkezésre áll a játéklobbyban és a beállításokban.
+
+Javítottuk a CEF-ben a megszűnt IFrame objektum eléréséből származó, a képen látható kivételt. A korábbi beállítások és a CEF/Electron motorváltás megmaradnak. A nyilvános automatikus frissítési tárhelyet továbbra is külön kell létrehozni.
+
+---
+
 # KS Client alpha 1.1.21 – stabilabb menü, frissítés és diagnosztika
 
 A korábbi verzióban a hiányos diagnosztikai adat miatt a beállításmenü megnyitása JavaScript-hibával megszakadhatott. Az 1.1.21 ezt javítja Electronban és CEF-ben, és megakadályozza, hogy egy hibás részpanel elrejtse a teljes menüt. A **Részletes diagnosztika** valódi CPU-, memória- és folyamatadatokat jelenít meg, amennyiben azok az operációs rendszerből kiolvashatók.

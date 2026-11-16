@@ -79,7 +79,7 @@ internal sealed class KSLoadingPanel : Panel
         g.FillRectangle(amberBrush,bar.X+offset,bar.Y,progressWidth,bar.Height);
         g.ResetClip();
         g.DrawString(message,status,soft,new PointF(centerX,centerY+156),textCenter);
-        g.DrawString("ALPHA 1.1.21",sub,soft,new PointF(w-73,h-25),textCenter);
+        g.DrawString("ALPHA 1.1.22",sub,soft,new PointF(w-73,h-25),textCenter);
         textCenter.Dispose();
     }
 
