@@ -394,7 +394,7 @@ internal sealed class ClientForm : Form
                 desired.Save();ReportPrefs("Default preferences saved.");break;
             case "browser-restart":Restart();break;
             case "game-input-diagnostics":
-                if(m.Message is "locked" or "released" or "pointerlockerror" or "gesture" or "motion-ok" or "motion-missing") {
+                if(m.Message is "locked" or "released" or "pointerlockerror" or "gesture" or "motion-ok" or "motion-missing" or "fallback" or "request-failed") {
                     Program.Log("Kirka pointer lock: "+m.Message);
                     if(m.Message=="locked")SetPointerLockState(true);
                     else if(m.Message is "released" or "pointerlockerror")SetPointerLockState(false);
