@@ -125,7 +125,8 @@ func getUpdates()(updateChoice,bool,error){
  limited:=io.LimitReader(response.Body,2*1024*1024)
  var releases []updateRelease
  if e=json.NewDecoder(limited).Decode(&releases);e!=nil{return updateChoice{},false,e}
- return chooseUpdate(releases,updateChannel(updateMode))
+ choice,found:=chooseUpdate(releases,updateChannel(updateMode))
+ return choice,found,nil
 }
 // updateMode is set from the launcher argument, never directly from web content.
 var updateMode="alpha"
@@ -294,6 +295,7 @@ func handleUpdateCLI(args []string)bool{
  for _,arg:=range args{
   switch{
   case arg=="--ks-update-check":mode="check"
+  case arg=="--ks-update-self-test":mode="self-test"
   case arg=="--ks-update-install":mode="install"
   case arg=="--ks-update-prefetch":mode="prefetch"
   case arg=="--ks-update-worker":worker=true
@@ -310,6 +312,7 @@ func handleUpdateCLI(args []string)bool{
   return true
  }
  if mode=="check"{checkUpdateCLI();return true}
+ if mode=="self-test"{statusJSON(map[string]interface{}{"state":"ready","message":"Launcher update CLI ready; no network used."});return true}
  if mode!="install"&&mode!="prefetch"{return true}
  if e:=startUpdateWorker(mode,updateMode);e!=nil{
   statusJSON(map[string]interface{}{"state":"error","message":e.Error()})
