@@ -17,7 +17,7 @@ with sync_playwright() as p:
  assert page.locator('.logo').evaluate('(img)=> img.complete && img.naturalWidth>0')
  assert 'KS CLIENT' in page.locator('.title').inner_text()
  assert page.locator('.track .moving').count()==1
- assert '1.1.18' in page.locator('.version').inner_text()
+ assert '1.1.19' in page.locator('.version').inner_text()
  assert page.evaluate("getComputedStyle(document.querySelector('.moving')).animationName")=='load'
  assert not errors,errors
 
