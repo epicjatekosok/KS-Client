@@ -426,7 +426,7 @@ internal sealed class ClientForm : Form
     {
         if(!Trust(source)||!Trust(browser.Address))return;
         string type=m.Type ?? "";
-        if(!Trust(source,true) && type is not("stats" or "clan" or "game" or "fullscreen" or "crash-status" or "diagnostics-poll"))return;
+        if(!Trust(source,true) && type is not("stats" or "clan" or "game" or "fullscreen" or "crash-status" or "diagnostics-poll" or "update-check" or "update-install"))return;
         switch(type)
         {
             case "game": Go(Game);break;
