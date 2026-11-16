@@ -1,4 +1,4 @@
-/* KS Client alpha 1.1.16 - optional, game-page-only integrations.
+/* KS Client alpha 1.1.17 - optional, game-page-only integrations.
    All modules are visual/read-only and require no Node.js or page privileges.
    Features should never steal game input or consume pointer events.
 */
