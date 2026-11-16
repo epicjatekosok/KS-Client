@@ -1,3 +1,10 @@
+# KS Client alpha 1.1.16
+
+- New single Kirka Game Runtime 2.0 for visible scenes, HUD, achievements, feed, compatibility fingerprints and disconnectable observers, shared across CEF and Electron.
+- Additional passive draw-call/matrix diagnostics without graphics depth changes, combat-state modification or automatic weapon identification.
+- New direct independent GitHub Release ZIP + EXE assets after Windows CI, with SHA256SUMS.txt and RELEASE-MANIFEST.json containing source commit and audited signing status.
+- No anti-virus/SmartScreen/Chrome bypass; real publisher code-signing is still required for trusted reputation.
+
 # KS Client alpha 1.1.15
 
 - Dark gold KS-logo startup animation for CEF and Electron, with an offline-safe fallback.

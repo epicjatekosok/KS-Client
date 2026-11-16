@@ -1,3 +1,7 @@
+# KS Client alpha 1.1.16 – mélyebb játék-integráció
+
+Új közös, read-only Game Runtime 2.0, Kirka felület-kompatibilitási diagnosztika, WebGL-rajzolási ellenőrzések és a meglévő funkciókat megtartó kiadás. Sikeres Windows-tesztek után a Portable ZIP és az önálló Setup EXE közvetlenül megjelenik a GitHub Releases alatt, SHA256- és tényleges aláírásjelentéssel. Ez a Chrome/Windows veszélyességi jelzéseit önmagában nem tudja garantáltan megszüntetni. Részletek és tesztelési korlátok: RELEASE_116_HU.md.
+
 # KS Client 1.1.15 – új betöltő és egérkezelés
 
 Az eredeti KS logóval készült, sötét-arany animáció CEF-ben és Electronban is megjelenik. A CEF egérbefogásának új natív kezelése kizárólag a játék tényleges Pointer Lock állapotát követi, és egérmozgást is naplóz. További részletek, az aláírt Windows-kiadáshoz szükséges hiteles tanúsítvány és a kézi teszt: RELEASE_115_HU.md.
