@@ -7,7 +7,7 @@ internal static class Program
 {
     internal static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KSClient");
     internal static readonly string PrefsPath = Path.Combine(Root,"browser-settings.json");
-    internal static readonly string LogPath = Path.Combine(Root,"cef-1.1.16.log");
+    internal static readonly string LogPath = Path.Combine(Root,"cef-1.1.17.log");
     internal static BrowserPrefs Active = BrowserPrefs.Default();
     internal static string? SwitchToken;
     internal static bool SwitchProbe;
@@ -57,6 +57,12 @@ internal static class Program
         bool bridgeProbe = args.Contains("--ks-bridge-probe");
         bool selfTest = args.Contains("--ks-self-test");
         bool safe = args.Contains("--ks-browser-safe-mode");
+        // Chrome-style CEF uses Chromium's normal browser UI/input stack.
+        // --ks-cef-alloy is a diagnostic fallback for older CEF behavior.
+        bool alloyFallback = args.Contains("--ks-cef-alloy");
+        CefSharpSettings.RuntimeStyle = alloyFallback ? CefRuntimeStyle.Alloy : CefRuntimeStyle.Chrome;
+        Log("CEF runtime style: "+(alloyFallback?"Alloy fallback":"Chrome")+
+            "; native Chromium pointer lock and cursor handling enabled");
         Active = (safe || selfTest) ? BrowserPrefs.Default() : BrowserPrefs.Load();
         if (safe && !selfTest) Active.Save();
         ApplicationConfiguration.Initialize();
@@ -104,7 +110,7 @@ internal static class Program
         {
             Log("CEF startup failure: " + e);
             if (selfTest) Environment.ExitCode = 1;
-            else MessageBox.Show(e.Message,"KS Client alpha 1.1.16 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
+            else MessageBox.Show(e.Message,"KS Client alpha 1.1.17 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
         }
         finally { if (global::CefSharp.Cef.IsInitialized == true) global::CefSharp.Cef.Shutdown(); }
     }

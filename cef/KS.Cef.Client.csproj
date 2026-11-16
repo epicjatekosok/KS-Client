@@ -8,8 +8,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>KS.Cef.Client</AssemblyName>
-    <Version>1.1.16</Version>
-    <Product>KS Client CEF alpha 1.1.16</Product>
+    <Version>1.1.17</Version>
+    <Product>KS Client CEF alpha 1.1.17</Product>
     <ApplicationIcon>assets\ks-logo.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>

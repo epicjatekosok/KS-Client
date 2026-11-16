@@ -1,3 +1,7 @@
+# KS Client alpha 1.1.17 – CEF egérhiba vizsgálata és javítása
+
+A CEF-ben a Chromium veszi át a valódi kurzor/egérbefogás kezelését; megszüntettem a C# Win32 egérmutató-elrejtési és erőltetett fókuszmegoldásait. Chrome-stílusú CEF-böngésző és aktiválható natív ablak, Kirka elsőbbsége a kattintás kezelésében, CEF-szemkímélő szűrők elválasztása a tényleges játék-vászontól. Fontos: az élő Kirka-meccses CEF kamerapróba továbbra is szükséges. Részletek: RELEASE_117_HU.md.
+
 # KS Client alpha 1.1.16 – mélyebb játék-integráció
 
 Új közös, read-only Game Runtime 2.0, Kirka felület-kompatibilitási diagnosztika, WebGL-rajzolási ellenőrzések és a meglévő funkciókat megtartó kiadás. Sikeres Windows-tesztek után a Portable ZIP és az önálló Setup EXE közvetlenül megjelenik a GitHub Releases alatt, SHA256- és tényleges aláírásjelentéssel. Ez a Chrome/Windows veszélyességi jelzéseit önmagában nem tudja garantáltan megszüntetni. Részletek és tesztelési korlátok: RELEASE_116_HU.md.

@@ -11,10 +11,10 @@ if($env:GITHUB_REF -ne 'refs/heads/main'){
 if(-not $env:GH_TOKEN){throw 'GITHUB_TOKEN is required to publish verified binaries'}
 $repo=$env:GITHUB_REPOSITORY
 if(-not $repo){throw 'GitHub repository not provided'}
-$tag='v1.1.16-alpha'
+$tag='v1.1.17-alpha'
 $paths=@(
-  'KS-Client-alpha-1.1.16-Portable.zip',
-  'KS-Client-alpha-1.1.16-Setup.exe',
+  'KS-Client-alpha-1.1.17-Portable.zip',
+  'KS-Client-alpha-1.1.17-Setup.exe',
   'SHA256SUMS.txt','RELEASE-MANIFEST.json',
   'CI-TEST-RESULT.txt','SIGNING-STATUS.txt'
 )
@@ -24,6 +24,6 @@ if($LASTEXITCODE -eq 0){
     Write-Host "GitHub release $tag already exists; preserving its immutable binaries."
     return
 }
-& gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client alpha 1.1.16' --prerelease --notes-file 'RELEASE_116_HU.md'
+& gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client alpha 1.1.17' --prerelease --notes-file 'RELEASE_116_HU.md'
 if($LASTEXITCODE -ne 0){throw "GitHub release $tag publishing failed"}
 Write-Host "Published immutable release at https://github.com/$repo/releases/tag/$tag"
