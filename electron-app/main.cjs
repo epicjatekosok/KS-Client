@@ -1,5 +1,5 @@
 'use strict';
-// KS Client alpha 1.1.20: real Electron host. No WebView2 dependency.
+// KS Client alpha 1.1.21: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.20';
+const APP_VERSION = 'alpha 1.1.21';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.20.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.1.21.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -69,7 +69,7 @@ function updaterPath(){
 function emitUpdateStatus(payload){
   if(payload && typeof payload==='object' && !Array.isArray(payload))
     jsCall('setUpdateStatus',{state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.1.20').slice(0,40),
+      current:String(payload.current||'1.1.21').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||'alpha').slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -80,14 +80,14 @@ function emitUpdateStatus(payload){
 function execUpdater(args,callback){
   const file=updaterPath();
   if(!fs.existsSync(file)){callback(new Error('KS Client launcher is missing'),null);return;}
-  execFile(file,args,{cwd:path.dirname(file),windowsHide:true,timeout:30000,maxBuffer:65536},(error,stdout)=>{
+  execFile(file,args,{cwd:path.dirname(file),windowsHide:true,timeout:20000,maxBuffer:65536},(error,stdout)=>{
     if(error){callback(error,null);return;}
     try{const value=JSON.parse(stdout);callback(null,value)}
     catch(e){callback(new Error('Updater returned invalid JSON: '+e.message),null)}
   });
 }
 function checkKSUpdate(channel,automatic,autoDownload){
-  if(updateCheckInProgress)return;
+  if(updateCheckInProgress){emitUpdateStatus({state:'checking',message:'A GitHub release check is already in progress…'});return;}
   if(automatic && Date.now()-lastAutoUpdateCheck<24*60*60*1000)return;
   if(automatic)lastAutoUpdateCheck=Date.now();
   updateCheckInProgress=true;
@@ -341,12 +341,13 @@ function receiveMessage(event, raw){
   if(!validURL(source) || !raw || typeof raw!=='object' || Array.isArray(raw))return;
   let data=''; try{data=JSON.stringify(raw)}catch(_){return}
   if(data.length>8192 || typeof raw.type!=='string')return;
-  const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll','update-check','update-install']);
+  const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll','update-check','update-install','update-open-release']);
   if(!validURL(source,true)&&!basic.has(raw.type))return;
   switch(raw.type){
     case 'stats':navigate(STATS);break;
     case 'clan':navigate(CLANS);break;
     case 'game':navigate(GAME);break;
+    case 'update-open-release':void shell.openExternal('https://github.com/epicjatekosok/KS-Client/releases').catch(e=>log('Release page: '+e.message));break;
     case 'discord-community':void shell.openExternal('https://discord.gg/cxP386yGjk').catch(e=>log('Discord link: '+e.message));break;
     case 'fullscreen':win.setFullScreen(!win.isFullScreen());break;
     case 'game-resolution':setGameResolution(String(raw.preset||'native'));break;
@@ -428,8 +429,24 @@ function receiveMessage(event, raw){
       break;
     }
     case 'diagnostics-poll':{
-      const bytes=process.memoryUsage().rss;
-      jsCall('setDiagnostics',{browserRAM:Math.round(bytes/1048576),note:'Electron host process RAM only',gpuAcceleration:active.gpu,engine:'Electron',platform:'Windows'});
+      // Electron's native API includes the host, renderers, GPU and utilities.
+      // Never infer game FPS from these process diagnostics.
+      let metrics=[];
+      try {metrics=app.getAppMetrics();}catch(e){log('Electron metrics: '+e.message);}
+      const children=metrics.filter(item=>item.pid!==process.pid);
+      const cpu=item=>Number.isFinite(item?.cpu?.percentCPUUsage)?Math.max(0,item.cpu.percentCPUUsage):0;
+      const ram=item=>Number.isFinite(item?.memory?.workingSetSize)?Math.max(0,item.memory.workingSetSize/1024):0;
+      let hostCPU=0;
+      try {hostCPU=Math.max(0,process.getCPUUsage().percentCPUUsage||0);}catch(_){}
+      jsCall('setDiagnostics',{
+        browserCPU:children.reduce((sum,item)=>sum+cpu(item),0),
+        browserRAM:children.reduce((sum,item)=>sum+ram(item),0),
+        browserProcesses:1+children.length,
+        clientCPU:hostCPU,
+        clientRAM:Math.round(process.memoryUsage().rss/1048576),
+        engine:'Electron',
+        sampling:'Native Electron process metrics (host and child Chromium processes). CPU is sampled since the previous call; the first sample can be zero.'
+      });
       break;
     }
     case 'crash-status':jsCall('setCrashStatus','Electron log: '+LOG_FILE);break;

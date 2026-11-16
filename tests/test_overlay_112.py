@@ -1,4 +1,4 @@
-"""Engine-independent KS Client 1.1.20 UI smoke test in local Chromium.
+"""Engine-independent KS Client 1.1.21 UI smoke test in local Chromium.
 Not a live test of Windows Electron, CEF, or FPS unlock.
 """
 from pathlib import Path
@@ -85,7 +85,11 @@ with sync_playwright() as play:
   page.locator('[data-setting="gameKeystrokes"]').check()
   assert page.evaluate("window.__KS_GAME_EXTRAS__.getStatus().keystrokes")
   assert page.locator('[data-setting="gameStats"]').count()==1
-  assert page.locator('[data-setting="gameHitmarker"]').count()==1
+  assert page.locator('[data-setting="gameHitmarker"]').count()==0
+  assert page.locator('[data-setting="gameHitmarkerColor"]').count()==0
+  assert page.locator('[data-setting="gameHitmarkerSize"]').count()==0
+  assert page.locator('[data-setting="gameHitmarkerImage"]').count()==0
+  assert page.locator('[data-setting="gameKillfeedColors"]').count()==0
   page.locator('[data-action="game-screenshot"]').click()
   assert page.evaluate("window.__out.some(m=>m.type==='game-screenshot')")
   assert page.locator('.ks-subtab[data-tab="Performance"]').count()==1
@@ -121,8 +125,8 @@ with sync_playwright() as play:
   assert page.locator('[data-setting="crosshairEnabled"]').count()==1
   page.locator('.ks-tab[data-group="Client"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
-  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.20')
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.21')
   assert not errors,(width,errors)
-  print('PASS 1.1.20 engine UI',width,height)
+  print('PASS 1.1.21 engine UI',width,height)
   page.close()
  browser.close()
