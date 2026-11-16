@@ -12,7 +12,7 @@ workflow=(root/'.github/workflows/windows-build.yml').read_text(encoding='utf8')
 package=(root/'ci/package_offline.py').read_text(encoding='utf8')
 assert '1.1.19' in electron and '1.1.19' in cef
 assert '1.1.19' in (root/'ci/Build-Setup.ps1').read_text(encoding='utf8')
-assert '1.1.19-Windows-CI-PASSED' in workflow
+assert 'Publish verified ZIP and EXE directly to GitHub Releases' in workflow
 assert 'new KSLoadingPanel' in cef and 'ActivateBrowserOnCreation=true' in cef
 assert 'startSplash()' in electron and 'assets' in electron and 'loading.html' in electron
 assert (root/'electron-app/assets/ks-logo.png').is_file()
