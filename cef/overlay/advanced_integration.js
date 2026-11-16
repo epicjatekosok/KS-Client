@@ -4,7 +4,7 @@
 'use strict';
 if(location.protocol!=='https:'||!['kirka.io','www.kirka.io'].includes(location.hostname)||window.__KS_DEEP__)return;
 const listeners=new Map(), tracked=new WeakSet(), observers=new Map();
-let unsubscribeScene=null;
+let unsubscribeScene=null, runtimeSubscriptions=[];
 const emit=(name,detail)=>{for(const fn of listeners.get(name)||[]){try{fn(detail)}catch(_){}}};
 const on=(name,fn)=>{if(!listeners.has(name))listeners.set(name,new Set());listeners.get(name).add(fn);return()=>listeners.get(name)?.delete(fn)};
 const trim=(x,n=100)=>String(x??'').replace(/\s+/g,' ').trim().slice(0,n);
@@ -17,9 +17,10 @@ const nativePost=message=>{try{
  else if(window.CefSharp?.PostMessage)window.CefSharp.PostMessage(JSON.stringify(message));
  }catch(_){}};
 let lastError='',lastJoin='',joinMode='none',matchId='',stats={kills:null,deaths:null,assists:null,headshotPercent:null},seenKills=0,seenAssists=0,seenHS=0,viewState='';
-function scene(){return window.__KS_INTEGRATION__?.getStatus()?.scene||'unknown';}
+function scene(){return window.__KS_GAME_RUNTIME__?.getStatus?.()?.scene||window.__KS_INTEGRATION__?.getStatus()?.scene||'unknown';}
 function number(sel){const el=document.querySelector(sel);if(!el)return null;const n=Number(trim(el.textContent,16).replace('%',''));return Number.isFinite(n)&&n>=0?n:null}
 function readStats(){
+ if(window.__KS_GAME_RUNTIME__){stats={...window.__KS_GAME_RUNTIME__.getSnapshot().stats};return;}
  const prev=JSON.stringify(stats);
  stats={kills:number('.ui-cell.kill .cell-value,.kill-death .kill .cell-value'),
  deaths:number('.ui-cell.death .cell-value,.kill-death .death .cell-value'),
@@ -51,6 +52,7 @@ function ingestFeed(root,kind){
 }
 let feedRoot=null,achRoot=null;
 function attachFeeds(){
+ if(window.__KS_GAME_RUNTIME__)return;
  const f=document.querySelector('.kill-bar-cont'),a=document.querySelector('.ach-cont');
  if(f!==feedRoot){feedRoot=f;ingestFeed(f,'kill');}
  if(a!==achRoot){achRoot=a;ingestFeed(a,'ach');}
@@ -95,6 +97,8 @@ function getSnapshot(){
   profile:profileSnapshot(),inventory:inventorySnapshot(),market:marketSnapshot(),servers:serverSnapshot(),
   render:window.__KS_WEBGL_COSMETICS__?.getStatus?.()||null,
   input:{pointerLocked:!!document.pointerLockElement},
+  compatibility:window.__KS_GAME_RUNTIME__?.getStatus?.()?.compatibility||null,
+  graphics:window.__KS_RENDER_TELEMETRY__?.getStatus?.()||null,
   source:'visible Kirka.io DOM; absence means unavailable'};
 }
 function showError(message){lastError=trim(message,190);emit('notice',{message:lastError});}
@@ -164,10 +168,20 @@ function refresh(){
  if(current==='profile')addProfileNote();
  if(current==='inventory')addInventoryCount();
 }
-function destroy(){clearInterval(timer);unsubscribeScene?.();detachFeeds();listeners.clear();}
+function destroy(){clearInterval(timer);unsubscribeScene?.();for(const unsub of runtimeSubscriptions)unsub();runtimeSubscriptions=[];detachFeeds();listeners.clear();}
 window.__KS_DEEP__=Object.freeze({getSnapshot,getStatus:()=>({scene:scene(),lastError,lastJoin,joinMode,observers:observers.size}),join,on,refresh,destroy});
 // Prefer instant transitions from the shared integration core; keep a
 // lightweight timer because Kirka's SPA changes DOM without changing routes.
-unsubscribeScene=window.__KS_INTEGRATION__?.on?.('scene-change',refresh)||null;
+if(window.__KS_GAME_RUNTIME__?.on){
+ const shared=window.__KS_GAME_RUNTIME__;
+ runtimeSubscriptions.push(shared.on('scene',refresh));
+ runtimeSubscriptions.push(shared.on('stats',event=>{stats={...event.detail};emit('stats',{...stats,source:'shared visible HUD'});}));
+ runtimeSubscriptions.push(shared.on('killfeed',event=>{seenKills++;emit('killfeed',{source:'shared visible killfeed',message:event.detail.text});}));
+ runtimeSubscriptions.push(shared.on('achievement',event=>{
+   const message=event.detail.text||'';
+   if(/\bassist\b/i.test(message)){seenAssists++;emit('assist',{source:'shared visible achievement',message});}
+   if(/\bheadshot\b/i.test(message)){seenHS++;emit('headshot',{source:'shared visible achievement',message});}
+ }));
+}else unsubscribeScene=window.__KS_INTEGRATION__?.on?.('scene-change',refresh)||null;
 timer=setInterval(refresh,1300);if(document.body)refresh();else document.addEventListener('DOMContentLoaded',refresh,{once:true});
 })();
