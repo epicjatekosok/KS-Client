@@ -1,4 +1,12 @@
-# KS Client alpha 1.1.17 – CEF pointer-lock and input regression repair
+# KS Client alpha 1.1.18 – CEF pointer-lock and input regression repair
+
+## What's new in 1.1.18
+
+- An icon-only Settings gear stays fixed at the top left throughout Kirka.io matches and weapon-selection transitions, even when the game replaces page content.
+- The FPS overlay is off by default for fresh profiles; when enabled its default location is below the gear. Previously stored preferences are preserved.
+- The optional game stats panel no longer displays a technical placeholder when the game's HTML has no stats; existing accessible statistics remain supported.
+- Existing Electron, CEF and other client features are retained.
+
 
 CEF now uses Chrome-style Chromium embedding with an activatable native child window. Removed Win32 cursor hiding/focus hacks and the premature KS pointerdown capture. The Kirka game receives the first input request; a user-click-only fallback is conditional. CEF Eye Comfort filters no longer affect the active #game canvas; Electron input stays unchanged. See RELEASE_117_HU.md for evidence, CEF Alloy fallback, and essential live-game validation. Offline Windows CI cannot guarantee camera capture in a live match.
 
