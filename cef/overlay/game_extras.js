@@ -1,4 +1,4 @@
-/* KS Client alpha 1.1.21 - optional, game-page-only integrations.
+/* KS Client Beta 1.0.0 - optional, game-page-only integrations.
    All modules are visual/read-only and require no Node.js or page privileges.
    Features should never steal game input or consume pointer events.
 */
@@ -16,7 +16,12 @@
   root.id='ks-game-extras';
   root.style.cssText='position:fixed;inset:0;z-index:2147483640;pointer-events:none;contain:layout style;';
   const shadow=root.attachShadow({mode:'closed'});
-  shadow.innerHTML='<style>:host{pointer-events:none}#keys{position:absolute;bottom:86px;left:18px;display:none;gap:5px;align-items:center;color:#f7f7f7;font:700 12px Segoe UI,Arial,sans-serif;pointer-events:none;} .key{display:grid;place-items:center;width:35px;height:33px;background:#111b;border:1px solid #f0aa3566;border-radius:6px} .key.down{color:#131313;background:#f0aa35;border-color:#f0aa35}#stats{position:absolute;bottom:130px;left:18px;display:none;color:#f0aa35;background:#0a0a0ac9;padding:7px 11px;border:1px solid #f0aa3566;border-radius:7px;font:700 11px Segoe UI,sans-serif;white-space:nowrap}</style><div id="keys"><span class="key" data-code="KeyW">W</span><span class="key" data-code="KeyA">A</span><span class="key" data-code="KeyS">S</span><span class="key" data-code="KeyD">D</span><span class="key" data-code="Space">⎵</span><span class="key" data-code="ShiftLeft">⇧</span></div><div id="stats"></div>';
+  shadow.innerHTML='<style>:host{pointer-events:none}
+#keys{position:absolute;bottom:86px;left:18px;display:none;gap:6px;align-items:center;color:#f8f8fa;font:760 12px 'Segoe UI',Arial,sans-serif;pointer-events:none;filter:drop-shadow(0 6px 25px rgba(0,0,0,.38));}
+.key{display:grid;place-items:center;min-width:36px;height:36px;padding:0 6px;color:#fff;background:rgba(14,13,13,.92);border:1px solid rgba(255,157,24,.60);border-radius:10px;font:760 12px/1 'Segoe UI',Arial,sans-serif;box-sizing:border-box;transition:background .12s ease,border-color .12s ease,color .12s ease,transform .12s ease;}
+.key.down{color:#17100a;background:linear-gradient(105deg,#ff7900,#ffad00);border-color:#ffc146;transform:translateY(-1px);}
+#stats{position:absolute;bottom:130px;left:18px;display:none;max-width:calc(100vw - 36px);color:#fff;background:rgba(14,13,13,.92);padding:10px 13px;border:1px solid rgba(255,157,24,.60);border-left:3px solid #ff9200;border-radius:10px;font:760 12px/1.45 'Segoe UI',Arial,sans-serif;white-space:nowrap;box-shadow:0 6px 25px rgba(0,0,0,.38);font-variant-numeric:tabular-nums;}
+@media(prefers-reduced-motion:reduce){.key{transition:none!important;}}</style><div id="keys"><span class="key" data-code="KeyW">W</span><span class="key" data-code="KeyA">A</span><span class="key" data-code="KeyS">S</span><span class="key" data-code="KeyD">D</span><span class="key" data-code="Space">⎵</span><span class="key" data-code="ShiftLeft">⇧</span></div><div id="stats"></div>';
   let domReady=false;
   function install(){if(domReady||!document.body)return;domReady=true;document.body.appendChild(root);refresh();}
   let assistsCount=0,headshotCount=0,observedAchievements=null,observedKills=null;
