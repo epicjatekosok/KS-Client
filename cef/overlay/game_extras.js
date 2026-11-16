@@ -88,7 +88,10 @@
     try{window.CefSharp.PostMessage(JSON.stringify({type:'game-input-diagnostics',message}))}catch(_){}
   };
   let lockRequests=0,lockErrors=0,relativeMoves=0,lastMoveReport=0;
-  function inGame(){return match() && !document.querySelector('#ks-client-root')?.shadowRoot?.querySelector('#ks-dimmer.visible');}
+  // The KS shadow tree is closed; direct shadowRoot inspection always fails.
+  // Read the public, read-only settings state instead of capturing clicks under
+  // a visible menu.
+  function inGame(){return match() && window.__KS_CLIENT__?.isSettingsOpen?.()!==true;}
   function refresh(){
     state=settings();
     if(!domReady)return;
@@ -141,25 +144,37 @@
       notifyInput('motion-ok');
     }
   },true);
-  // A click on the actual game canvas is a real user gesture. No synthetic mouse
-  // events or forced pointer lock from timers; the game owns the movement loop.
+  // Never request pointer lock during pointerdown capture. Kirka has its own
+  // pointerdown/mousedown/click input handlers; the previous early KS request
+  // could conflict with theirs and consume the user-activation gesture.
   document.addEventListener('pointerdown',event=>{
-    if(event.button!==0 || !event.isTrusted || !match() || !inGame() || nativeCursor())return;
-    const canvas=event.target;
-    if(!(canvas instanceof HTMLCanvasElement))return;
-    if(canvas.clientWidth<160 || canvas.clientHeight<100)return;
-    if(cef())notifyInput('gesture');
-    // In CEF an FPS must obtain the real native Pointer Lock even when the
-    // optional auto-capture toggle was off. Electron retains its user setting.
-    if(!state.gameAutoMouseCapture&&!cef())return;
-    if(typeof canvas.requestPointerLock==='function') {
-      lockRequests++;
-      try {
-        const pending=canvas.requestPointerLock();
-        if(pending && typeof pending.catch==='function')pending.catch(()=>{});
-      } catch(_){}
-    }
+    if(event.button===0 && event.isTrusted && match() && inGame() &&
+       event.target instanceof HTMLCanvasElement && cef())notifyInput('gesture');
   },true);
+  // Only if Kirka did NOT request pointer lock during the trusted click may
+  // the optional KS auto-capture act as a fallback. Run at window bubble phase
+  // after the page's own canvas/document handlers. No timer/synthetic event.
+  window.addEventListener('click',event=>{
+    if(event.button!==0 || !event.isTrusted || !match() || !inGame() ||
+       nativeCursor() || !state.gameAutoMouseCapture)return;
+    const canvas=event.target;
+    if(!(canvas instanceof HTMLCanvasElement) || canvas.clientWidth<160 ||
+       canvas.clientHeight<100 || typeof canvas.requestPointerLock!=='function')return;
+    const observed=window.__KS_CEF_INPUT__?.getStatus?.()||null;
+    if(cef() && observed?.installed &&
+       performance.now()-observed.lastRequestMs < 850)return;
+    // Do not introduce a second capture path on Electron; Electron already
+    // handles Kirka's native permission flow correctly.
+    if(!cef())return;
+    lockRequests++;
+    try {
+      const pending=canvas.requestPointerLock();
+      notifyInput('fallback');
+      if(pending && typeof pending.catch==='function')pending.catch(error=>{
+        notifyInput('request-failed');
+      });
+    }catch(_){notifyInput('request-failed')}
+  },false);
   function firstText(selectors){
     for(const selector of selectors){
       const el=document.querySelector(selector);
@@ -196,6 +211,7 @@
   }
   window.__KS_GAME_EXTRAS__=Object.freeze({refresh,getStatus:()=>({
     pointerLocked:nativeCursor(),game:match(),lockRequests,lockErrors,relativeMoves,
+    cefNative:window.__KS_CEF_INPUT__?.getStatus?.()||null,
     cefAutoCapture:cef(),keystrokes:!!state.gameKeystrokes,
     stats:!!state.gameStats,hitmarker:!!state.gameHitmarker
   })});

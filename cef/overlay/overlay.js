@@ -1843,7 +1843,14 @@
     // This is a postprocessing color/softness effect, NOT WebGL anti-aliasing.
     let eyeStyle=document.getElementById('ks-client-eye-filter');
     if(!eyeStyle) {eyeStyle=document.createElement('style');eyeStyle.id='ks-client-eye-filter';(document.head||document.body).appendChild(eyeStyle);}
-    eyeStyle.textContent=isGamePage && state.eyeEnabled ? `canvas{filter:${comfortFilterCSS()} !important;}` : '';
+    // CEF renders the game canvas in a native child HWND. CSS compositing
+    // filters can add a separate GPU layer; exclude the live #game canvas
+    // in CEF to isolate potential focus/mouse regressions. The setting and
+    // local preview remain available, and Electron behavior is unchanged.
+    const cefInputCompatibility=typeof window.CefSharp?.PostMessage==='function';
+    eyeStyle.textContent=isGamePage && state.eyeEnabled ?
+      (cefInputCompatibility ? `canvas:not(#game){filter:${comfortFilterCSS()} !important;}`
+        : `canvas{filter:${comfortFilterCSS()} !important;}`) : '';
     updateComfortPreview();
     updateBreakReminderState();
     updateResourcesInUI();
@@ -2325,6 +2332,7 @@
       }
     },
     toggle: () => show(),
+    isSettingsOpen: () => Boolean(open),
     open: () => show(true),
     close: () => show(false),
     toggleHud: () => { state.showHUD = !state.showHUD; save(); apply(); },
