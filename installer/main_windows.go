@@ -9,7 +9,6 @@ import (
 	"archive/zip"
 	"bytes"
 	_ "embed"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"ksclient/ksui"
@@ -20,7 +19,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"unicode/utf16"
 )
 
 const appVersion = "alpha 1.1.14"
@@ -281,13 +279,11 @@ func installFiles(staging, folder string) error {
 	return nil
 }
 
-func psEncoded(source string) error {
-	utf := utf16.Encode([]rune(source))
-	buf := make([]byte, 0, len(utf)*2)
-	for _, r := range utf {
-		buf = append(buf, byte(r), byte(r>>8))
-	}
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-EncodedCommand", base64.StdEncoding.EncodeToString(buf))
+// A readable command line for the Windows shell shortcut operation is less
+// likely to resemble an obfuscated script than -EncodedCommand. All paths are
+// passed through psQuote(); no downloaded or user-provided script is executed.
+func psShortcut(source string) error {
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", source)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	return cmd.Run()
 }
@@ -295,7 +291,7 @@ func psQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + 
 func shortcut(target, link string) error {
 	code := fmt.Sprintf("$ErrorActionPreference='Stop'; $w=New-Object -ComObject WScript.Shell; $x=$w.CreateShortcut(%s); $x.TargetPath=%s; $x.WorkingDirectory=%s; $x.IconLocation=%s; $x.Save()",
 		psQuote(link), psQuote(target), psQuote(filepath.Dir(target)), psQuote(target+",0"))
-	return psEncoded(code)
+	return psShortcut(code)
 }
 func regAdd(name, value string) error {
 	cmd := exec.Command("reg.exe", "add", uninstallKey, "/v", name, "/t", "REG_SZ", "/d", value, "/f")
