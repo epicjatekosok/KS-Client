@@ -50,7 +50,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client alpha 1.1.21 – CEF";
+        Text="KS Client alpha 1.1.22 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -84,6 +84,7 @@ internal sealed class ClientForm : Form
         // capture/release and relative mouse deltas. The earlier native handler
         // could hide an arrow without providing an actual pointer lock.
         browser.RenderProcessMessageHandler = new KSEarlyIntegrationHandler(earlyGameJS);
+        browser.LifeSpanHandler = new ClientCommunityPopupHandler();
         if (!switchProbe && !bridgeProbe)
             browser.RequestHandler = new ClientRequestHandler(() => {
                 if(IsHandleCreated)BeginInvoke((Action)(() => SwitchToElectron()));
@@ -109,14 +110,16 @@ internal sealed class ClientForm : Form
         // No forced focus in MouseDown: it can interrupt the trusted click that
         // Kirka itself uses to request pointer lock.
         browser.FrameLoadStart += (_,e)=>{
-            if(e.Frame.IsMain && Trust(e.Url,gameOnly:true))
-            {
-                // May run after early page scripts in some CEF builds; re-tested on load end.
-                e.Frame.ExecuteJavaScriptAsync(earlyGameJS);
-            }
+            try {
+                // A Kirka SPA route may detach/dispose its frame mid-callback.
+                if(e.Frame.IsValid && e.Frame.IsMain && Trust(e.Url,gameOnly:true))
+                    e.Frame.ExecuteJavaScriptAsync(earlyGameJS);
+            } catch(ObjectDisposedException) { Program.Log("CEF frame start skipped: frame disposed by navigation"); }
+              catch(Exception ex) { Program.Log("CEF frame start: "+ex.Message); }
         };
         browser.FrameLoadEnd += (_,e)=>{
-            if(!e.Frame.IsMain || !Trust(e.Url))return;
+            try {
+            if(!e.Frame.IsValid || !e.Frame.IsMain || !Trust(e.Url))return;
             e.Frame.ExecuteJavaScriptAsync(cefInputProbe);
             e.Frame.ExecuteJavaScriptAsync(pacer);
             e.Frame.ExecuteJavaScriptAsync(drawTelemetry);
@@ -136,8 +139,11 @@ internal sealed class ClientForm : Form
             if(gameResolution!="native" && IsHandleCreated)BeginInvoke((Action)(()=>SetGameResolution(gameResolution)));
             if(IsHandleCreated)BeginInvoke((Action)(() => CloseLoadingPanel()));
             // Readiness is signalled by WinForms Shown, not FrameLoadEnd.
+            } catch(ObjectDisposedException){Program.Log("CEF frame end skipped: frame disposed during Kirka navigation");}
+              catch(Exception ex){Program.Log("CEF frame end: "+ex.Message);}
         };
         browser.JavascriptMessageReceived += (_,e)=>{
+            try {
             // Diagnostic test verifies the real Chromium->CefSharp bridge. A
             // successfully launched native window alone is insufficient.
             if(bridgeProbe) {
@@ -153,7 +159,11 @@ internal sealed class ClientForm : Form
                 return;
             }
             // Main-frame URL and current browser address must both stay allowlisted.
-            if(!e.Frame.IsMain || !Trust(e.Frame.Url) || !Trust(browser.Address)) {
+            // IMPORTANT: snapshot the source now, while the IFrame is alive.
+            // Never capture e.Frame inside a queued WinForms BeginInvoke callback.
+            if(!e.Frame.IsValid || !e.Frame.IsMain)return;
+            var sourceUrl=e.Frame.Url;
+            if(!Trust(sourceUrl) || !Trust(browser.Address)) {
                 Program.Log("CEF bridge request rejected (origin, frame or address)");
                 return;
             }
@@ -164,16 +174,20 @@ internal sealed class ClientForm : Form
                 var msg=JsonSerializer.Deserialize<BridgeMsg>(raw,BrowserPrefs.JsonOpts);
                 if(msg!=null && IsHandleCreated) {
                     if(msg.Type is "engine-switch" or "engine-info" or "browser-config") Program.Log("CEF bridge received: "+msg.Type);
-                    BeginInvoke((Action)(()=>Receive(msg, e.Frame.Url)));
+                    BeginInvoke((Action)(()=>{if(!IsDisposed)Receive(msg, sourceUrl);}));
                 }
             }
             catch(Exception ex){Program.Log("Bad JS message: "+ex.Message);}
+            } catch(ObjectDisposedException){Program.Log("CEF bridge message ignored: IFrame disposed");}
+              catch(InvalidOperationException ex){Program.Log("CEF bridge UI closing: "+ex.Message);}
         };
         browser.LoadError += (_,e)=>{
-            if(e.Frame.IsMain){
-                Program.Log($"CEF load: {e.ErrorCode} {e.ErrorText}");
-                if(IsHandleCreated)BeginInvoke((Action)(() => CloseLoadingPanel()));
-            }
+            try {
+                if(e.Frame.IsValid && e.Frame.IsMain){
+                    Program.Log($"CEF load: {e.ErrorCode} {e.ErrorText}");
+                    if(IsHandleCreated && !IsDisposed)BeginInvoke((Action)(() => {if(!IsDisposed)CloseLoadingPanel();}));
+                }
+            }catch(ObjectDisposedException){Program.Log("CEF load error frame disposed");}
         };
         KeyDown += (_,e)=>{
             if(e.KeyCode==Keys.F11){ToggleFull();e.Handled=true;}
@@ -435,8 +449,7 @@ internal sealed class ClientForm : Form
                 catch(Exception ex){Program.Log("Releases page: "+ex.Message);}
                 break;
             case "discord-community":
-                try { Process.Start(new ProcessStartInfo { FileName="https://discord.gg/cxP386yGjk",UseShellExecute=true }); }
-                catch(Exception ex) { Program.Log("Could not open KS Discord: "+ex.Message); }
+                ClientCommunityLinks.OpenInvite();
                 break;
             case "stats": Go(Stats);break;
             case "clan": Go(Clans);break;
@@ -585,6 +598,15 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
     }
     protected override bool OnBeforeBrowse(IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame,IRequest request,bool userGesture,bool isRedirect)
     {
+        // Native fallback for Kirka's Discord anchor, even when overlay click
+        // interception misses a game-created link.
+        if(userGesture && ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true)
+            && ClientCommunityLinks.IsDiscordTarget(request.Url))
+        {
+            _=Task.Run(ClientCommunityLinks.OpenInvite);
+            return true;
+        }
+        try {
         // Independent navigation fallback if CefSharp.PostMessage is present but
         // the asynchronous JS->native message is dropped by a renderer.
         // Restrict the action to a single, exact URL on the trusted game origin.
@@ -598,6 +620,7 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
             return true; // Do not actually navigate the game to this internal path.
         }
         return frame.IsMain && !ClientForm.Trust(request.Url);
+        } catch(ObjectDisposedException){return true;}
     }
 }
 
