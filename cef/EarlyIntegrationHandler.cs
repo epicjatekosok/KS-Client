@@ -13,11 +13,12 @@ internal sealed class KSEarlyIntegrationHandler : IRenderProcessMessageHandler
     }
     public void OnContextCreated(IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame)
     {
-        if(!frame.IsMain||!ClientForm.Trust(frame.Url,gameOnly:true))return;
         try
         {
+            if(!frame.IsValid || !frame.IsMain || !ClientForm.Trust(frame.Url,gameOnly:true))return;
             frame.ExecuteJavaScriptAsync(earlyGameJS);
         }
+        catch(ObjectDisposedException){Program.Log("CEF early injection: disposed IFrame; navigation replaced the document");}
         catch(Exception ex){Program.Log("CEF early render context injection: "+ex.Message);}
     }
     public void OnContextReleased(IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame){}
