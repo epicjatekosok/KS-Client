@@ -22,6 +22,7 @@ internal sealed class ClientForm : Form
     private readonly string overlay;
     private readonly string pacer;
     private readonly string extras;
+    private readonly string cefInputProbe;
     private readonly string workshop;
     private readonly string integrationBoot;
     private readonly string integrationCore;
@@ -56,6 +57,7 @@ internal sealed class ClientForm : Form
         overlay=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","overlay.js"));
         pacer=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","frame_pacer.js"));
         extras=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","game_extras.js"));
+        cefInputProbe=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","cef_input_probe.js"));
         workshop=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","workshop.js"));
         integrationBoot=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_bootstrap.js"));
         integrationCore=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_core.js"));
@@ -65,7 +67,7 @@ internal sealed class ClientForm : Form
         advanced=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","advanced_integration.js"));
         freezeGuard=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","freeze_guard.js"));
         // One sequential script evaluation eliminates cross-task injection races.
-        earlyGameJS=string.Join("\n;\n",pacer,integrationBoot,drawTelemetry,graphics,freezeGuard,gameRuntime);
+        earlyGameJS=string.Join("\n;\n",cefInputProbe,pacer,integrationBoot,drawTelemetry,graphics,freezeGuard,gameRuntime);
         // A real CEF renderer->host PostMessage test. This is an offline page,
         // never an injected live Kirka script or external test dependency.
         var bridgeHtml="<html><body><script>setTimeout(function(){if(window.CefSharp && window.CefSharp.PostMessage){window.CefSharp.PostMessage(JSON.stringify({type:'ks-bridge-probe'}));}},350);</script>KS bridge probe</body></html>";
@@ -113,6 +115,7 @@ internal sealed class ClientForm : Form
         };
         browser.FrameLoadEnd += (_,e)=>{
             if(!e.Frame.IsMain || !Trust(e.Url))return;
+            e.Frame.ExecuteJavaScriptAsync(cefInputProbe);
             e.Frame.ExecuteJavaScriptAsync(pacer);
             e.Frame.ExecuteJavaScriptAsync(drawTelemetry);
             e.Frame.ExecuteJavaScriptAsync(gameRuntime);
