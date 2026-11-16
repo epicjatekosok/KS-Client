@@ -1,13 +1,13 @@
 'use strict';
-// KS Client alpha 1.1.18: real Electron host. No WebView2 dependency.
+// KS Client alpha 1.1.19: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
-const {spawn}=require('node:child_process');
+const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.18';
+const APP_VERSION = 'alpha 1.1.19';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.18.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.1.19.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -61,6 +61,60 @@ const tokenArg = process.argv.find(a=>a.startsWith('--ks-switch-token='));
 const tokenValue = tokenArg ? tokenArg.slice('--ks-switch-token='.length) : '';
 const switchToken = /^[a-f0-9]{32}$/i.test(tokenValue) ? tokenValue : '';
 const switchProbe = process.argv.includes('--ks-switch-probe') && Boolean(switchToken);
+let lastAutoUpdateCheck=0;
+let updateCheckInProgress=false;
+function updaterPath(){
+  return path.resolve(__dirname,'..','..','..','..','KS-Client.exe');
+}
+function emitUpdateStatus(payload){
+  if(payload && typeof payload==='object' && !Array.isArray(payload))
+    jsCall('setUpdateStatus',{state:String(payload.state||'error').slice(0,40),
+      current:String(payload.current||'1.1.19').slice(0,40),
+      version:String(payload.version||'').slice(0,40),
+      channel:String(payload.channel||'alpha').slice(0,12),
+      message:String(payload.message||'').slice(0,380),
+      notes:String(payload.notes||'').slice(0,1800),
+      cached:payload.cached===true,
+      bytes:Number(payload.bytes)||0});
+}
+function execUpdater(args,callback){
+  const file=updaterPath();
+  if(!fs.existsSync(file)){callback(new Error('KS Client launcher is missing'),null);return;}
+  execFile(file,args,{cwd:path.dirname(file),windowsHide:true,timeout:30000,maxBuffer:65536},(error,stdout)=>{
+    if(error){callback(error,null);return;}
+    try{const value=JSON.parse(stdout);callback(null,value)}
+    catch(e){callback(new Error('Updater returned invalid JSON: '+e.message),null)}
+  });
+}
+function checkKSUpdate(channel,automatic,autoDownload){
+  if(updateCheckInProgress)return;
+  if(automatic && Date.now()-lastAutoUpdateCheck<24*60*60*1000)return;
+  if(automatic)lastAutoUpdateCheck=Date.now();
+  updateCheckInProgress=true;
+  emitUpdateStatus({state:'checking',message:'Checking GitHub for updates…'});
+  execUpdater(['--ks-update-check','--channel='+channel],(err,result)=>{
+    updateCheckInProgress=false;
+    if(err){emitUpdateStatus({state:'error',message:err.message});return;}
+    emitUpdateStatus(result);
+    if(automatic&&autoDownload&&result.state==='available')
+      execUpdater(['--ks-update-prefetch','--channel='+channel],(ignored,response)=>{
+        if(!ignored&&response?.state==='started')emitUpdateStatus({...result,message:'Update download started in background.'});
+      });
+  });
+}
+async function installKSUpdate(channel){
+  if(!win)return;
+  const decision=await dialog.showMessageBox(win,{type:'question',title:'KS Client Update',
+    message:'Download and install a verified KS Client update?',
+    detail:'The current game will close. Your settings, browser profiles and Workshop data are preserved.',
+    buttons:['Install & Close Game','Cancel'],defaultId:1,cancelId:1,noLink:true});
+  if(decision.response!==0)return;
+  emitUpdateStatus({state:'downloading',message:'Starting verified update worker…'});
+  execUpdater(['--ks-update-install','--channel='+channel],(error,result)=>{
+    if(error||result?.state!=='started'){emitUpdateStatus({state:'error',message:error?.message||result?.message||'Could not start update'});return;}
+    app.quit();
+  });
+}
 let switchInProgress = false;
 let switchProbeTimer = null;
 function signalSwitchReady(){
@@ -287,7 +341,7 @@ function receiveMessage(event, raw){
   if(!validURL(source) || !raw || typeof raw!=='object' || Array.isArray(raw))return;
   let data=''; try{data=JSON.stringify(raw)}catch(_){return}
   if(data.length>8192 || typeof raw.type!=='string')return;
-  const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll']);
+  const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll','update-check','update-install']);
   if(!validURL(source,true)&&!basic.has(raw.type))return;
   switch(raw.type){
     case 'stats':navigate(STATS);break;
@@ -301,6 +355,8 @@ function receiveMessage(event, raw){
       if(raw.engine==='cef')switchEngine('cef');
       break;
     }
+    case 'update-check':checkKSUpdate(raw.channel==='stable'?'stable':'alpha',raw.automatic===true,raw.autoDownload===true);break;
+    case 'update-install':void installKSUpdate(raw.channel==='stable'?'stable':'alpha');break;
     case 'browser-config':browserConfig();break;
     case 'browser-save':{
       desired=normPrefs(raw.browser);

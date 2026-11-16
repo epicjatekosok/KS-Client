@@ -1,4 +1,11 @@
-# KS Client alpha 1.1.18 – CEF egérhiba vizsgálata és javítása
+# KS Client alpha 1.1.19 – CEF egérhiba vizsgálata és javítása
+
+## Új: kliensen belüli frissítés 1.1.19
+
+Az **Ügyfél → Frissítések (Client → Updates)** menüben kézi frissítéskeresés, választható automatikus keresés és automatikus háttérletöltés, valamint Alpha/Stable csatorna jelenik meg. A tényleges telepítés mindig felhasználói jóváhagyást igényel. Az Electron és a CEF ugyanazt a natív frissítőt használja, a telepítés a meglévő helyen történik, az egyéni beállítások nem törlődnek.
+
+**Fontos első beállítás:** a privát forrás-repository mellé külön nyilvános `epicjatekosok/KS-Client-Updates` repositoryt kell létrehozni GitHub Releases kiadásokkal, valamint a privát repository Actions secrets részén a `KS_PUBLIC_RELEASE_TOKEN` jogosultságot beállítani. Amíg ezek nincsenek meg, az új kliens frissítési funkciója még nem tud letölteni. Pontos lépések: [RELEASE_119_HU.md](RELEASE_119_HU.md).
+
 
 ## Újdonságok az 1.1.18-ban
 

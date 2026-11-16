@@ -39,6 +39,8 @@ internal sealed class ClientForm : Form
     private Rectangle oldBounds;
     private FormBorderStyle oldBorder;
     private FormWindowState oldWindowState;
+    private DateTime lastAutoUpdateCheck=DateTime.MinValue;
+    private bool updateCheckInProgress;
     private bool engineSwitching;
     private System.Windows.Forms.Timer? engineSwitchTimer;
     private string? switchNonce;
@@ -48,7 +50,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client alpha 1.1.18 – CEF";
+        Text="KS Client alpha 1.1.19 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -243,6 +245,66 @@ internal sealed class ClientForm : Form
     private void Reply(string method,params object[] args)
       => RunJS("window.__KS_CLIENT__?."+method+"?.apply(window.__KS_CLIENT__,"+JS(args)+");");
     private bool NeedsRestart()=>Program.Active.Gpu!=desired.Gpu||Program.Active.Angle!=desired.Angle||Program.Active.UncapFps!=desired.UncapFps;
+    private string UpdateLauncher() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","KS-Client.exe"));
+    private async void CheckKSUpdate(string channel,bool automatic,bool prefetch)
+    {
+        if(updateCheckInProgress)return;
+        if(automatic && DateTime.UtcNow-lastAutoUpdateCheck<TimeSpan.FromHours(24))return;
+        if(automatic)lastAutoUpdateCheck=DateTime.UtcNow;
+        updateCheckInProgress=true;
+        Reply("setUpdateStatus",new {state="checking",message="Checking GitHub for updates…"});
+        try
+        {
+            var exe=UpdateLauncher();
+            using var process=Process.Start(new ProcessStartInfo {
+                FileName=exe,UseShellExecute=false,CreateNoWindow=true,
+                RedirectStandardOutput=true,WorkingDirectory=Path.GetDirectoryName(exe)!
+                ,ArgumentList={"--ks-update-check","--channel="+channel}
+            }) ?? throw new InvalidOperationException("Updater could not start.");
+            using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(28));
+            string raw=await process.StandardOutput.ReadToEndAsync(timeout.Token);
+            await process.WaitForExitAsync(timeout.Token);
+            if(raw.Length>65536 || process.ExitCode!=0)throw new InvalidOperationException("Update response failed.");
+            using var document=JsonDocument.Parse(raw);
+            var result=document.RootElement.Clone();
+            if(IsHandleCreated)BeginInvoke((Action)(() => {
+                Reply("setUpdateStatus",result);
+                if(automatic && prefetch && result.TryGetProperty("state",out var s)&&s.GetString()=="available")
+                    LaunchUpdateHelper("prefetch",channel);
+            }));
+        }
+        catch(Exception ex)
+        {
+            if(IsHandleCreated)BeginInvoke((Action)(() => Reply("setUpdateStatus",new {state="unavailable",message=ex.Message})));
+        }
+        finally{updateCheckInProgress=false;}
+    }
+    private async void LaunchUpdateHelper(string mode,string channel)
+    {
+        if(mode=="install"){
+            var choice=MessageBox.Show(this,
+                "Download and install the verified KS Client update? The game will close; saved data will remain.",
+                "KS Client Update",MessageBoxButtons.YesNo,MessageBoxIcon.Question);
+            if(choice!=DialogResult.Yes)return;
+        }
+        try {
+            var exe=UpdateLauncher();
+            using var process=Process.Start(new ProcessStartInfo {
+                FileName=exe,UseShellExecute=false,CreateNoWindow=true,
+                RedirectStandardOutput=true,WorkingDirectory=Path.GetDirectoryName(exe)!,
+                ArgumentList={"--ks-update-"+mode,"--channel="+channel}
+            }) ?? throw new InvalidOperationException("Updater could not start.");
+            using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(28));
+            var raw=await process.StandardOutput.ReadToEndAsync(timeout.Token);
+            await process.WaitForExitAsync(timeout.Token);
+            using var doc=JsonDocument.Parse(raw);
+            var ok=doc.RootElement.TryGetProperty("state",out var status)&&status.GetString()=="started";
+            if(!ok)throw new InvalidOperationException(doc.RootElement.TryGetProperty("message",out var detail)?detail.GetString():"Updater could not start.");
+            if(mode=="install" && IsHandleCreated) BeginInvoke((Action)(() => Close()));
+        } catch(Exception ex) {
+            if(IsHandleCreated)BeginInvoke((Action)(() => Reply("setUpdateStatus",new {state="error",message=ex.Message})));
+        }
+    }
     private void ReportPrefs(string status="")
     {
         Reply("setBrowserConfig",desired,Program.Active,NeedsRestart(),status);
@@ -364,7 +426,7 @@ internal sealed class ClientForm : Form
     {
         if(!Trust(source)||!Trust(browser.Address))return;
         string type=m.Type ?? "";
-        if(!Trust(source,true) && type is not("stats" or "clan" or "game" or "fullscreen" or "crash-status" or "diagnostics-poll"))return;
+        if(!Trust(source,true) && type is not("stats" or "clan" or "game" or "fullscreen" or "crash-status" or "diagnostics-poll" or "update-check" or "update-install"))return;
         switch(type)
         {
             case "game": Go(Game);break;
@@ -377,6 +439,8 @@ internal sealed class ClientForm : Form
             case "engine-switch":
                 if(m.Engine=="electron")SwitchToElectron();
                 break;
+            case "update-check":CheckKSUpdate(m.Channel=="stable"?"stable":"alpha",m.Automatic==true,m.AutoDownload==true);break;
+            case "update-install":LaunchUpdateHelper("install",m.Channel=="stable"?"stable":"alpha");break;
             case "browser-config":ReportPrefs();break;
             case "browser-save":
                 if(m.Browser is null)return;
@@ -481,6 +545,9 @@ internal sealed class BridgeMsg
     public string? Section {get;set;}
     public string? Message {get;set;}
     public string? Engine {get;set;}
+    public string? Channel {get;set;}
+    public bool? Automatic {get;set;}
+    public bool? AutoDownload {get;set;}
     public BrowserPrefs? Browser {get;set;}
 }
 

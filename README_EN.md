@@ -1,4 +1,9 @@
-# KS Client alpha 1.1.18 – CEF pointer-lock and input regression repair
+# KS Client alpha 1.1.19 – CEF pointer-lock and input regression repair
+
+## 1.1.19: built-in release updates
+
+The new Client > Updates tab can check a public GitHub Releases update feed, optionally pre-download future releases and open a verified standalone installer after user confirmation. It is shared between CEF and Electron, and retains portable/installed folders, existing profiles and Workshop settings. See [RELEASE_119_HU.md](RELEASE_119_HU.md). **Automatic updates require the separate public `epicjatekosok/KS-Client-Updates` GitHub repository and the `KS_PUBLIC_RELEASE_TOKEN` Actions secret.** Without those two steps, the build is downloadable privately but the updater correctly reports its feed as not configured.
+
 
 ## What's new in 1.1.18
 
