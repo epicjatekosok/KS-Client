@@ -88,7 +88,8 @@ assert "shared.onContext" in graphics
 assert "tests/test_runtime_integration.py" in (root/'.github/workflows/windows-build.yml').read_text()
 assert 'tests/test_game_integration_112.py' in (root/'.github/workflows/windows-build.yml').read_text()
 workflow=(root/'.github/workflows/windows-build.yml').read_text()
-assert 'needs: [source-check, electron, cef]' in workflow
+assert 'needs: [source-check]' in workflow
+assert 'actions/upload-artifact@' not in workflow and 'actions/download-artifact@' not in workflow
 assert 'tests/test_ci_release_gates.py' in workflow
 print('PASS: alpha 1.1.19 source, runtimes and gated offline package')
 
