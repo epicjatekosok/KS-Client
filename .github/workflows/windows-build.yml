@@ -46,7 +46,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
-      - name: Cross-compile 1.1.19 Windows launcher and updater
+      - name: Cross-compile 1.1.20 Windows launcher and updater
         shell: bash
         run: |
           cd launcher
@@ -58,6 +58,7 @@ jobs:
           node --check electron-app/preload.cjs
           node --check electron-app/overlay/frame_pacer.js
           node --check electron-app/overlay/overlay.js
+          node --check cef/overlay/overlay.js
           node --check electron-app/overlay/game_extras.js
           node --check electron-app/overlay/workshop.js
           node --check electron-app/overlay/integration_bootstrap.js
@@ -81,6 +82,7 @@ jobs:
           python tests/test_release_117.py
           python tests/test_release_118.py
           python tests/test_updates_119.py
+          python tests/test_release_120.py
       - name: Automated browser UI test
         run: |
           python -m pip install playwright
@@ -93,6 +95,7 @@ jobs:
           python tests/test_cef_input_117.py
           python tests/test_runtime_116.py
           python tests/test_ui_118.py
+          python tests/test_ui_120.py
 
   offline-installer:
     if: github.event_name != 'pull_request'

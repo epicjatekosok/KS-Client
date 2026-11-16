@@ -1,4 +1,4 @@
-"""KS Client 1.1.19: validate native updater trust boundary and preserved common UI."""
+"""KS Client 1.1.20: validate native updater trust boundary and preserved common UI."""
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 ui=(root/'electron-app/overlay/overlay.js').read_text(encoding='utf8')
@@ -21,4 +21,4 @@ assert 'epicjatekosok/KS-Client-Updates' in up and 'sha256.New()' in up
 assert 'validUpdateAsset' in up and 'waitForExitedPID' in up
 assert 'KS_PUBLIC_RELEASE_TOKEN' in (root/'ci/Publish-Release.ps1').read_text(encoding='utf8')
 assert 'safeUpdateTarget' in (root/'installer/main_windows.go').read_text(encoding='utf8')
-print('PASS: KS 1.1.19 updater bridge, dual-engine UI, strict public feed, no removed features')
+print('PASS: KS 1.1.20 updater bridge, dual-engine UI, strict public feed, no removed features')

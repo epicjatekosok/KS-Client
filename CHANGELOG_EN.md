@@ -1,3 +1,14 @@
+# KS Client alpha 1.1.20
+
+- Refresh settings with calmer colors, readable hierarchy, more consistent spacing, accessibility-focused keyboard outlines, and responsive navigation.
+- Add a searchable section index across all existing settings groups without removing options or overwriting saved settings.
+- Shrink and soften the lower-left version label to KS · 1.1.20.
+- Direct Kirka.io Discord-button clicks to https://discord.gg/cxP386yGjk through each browser engine's trusted native external-link handling.
+- Retain dual-engine integration, workshop, HUD, user preferences, and native 1.1.19 update support.
+- Bump the complete verified offline Windows ZIP and Setup EXE release pipeline to 1.1.20.
+
+---
+
 # KS Client alpha 1.1.19
 
 - New Client > Updates tab with manual update checking and optional automatic checking/background downloading.
