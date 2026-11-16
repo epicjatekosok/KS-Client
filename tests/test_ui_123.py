@@ -36,7 +36,7 @@ def check(browser,engine):
     };
   }""")
   assert data['sameParent'] and data['parentId']=='ks-quick',data
-  assert data['visible']=='inline-flex',data
+  assert data['visible'] in ('flex','inline-flex'),data  # Flex-item display is blockified by Chromium
   assert data['gearHeight']==data['discordHeight']==36,data
   for field in ('border','bg','radius','shadow'):
     assert data[field][0]==data[field][1],(field,data)
