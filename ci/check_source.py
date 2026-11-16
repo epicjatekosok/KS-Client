@@ -55,7 +55,7 @@ assert 'ResourceHandler.FromFilePath' in (root/'cef/ResourceSwap.cs').read_text(
 assert 'protocol.handle' in (root/'electron-app/swapper.cjs').read_text()
 assert 'executeJavaScript(workshopJS' in electron_host
 # Deep integration must share exactly the same modules across both engines.
-for name in ('integration_bootstrap.js','integration_core.js','webgl_cosmetics.js','advanced_integration.js','freeze_guard.js'):
+for name in ('integration_bootstrap.js','integration_core.js','game_runtime.js','render_telemetry.js','webgl_cosmetics.js','advanced_integration.js','freeze_guard.js'):
  bootstrap=(root/'electron-app/overlay'/name).read_text()
  assert bootstrap==(root/'cef/overlay'/name).read_text(),name+' differs between engines'
  assert "kirka.io" in bootstrap,name+' must be game-origin scoped'
@@ -65,9 +65,11 @@ assert 'RenderProcessMessageHandler' in cef_host and 'KSEarlyIntegrationHandler'
 assert (root/'cef/EarlyIntegrationHandler.cs').is_file()
 assert 'ExecuteJavaScriptAsync(graphics)' in cef_host
 assert 'ExecuteJavaScriptAsync(advanced)' in cef_host
+assert 'ExecuteJavaScriptAsync(gameRuntime)' in cef_host
+assert 'ExecuteJavaScriptAsync(drawTelemetry)' in cef_host
 assert 'ExecuteJavaScriptAsync(integrationCore)' in cef_host
 assert 'ExecuteJavaScriptAsync(integrationBoot)' in cef_host
-assert 'integrationCoreJS' in electron_host and 'advancedJS' in electron_host and 'graphicsJS' in electron_host
+assert 'integrationCoreJS' in electron_host and 'advancedJS' in electron_host and 'graphicsJS' in electron_host and 'gameRuntimeJS' in electron_host and 'drawTelemetryJS' in electron_host
 assert 'ks:early-graphics' in electron_host and 'ks:early-freeze' in electron_host
 # The core integration now installs all early main-world hooks in one ordered script.
 assert "ks:early-bundle" in electron_host
@@ -89,3 +91,11 @@ workflow=(root/'.github/workflows/windows-build.yml').read_text()
 assert 'needs: [source-check, electron, cef]' in workflow
 assert 'tests/test_ci_release_gates.py' in workflow
 print('PASS: alpha 1.1.12 source, runtimes and gated offline package')
+
+# KS 1.1.16 single game-state runtime and passive GPU event observer.
+assert "window.__KS_GAME_RUNTIME__" in (root/'electron-app/overlay/game_runtime.js').read_text()
+assert "window.__KS_RENDER_TELEMETRY__" in (root/'electron-app/overlay/render_telemetry.js').read_text()
+assert "shared.on('killfeed'" in (root/'electron-app/overlay/advanced_integration.js').read_text()
+assert "runtimeSubscriptions" in (root/'electron-app/overlay/advanced_integration.js').read_text()
+assert "render_telemetry.js" in (root/'ci/Prepare-Electron.ps1').read_text()
+assert "render_telemetry.js" in (root/'ci/Build-CEF.ps1').read_text()
