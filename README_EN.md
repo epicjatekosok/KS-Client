@@ -1,3 +1,7 @@
+# KS Client alpha 1.1.17 – CEF pointer-lock and input regression repair
+
+CEF now uses Chrome-style Chromium embedding with an activatable native child window. Removed Win32 cursor hiding/focus hacks and the premature KS pointerdown capture. The Kirka game receives the first input request; a user-click-only fallback is conditional. CEF Eye Comfort filters no longer affect the active #game canvas; Electron input stays unchanged. See RELEASE_117_HU.md for evidence, CEF Alloy fallback, and essential live-game validation. Offline Windows CI cannot guarantee camera capture in a live match.
+
 # KS Client alpha 1.1.16 – Kirka Game Integration Runtime 2.0
 
 Built on 1.1.15, preserving both native engines and existing Workshop/UI. Shared visible Kirka scene/HUD/feed event bus, compatibility fingerprints, passive bounded WebGL draw instrumentation, and expanded regression tests. Two separately published Windows files (Portable ZIP and Setup EXE) now come from a verified GitHub Release with SHA256SUMS and a truthful code-signing report. Source checks cannot prove a live Kirka match, true CEF camera capture, or malware reputational approval. Details in RELEASE_116_HU.md.
