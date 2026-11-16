@@ -1,4 +1,4 @@
-"""KS 1.1.17 CEF mouse regression: game-owned requests before fallback.
+"""KS 1.1.18 CEF mouse regression: game-owned requests before fallback.
 Offline Chromium cannot validate WinForms native lock/camera movement.
 """
 from pathlib import Path
@@ -90,4 +90,4 @@ with sync_playwright() as playwright:
   page.evaluate('window.__KS_CLIENT__.close()')
   assert not errors, errors
   browser.close()
-print('PASS KS 1.1.17: CEF game-first pointer lock, click-only fallback, no Electron regression, eye filter isolated')
+print('PASS KS 1.1.18: CEF game-first pointer lock, click-only fallback, no Electron regression, eye filter isolated')
