@@ -20,5 +20,5 @@ assert 'FileName="https://discord.gg/cxP386yGjk"' in c
 assert "discord-community" not in "stats clan game fullscreen crash-status diagnostics-poll update-check update-install"
 for path in ('launcher/main_windows.go','installer/main_windows.go','electron-app/main.cjs','cef/Program.cs','ci/Publish-Release.ps1'):
  assert '1.1.21' in (r/path).read_text(),path
-assert 'RELEASE_120_HU.md' in (r/'ci/Publish-Release.ps1').read_text()
+assert 'RELEASE_121_HU.md' in (r/'ci/Publish-Release.ps1').read_text()
 print('PASS: KS 1.1.21 modern searchable menu, subtle badge, strict Discord native bridge and preserved dual-engine settings')
