@@ -548,6 +548,360 @@
     @media (prefers-reduced-motion:reduce) {
       .ks-tab,.ks-btn,.ks-subtab {transition:none!important;}
     }
+
+    /* Alpha 1.1.22 — full gamer-style orange/black settings dashboard.
+       Applied last to fully replace the previous tiny four-column visual system.
+       The controls and native settings integration remain unchanged. */
+    #ks-dimmer {
+      background:rgba(2,3,7,.83);
+      backdrop-filter:blur(10px);
+      -webkit-backdrop-filter:blur(10px);
+    }
+    #ks-panel {
+      --ks-orange:#ff8e00;
+      --ks-orange-light:#ffb321;
+      position:relative;isolation:isolate;
+      width:min(1560px,calc((100vw - 26px) / var(--ks-ui-scale,1)));
+      height:min(915px,calc((100vh - 24px) / var(--ks-ui-scale,1)));
+      max-height:calc((100vh - 24px) / var(--ks-ui-scale,1));
+      border:1px solid rgba(255,155,12,.13);border-radius:12px;
+      background:#080a0e!important;
+      box-shadow:0 0 0 1px rgba(0,0,0,.8),0 35px 120px rgba(0,0,0,.92);
+      color:#f7f7fb;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;
+    }
+    #ks-panel::before {
+      content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+      background:
+        radial-gradient(ellipse 50% 60% at 90% 12%,rgba(60,78,116,.19),transparent 77%),
+        radial-gradient(ellipse 60% 70% at 12% 90%,rgba(225,88,5,.16),transparent 72%),
+        linear-gradient(145deg,rgba(11,12,18,.80) 6%,rgba(9,10,16,.84) 48%,rgba(13,14,20,.91)),
+        repeating-linear-gradient(90deg,transparent 0 128px,rgba(158,170,194,.02) 130px 132px),
+        #08090d;
+    }
+    #ks-panel::after {
+      content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+      background:
+        linear-gradient(132deg,transparent 0 10%,rgba(252,109,0,.42) 10.1% 10.7%,transparent 10.8% 100%) bottom left / 33% 40% no-repeat,
+        linear-gradient(132deg,transparent 0 28%,rgba(255,146,0,.48) 28.1% 33.5%,transparent 33.6% 100%) bottom left / 21% 31% no-repeat,
+        linear-gradient(132deg,transparent 0 63%,rgba(255,123,0,.49) 63.1% 65%,transparent 65.1% 100%) top right / 17% 46% no-repeat,
+        radial-gradient(circle at 16% 100%,rgba(236,101,9,.10),transparent 27%);
+      opacity:.78;
+    }
+    #ks-panel>*,#ks-panel #ks-top,#ks-panel #ks-main,#ks-panel #ks-foot {
+      position:relative;z-index:1;
+    }
+    #ks-top {
+      height:110px;flex:none;padding:17px 32px 14px 43px;gap:24px;
+      background:linear-gradient(180deg,rgba(5,6,9,.56),transparent 92%);
+      border:0;
+    }
+    #ks-brand {display:flex;align-items:center;gap:26px;flex-wrap:nowrap;min-width:0;}
+    #ks-brand-icon {display:block;width:65px!important;height:65px!important;object-fit:contain;}
+    #ks-brand-rule {display:block;flex:none;width:2px;height:67px;background:rgba(249,249,251,.72);}
+    #ks-brand-copy {min-width:0;display:flex;flex-direction:column;gap:4px;}
+    #ks-brand-main {font-size:35px;line-height:1.05;font-weight:840;letter-spacing:-1.2px;color:#fff;text-transform:none;}
+    #ks-brand-sub {font-size:13px;line-height:1.5;font-weight:400;letter-spacing:0;text-transform:none;color:#bfc0ca;}
+    #ks-panel #ks-close {
+      width:50px;height:50px;border:0;border-radius:13px;
+      background:rgba(4,5,9,.84);color:#f8f8fb;font:400 30px/1 'Segoe UI',sans-serif;
+      box-shadow:0 3px 16px rgba(0,0,0,.22);
+    }
+    #ks-panel #ks-close:hover {background:rgba(255,140,0,.23);color:#fff;}
+    #ks-panel .ks-top-discord {
+      min-height:38px;border:1px solid rgba(255,154,19,.26);border-radius:11px;
+      background:rgba(13,16,24,.76);color:#f5a83a;padding:9px 14px;
+      font-size:12px;font-weight:750;cursor:pointer;
+    }
+    #ks-panel .ks-top-discord:hover {color:#fff;border-color:#ff9a00;background:rgba(255,134,0,.18);}
+    #ks-main {
+      display:grid;grid-template-columns:294px minmax(0,1fr);
+      flex:1;min-height:0;overflow:hidden;
+    }
+    #ks-nav {
+      display:flex;flex-direction:column;min-height:0;max-height:none;overflow-y:auto;
+      padding:12px 18px 16px 32px;gap:0;
+      border-right:1px solid rgba(255,255,255,.055);
+      border-radius:0 18px 18px 0;
+      background:linear-gradient(90deg,rgba(11,12,16,.94),rgba(20,20,25,.90));
+      box-shadow:15px 0 45px rgba(0,0,0,.28);
+    }
+    #ks-nav .ks-sidebar-caption {
+      font-size:10px;letter-spacing:1.2px;color:#b7b9c4;padding:0 12px 9px;
+      opacity:.72;
+    }
+    #ks-menu-search-wrap {padding:0 9px 13px;}
+    #ks-menu-search {
+      min-height:38px;width:100%;
+      border:1px solid rgba(255,255,255,.12);border-radius:10px;
+      background:rgba(1,2,6,.62);color:#f5f6fa;padding:9px 12px;
+      font:500 12px 'Segoe UI',Arial,sans-serif;
+    }
+    #ks-menu-search:focus {border-color:rgba(255,153,0,.8);box-shadow:0 0 0 3px rgba(255,149,0,.11);}
+    #ks-sidebar-groups {display:flex;flex-direction:column;gap:2px;padding-right:7px;}
+    #ks-panel .ks-tab {
+      position:relative;display:flex;align-items:center;gap:21px;
+      width:100%;min-height:59px;flex:none;padding:11px 15px;
+      background:transparent;border:1px solid transparent;border-bottom-color:rgba(255,255,255,.065);
+      border-radius:0;color:#f0f0f4;font-size:15px;font-weight:700;letter-spacing:-.1px;
+      transition:background .12s,color .12s,transform .12s;white-space:nowrap;
+    }
+    #ks-panel .ks-tab-icon {width:26px;flex:0 0 26px;display:grid;place-items:center;opacity:1;}
+    #ks-panel .ks-tab-icon svg {width:25px;height:25px;stroke:currentColor;}
+    #ks-panel .ks-tab:hover:not(.active) {
+      background:rgba(255,255,255,.075);color:#fff;border-color:rgba(255,255,255,.10);border-radius:11px;
+    }
+    #ks-panel .ks-tab.active {
+      transform:translateX(-5px);width:calc(100% + 12px);min-height:61px;
+      background:linear-gradient(107deg,#ff7700 5%,#ff9100 67%,#ffb900 100%);
+      border:1px solid rgba(255,189,43,.9);border-radius:12px;
+      clip-path:polygon(0 0,calc(100% - 18px) 0,100% 50%,calc(100% - 18px) 100%,0 100%);
+      color:#fff;font-weight:830;box-shadow:inset 0 1px 2px rgba(255,255,255,.45);
+      padding-left:21px;
+    }
+    #ks-panel .ks-tab.active .ks-tab-icon {color:#fff;}
+    #ks-nav .ks-sidebar-foot {
+      margin-top:auto;padding:15px 12px 0;border-top:1px solid rgba(255,255,255,.085);
+      color:#a3a5b2;font-size:10px;letter-spacing:.45px;line-height:1.5;
+    }
+    #ks-nav .ks-sidebar-foot span {color:#ffac36;font-weight:800;}
+    #ks-body {
+      min-width:0;min-height:0;max-height:none;overflow-y:auto;
+      padding:10px 46px 29px 40px;
+      background:transparent;scrollbar-width:thin;scrollbar-color:rgba(244,155,36,.5) transparent;
+    }
+    #ks-panel .ks-subtabs {
+      display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+      padding:0 0 16px;margin:0 0 15px;min-height:45px;
+      border-bottom:1px solid rgba(255,255,255,.065);
+    }
+    #ks-panel .ks-subtab {
+      min-height:32px;padding:7px 14px;border:1px solid rgba(255,255,255,.12);
+      border-radius:9px;background:rgba(23,24,31,.82);
+      color:#bdbec8;font-size:12px;font-weight:650;white-space:nowrap;
+    }
+    #ks-panel .ks-subtab:hover {border-color:rgba(255,155,0,.45);color:#fff;}
+    #ks-panel .ks-subtab.active {
+      color:#fff;border-color:rgba(255,152,0,.72);
+      background:linear-gradient(180deg,rgba(255,139,0,.26),rgba(255,139,0,.07));
+      box-shadow:inset 0 -2px 0 #ff9200;
+    }
+    #ks-body .ks-title {
+      display:flex;align-items:center;gap:15px;
+      margin:0 0 3px;font-size:23px;font-weight:850;letter-spacing:-.45px;
+      color:#f9f9fb;line-height:1.2;
+    }
+    #ks-body .ks-title::before {
+      content:"";width:27px;height:22px;flex:none;display:block;
+      background:linear-gradient(108deg,transparent 0 16%,#ff8e00 16% 33%,transparent 33% 44%,#ff8e00 44% 63%,transparent 63% 100%);
+    }
+    #ks-body .ks-sub {
+      margin:0 0 19px;padding-left:42px;
+      font-size:12px;line-height:1.55;max-width:none;color:#adaebb;
+    }
+    #ks-body .ks-section-heading {
+      color:#f5f6fb;font-size:16px;line-height:1.3;
+      font-weight:800;letter-spacing:-.2px;text-transform:none;margin:13px 0 11px;
+    }
+    #ks-body .ks-section-heading::before {content:"▰";color:#ff9000;margin-right:9px;}
+    #ks-body .ks-card,#ks-body .ks-metric,#ks-body .ks-stability-stat {
+      min-width:0;
+      background:linear-gradient(180deg,rgba(35,35,41,.89),rgba(21,22,28,.91));
+      border:1px solid rgba(198,201,213,.075);border-radius:16px;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 15px 38px rgba(0,0,0,.25);
+    }
+    #ks-body .ks-card {padding:9px 20px 13px;margin-bottom:15px;}
+    #ks-body .ks-card:has(> .ks-section-heading) {padding-top:7px;}
+    #ks-body .ks-settings-columns,#ks-body .ks-grid,#ks-body .ks-comfort-grid {
+      gap:16px;align-items:start;
+    }
+    #ks-body .ks-settings-columns {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:16px;}
+    #ks-body .ks-related-groups {margin-top:16px;}
+    #ks-body .ks-related-groups>.ks-card {margin-bottom:0;}
+    #ks-body .ks-row {
+      gap:15px;padding:11px 2px;min-height:55px;
+      border-bottom:1px solid rgba(199,206,223,.075);flex-wrap:wrap;
+    }
+    #ks-body .ks-row>div:first-child {min-width:0;flex:1 1 180px;}
+    #ks-body .ks-label {font-size:12px;font-weight:760;color:#fff;line-height:1.45;letter-spacing:-.08px;}
+    #ks-body .ks-desc {font-size:11px;line-height:1.5;color:#adafbc;max-width:72ch;}
+    #ks-body .ks-code {color:#ffb84d;font-size:11px;}
+    #ks-body .ks-input {
+      min-height:36px;background:#121217;color:#f2f2f5;
+      border:1px solid rgba(195,197,207,.25);border-radius:10px;
+      padding:7px 12px;font-size:12px;font-weight:575;
+    }
+    #ks-body input[type="checkbox"] {
+      -webkit-appearance:none;appearance:none;display:block;flex:0 0 47px;
+      width:47px;height:26px;border:0;border-radius:999px;cursor:pointer;
+      background:#4b4c55;position:relative;transition:background .16s ease;
+    }
+    #ks-body input[type="checkbox"]::before {
+      content:"";display:block;position:absolute;left:4px;top:3px;
+      width:20px;height:20px;border-radius:50%;background:#f7f7fa;
+      box-shadow:0 2px 5px rgba(0,0,0,.25);transition:transform .16s ease;
+    }
+    #ks-body input[type="checkbox"]:checked {background:linear-gradient(100deg,#ff8600,#ffae00);}
+    #ks-body input[type="checkbox"]:checked::before {transform:translateX(20px);}
+    #ks-body input[type="checkbox"]:focus-visible {outline:2px solid #ffb523;outline-offset:3px;}
+    #ks-body input[type="range"] {accent-color:#ff9200;cursor:pointer;}
+    #ks-body .ks-select-trigger {
+      min-height:35px;border-radius:11px;color:#f7f7f9;
+      border:1px solid rgba(175,181,194,.24);
+      background:linear-gradient(180deg,rgba(19,20,25,.95),rgba(8,9,13,.98));
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+      font-size:12px;font-weight:625;
+    }
+    #ks-body .ks-select-trigger:hover {border-color:rgba(255,148,0,.68);}
+    .ks-select-popup {background:#16171d!important;border-color:rgba(255,147,0,.55)!important;border-radius:11px!important;box-shadow:0 14px 50px rgba(0,0,0,.75)!important;}
+    .ks-select-popup button:hover,.ks-select-popup button[aria-selected="true"] {background:rgba(255,144,0,.16)!important;color:#ffad31!important;}
+    #ks-panel .ks-btn {
+      min-height:37px;border-radius:11px;padding:8px 15px;
+      color:#f6f6fa;font-size:12px;font-weight:750;
+      border:1px solid rgba(190,192,205,.13);
+      background:linear-gradient(180deg,rgba(42,43,49,.98),rgba(31,32,40,.98));
+      box-shadow:0 4px 14px rgba(0,0,0,.16);
+    }
+    #ks-panel .ks-btn:hover {background:#40404a;border-color:rgba(255,157,29,.43);color:#fff;}
+    #ks-panel .ks-btn.primary {
+      color:#0b0906;font-weight:880;
+      background:linear-gradient(110deg,#ff9600,#ffb10c);
+      border:1px solid #ffbc26;box-shadow:0 4px 17px rgba(255,143,0,.22);
+    }
+    #ks-panel .ks-btn.primary:hover {background:linear-gradient(110deg,#ffae00,#ffd050);color:#120a00;}
+    #ks-body .ks-note,#ks-body .ks-hint {
+      color:#bbc0cb;font-size:11px;line-height:1.55;
+      border:1px solid rgba(183,189,201,.10);border-radius:11px;
+      background:rgba(26,27,34,.85);padding:12px 14px;
+    }
+    #ks-body .ks-stat-details {color:#b9b9c5;font-size:11px;}
+    #ks-body .ks-metric-name {color:#b6b8c5;}
+    #ks-body .ks-metric-value {color:#fff;}
+    #ks-body #ks-graph-fps,#ks-body #ks-graph-ms {border-radius:11px;border-color:rgba(255,147,0,.22);background:rgba(7,8,12,.85);}
+    #ks-body .ks-graphic-presets {margin:9px 0 20px;}
+    #ks-body .ks-graphic-presets-label {
+      display:flex;gap:10px;align-items:center;margin:0 0 12px;
+      color:#f4f4f7;font-size:14px;font-weight:780;
+    }
+    #ks-body .ks-graphic-presets-label::before {content:"▰▰";color:#ff9a0a;letter-spacing:-6px;margin-right:6px;}
+    #ks-body .ks-graphic-preset-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;}
+    #ks-body .ks-graphic-preset {
+      min-height:130px;position:relative;overflow:hidden;text-align:center;
+      display:flex;flex-direction:column;justify-content:flex-end;
+      border:2px solid rgba(143,149,169,.14);border-radius:17px;
+      color:#f5f4f8;cursor:pointer;
+      background:linear-gradient(180deg,#373b4d,#202129 75%,#191a20);
+      box-shadow:0 12px 26px rgba(0,0,0,.26);
+      padding:0;
+    }
+    #ks-body .ks-preset-landscape {
+      display:block;width:100%;height:86px;
+      background:
+        linear-gradient(135deg,transparent 0 32%,rgba(228,123,22,.38) 32% 38%,transparent 39%),
+        linear-gradient(115deg,rgba(24,32,48,.15),rgba(255,150,13,.27)),
+        repeating-linear-gradient(90deg,rgba(28,43,66,.90) 0 17px,rgba(58,68,84,.74) 17px 30px,rgba(22,31,49,.9) 30px 42px);
+      mask-image:linear-gradient(black,rgba(0,0,0,.45));
+    }
+    #ks-body .ks-graphic-preset:nth-child(1) .ks-preset-landscape {filter:brightness(.52) saturate(.55);}
+    #ks-body .ks-graphic-preset:nth-child(2) .ks-preset-landscape {filter:brightness(.75) saturate(.8);}
+    #ks-body .ks-graphic-preset:nth-child(3) .ks-preset-landscape {filter:brightness(1.25) saturate(1.2);}
+    #ks-body .ks-preset-name {
+      display:flex;align-items:center;justify-content:center;gap:9px;
+      width:100%;min-height:43px;padding:9px;
+      font-size:14px;font-weight:800;line-height:1.2;
+      background:linear-gradient(180deg,#202127,#191a20);
+    }
+    #ks-body .ks-graphic-preset.active {
+      border-color:#ffad11;box-shadow:0 0 0 1px rgba(255,144,0,.5),0 0 23px rgba(255,140,0,.46);
+    }
+    #ks-body .ks-graphic-preset:hover {border-color:#ffad11;transform:translateY(-1px);}
+    #ks-body .ks-preset-check {
+      display:none;position:absolute;right:7px;top:7px;
+      width:29px;height:29px;border-radius:50%;background:#ff9900;
+      color:#fff;font-size:20px;line-height:29px;font-weight:950;text-align:center;
+      box-shadow:0 2px 9px rgba(0,0,0,.38);
+    }
+    #ks-body .ks-graphic-preset.active .ks-preset-check {display:block;}
+    #ks-foot {
+      min-height:91px;flex:none;display:flex;justify-content:space-between;align-items:center;
+      gap:20px;padding:14px 43px 18px 39px;
+      background:linear-gradient(180deg,rgba(13,14,19,.92),rgba(9,9,14,.98));
+      border-top:1px solid rgba(255,255,255,.085);
+    }
+    #ks-foot-actions {display:flex;align-items:center;gap:14px;}
+    #ks-autosave-status {font-size:11px;color:#a0a2ae;margin-right:6px;}
+    #ks-panel #ks-reset-main {min-height:44px;background:linear-gradient(180deg,#292a30,#1d1e25);}
+    #ks-panel #ks-cancel {min-width:150px;min-height:48px;font-size:14px;}
+    #ks-panel #ks-apply {min-width:177px;min-height:48px;font-size:14px;}
+    #ks-discord-quick {
+      position:absolute;right:16px;bottom:18px;z-index:2;
+      display:none;align-items:center;justify-content:center;
+      min-height:35px;padding:8px 13px;border:1px solid rgba(255,157,24,.6);
+      border-radius:10px;color:#fff;background:rgba(14,13,13,.92);
+      font:760 12px 'Segoe UI',Arial,sans-serif;
+      pointer-events:auto;cursor:pointer;box-shadow:0 6px 25px rgba(0,0,0,.38);
+    }
+    #ks-discord-quick:hover {background:linear-gradient(105deg,#ff7900,#ffad00);border-color:#ffc146;color:#17100a;}
+    @media(max-width:1250px){
+      #ks-panel {width:calc((100vw - 20px)/var(--ks-ui-scale,1));height:calc((100vh - 20px)/var(--ks-ui-scale,1));}
+      #ks-top {height:94px;padding:12px 24px;}
+      #ks-brand-icon {width:52px!important;height:52px!important;}
+      #ks-brand-rule {height:52px;}
+      #ks-brand-main {font-size:28px;}
+      #ks-main {grid-template-columns:229px minmax(0,1fr);}
+      #ks-nav {padding:12px 10px 12px 14px;}
+      #ks-panel .ks-tab {font-size:13px;min-height:51px;gap:12px;}
+      #ks-body {padding:9px 24px 25px;}
+      #ks-body .ks-settings-columns {grid-template-columns:repeat(2,minmax(0,1fr));}
+      #ks-foot {padding:12px 24px;}
+    }
+    @media(max-width:900px){
+      #ks-main {display:grid;grid-template-columns:183px minmax(0,1fr);}
+      #ks-nav {display:flex;flex-direction:column;max-height:none;overflow-y:auto;padding:10px 7px;}
+      #ks-panel .ks-tab {gap:9px;min-height:44px;padding:8px 9px;font-size:12px;}
+      #ks-panel .ks-tab-icon {width:22px;flex-basis:22px;}
+      #ks-panel .ks-tab-icon svg {width:20px;height:20px;}
+      #ks-body .ks-settings-columns,#ks-body .ks-grid,#ks-body .ks-comfort-grid {grid-template-columns:1fr;}
+      #ks-body .ks-graphic-preset-grid {gap:8px;}
+      #ks-body .ks-graphic-preset {min-height:112px;}
+      #ks-body .ks-preset-landscape {height:65px;}
+      #ks-panel #ks-reset-main {min-height:40px;}
+      #ks-panel #ks-cancel,#ks-panel #ks-apply {min-width:95px;}
+      #ks-autosave-status {display:none;}
+    }
+    @media(max-width:650px){
+      #ks-panel {width:calc((100vw - 12px)/var(--ks-ui-scale,1));height:calc((100vh - 12px)/var(--ks-ui-scale,1));}
+      #ks-top {height:69px;padding:8px 13px;}
+      #ks-brand {gap:10px;}
+      #ks-brand-icon {width:37px!important;height:37px!important;}
+      #ks-brand-rule {height:32px;width:1px;}
+      #ks-brand-main {font-size:22px;}
+      #ks-brand-sub {font-size:10px;}
+      #ks-panel #ks-close {width:36px;height:36px;font-size:21px;}
+      #ks-panel .ks-top-discord {font-size:10px;padding:6px 8px;}
+      #ks-main {display:flex;flex-direction:column;}
+      #ks-nav {display:flex;flex-direction:column;max-height:155px;overflow-y:auto;flex:none;padding:6px 9px;}
+      #ks-sidebar-groups {display:flex;flex-direction:row;gap:5px;overflow-x:auto;}
+      #ks-panel .ks-tab {flex:0 0 auto;min-height:36px;width:auto;border-radius:9px;gap:6px;padding:6px 9px;font-size:11px;}
+      #ks-panel .ks-tab.active {width:auto;transform:none;min-height:36px;clip-path:none;border-radius:9px;padding:6px 9px;}
+      #ks-nav .ks-sidebar-caption,#ks-nav .ks-sidebar-foot {display:none;}
+      #ks-menu-search-wrap {padding:0 0 6px;}
+      #ks-menu-search {min-height:32px;}
+      #ks-body {padding:10px 11px 18px;}
+      #ks-body .ks-graphic-preset-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}
+      #ks-body .ks-graphic-preset {min-height:87px;}
+      #ks-body .ks-preset-landscape {height:45px;}
+      #ks-body .ks-preset-name {font-size:10px;min-height:35px;padding:4px;}
+      #ks-body .ks-card {padding:8px 12px;}
+      #ks-body .ks-row {flex-wrap:wrap;}
+      #ks-foot {min-height:65px;padding:8px 12px;gap:6px;}
+      #ks-panel #ks-reset-main {min-height:32px;padding:5px 8px;font-size:10px;}
+      #ks-foot-actions {gap:6px;}
+      #ks-panel #ks-cancel,#ks-panel #ks-apply {min-width:65px;min-height:35px;padding:5px 9px;font-size:11px;}
+    }
+    @media(prefers-reduced-motion:reduce){
+      #ks-panel .ks-tab,#ks-body .ks-graphic-preset,#ks-body input[type="checkbox"],
+      #ks-body input[type="checkbox"]::before {transition:none;}
+    }
   </style>
   <div id="ks-screen">
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
@@ -1305,7 +1659,12 @@
           `<p class="ks-hint" id="ks-extra-status">Optional features are not game cheats or guaranteed cross-version Kirka.io selectors.</p>`+
           `</div>`;
       case 'Performance':
-        return title('Performance Settings', 'Best-effort game animation pacing, measured frametimes, and client-side performance profiles.') +
+        return title('Graphics', 'Choose a performance profile, frame pacing and browser graphics options.') +
+          '<div class="ks-graphic-presets"><div class="ks-graphic-presets-label">Graphics presets</div>'+
+          '<div class="ks-graphic-preset-grid">'+
+          [{id:'Low',label:'Low',icon:'▣'}, {id:'Balanced',label:'Medium',icon:'◇'}, {id:'High Performance',label:'High',icon:'♕'}]
+            .map(p=>`<button type="button" class="ks-graphic-preset ${state.performancePreset===p.id?'active':''}" data-action="performance-preset" data-preset="${esc(p.id)}" aria-pressed="${state.performancePreset===p.id?'true':'false'}"><span class="ks-preset-landscape"></span><span class="ks-preset-name"><span>${p.icon}</span>${p.label}</span><span class="ks-preset-check">✓</span></button>`).join('')+
+          '</div></div>'+
           `<div class="ks-card">` +
           selectRow('FPS Limiter', 'Paces browser requestAnimationFrame callbacks. This can limit games using the main-thread rAF loop, but is not a GPU driver cap.', 'fpsLimit', [
             { value: 0, label: 'Unlimited / Native' },
@@ -1325,10 +1684,6 @@
           `<p class="ks-hint">Unlimited here only removes the KS JavaScript cap. For above-monitor-Hz FPS enable Experimental Chromium Uncap below and restart.</p>`+
           selectRow('Smoothness profile','Choose a browser callback pacing target. It cannot guarantee the displayed GPU frame rate.','smoothPreset',[
             {value:'Native',label:'Native / no extra cap'},{value:'Comfort',label:'Comfort – 120 FPS'},{value:'Balanced',label:'Balanced – 144 FPS'},{value:'Smooth',label:'High Smoothness – 165 FPS'}]) +
-          selectRow('Performance Preset', 'Low targets 720p / 60 callbacks per second; Balanced uses native resolution; High Performance disables client effects.', 'performancePreset', [
-            { value: 'Low', label: 'Low' }, { value: 'Balanced', label: 'Balanced' },
-            { value: 'High Performance', label: 'High Performance' }
-          ]) +
           toggleRow('Low Latency Mode', 'Disables KS Client menu blur and animations. This reduces interface overhead only, not game network latency.', 'lowLatency') +
           toggleRow('UI Animations', 'Allow animations and blur in the KS Client interface.', 'uiAnimations') +
           toggleRow('Real-time FPS & Frametime graphs', 'Show live sampled browser/game callback timing graphs while this tab is open.', 'showGraph') +
@@ -1849,16 +2204,35 @@
   }
 
   function layoutSettingsCards() {
-    if (!['General','Display','Performance','Interface','Resources'].includes(selectedTab)) return;
+    // Related settings stay together instead of splitting option lists in the
+    // middle. All nodes (including selects, descriptions and buttons) move
+    // intact; event delegation continues working across both Chromium engines.
+    const splits={
+      Display:['showFPS','Window & Resolution','FPS Counter & Overlay'],
+      Performance:['smoothPreset','Frame Rate & Browser','Smoothness & Visual Effects'],
+      Interface:['reduceMotion','HUD & In-game Labels','Motion & Compact UI'],
+      Appearance:['fontFamily','Colors & Theme','Fonts & Typography'],
+      General:['fullscreen','Browser Engine','Client & Maintenance']
+    };
+    const spec=splits[selectedTab];
+    if(!spec)return;
     const primary=$('ks-body').querySelector('.ks-card');
-    if (!primary) return;
-    const nodes=Array.from(primary.children);
-    if (nodes.length<4 || !nodes.every(el=>el.classList.contains('ks-row'))) return;
-    const cut=Math.ceil(nodes.length/2);
-    const second=document.createElement('div');second.className='ks-card';
-    nodes.slice(cut).forEach(node=>second.appendChild(node));
-    const columns=document.createElement('div');columns.className='ks-settings-columns';
-    primary.replaceWith(columns);columns.append(primary,second);
+    if(!primary)return;
+    const children=Array.from(primary.children);
+    const marker=children.findIndex(node=>node.querySelector?.('[data-setting="'+spec[0]+'"],[data-action="'+spec[0]+'"]'));
+    if(marker<1 || marker>=children.length)return;
+    const wrap=document.createElement('div');
+    wrap.className='ks-settings-columns ks-related-groups';
+    const make=(heading,nodes)=>{
+      const card=document.createElement('section');
+      card.className='ks-card';
+      const h=document.createElement('h3');h.className='ks-section-heading';h.textContent=heading;
+      card.appendChild(h);
+      nodes.forEach(node=>card.appendChild(node));
+      return card;
+    };
+    wrap.append(make(spec[1],children.slice(0,marker)),make(spec[2],children.slice(marker)));
+    primary.replaceWith(wrap);
   }
 
   // The browser's native select popup is rendered outside the page style system;
@@ -2375,6 +2749,7 @@
       }
       return;
     }
+    if (a === 'performance-preset' && ['Low','Balanced','High Performance'].includes(el.dataset.preset)) {setSetting('performancePreset',el.dataset.preset);return;}
     if (a === 'test-menu-sound') {void playMenuSound();}
     if (a === 'verify-assets') {verifyAssets();}
     if (a === 'pixel-perfect') {state.menuResolution='native';state.gameResolution='native';save();notify('menu-resolution',{preset:'native'});notify('game-resolution',{preset:'native'});renderTab();apply();}
