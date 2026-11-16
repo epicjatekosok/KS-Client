@@ -1,5 +1,5 @@
 'use strict';
-// KS Client alpha 1.1.23: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.0: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.23';
+const APP_VERSION = 'Beta 1.0.0';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.23.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.0.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -94,9 +94,9 @@ function updaterPath(){
 function emitUpdateStatus(payload){
   if(payload && typeof payload==='object' && !Array.isArray(payload))
     jsCall('setUpdateStatus',{state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.1.23').slice(0,40),
+      current:String(payload.current||'1.0.0').slice(0,40),
       version:String(payload.version||'').slice(0,40),
-      channel:String(payload.channel||'alpha').slice(0,12),
+      channel:String(payload.channel||'beta').slice(0,12),
       message:String(payload.message||'').slice(0,380),
       notes:String(payload.notes||'').slice(0,1800),
       cached:payload.cached===true,
@@ -381,7 +381,7 @@ function receiveMessage(event, raw){
     case 'stats':navigate(STATS);break;
     case 'clan':navigate(CLANS);break;
     case 'game':navigate(GAME);break;
-    case 'update-open-release':void shell.openExternal('https://github.com/epicjatekosok/KS-Client/releases').catch(e=>log('Release page: '+e.message));break;
+    case 'update-open-release':void shell.openExternal('https://github.com/epicjatekosok/KS-Client-Updates/releases').catch(e=>log('Public release page: '+e.message));break;
     case 'discord-community':openKSDiscord();break;
     case 'fullscreen':win.setFullScreen(!win.isFullScreen());break;
     case 'game-resolution':setGameResolution(String(raw.preset||'native'));break;
@@ -391,8 +391,8 @@ function receiveMessage(event, raw){
       if(raw.engine==='cef')switchEngine('cef');
       break;
     }
-    case 'update-check':checkKSUpdate(raw.channel==='stable'?'stable':'alpha',raw.automatic===true,raw.autoDownload===true);break;
-    case 'update-install':void installKSUpdate(raw.channel==='stable'?'stable':'alpha');break;
+    case 'update-check':checkKSUpdate(['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta',raw.automatic===true,raw.autoDownload===true);break;
+    case 'update-install':void installKSUpdate(['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta');break;
     case 'browser-config':browserConfig();break;
     case 'browser-save':{
       desired=normPrefs(raw.browser);

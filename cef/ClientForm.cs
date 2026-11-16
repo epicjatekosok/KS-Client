@@ -50,7 +50,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client alpha 1.1.23 – CEF";
+        Text="KS Client Beta 1.0.0 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -445,7 +445,7 @@ internal sealed class ClientForm : Form
         {
             case "game": Go(Game);break;
             case "update-open-release":
-                try {Process.Start(new ProcessStartInfo {FileName="https://github.com/epicjatekosok/KS-Client/releases",UseShellExecute=true});}
+                try {Process.Start(new ProcessStartInfo {FileName="https://github.com/epicjatekosok/KS-Client-Updates/releases",UseShellExecute=true});}
                 catch(Exception ex){Program.Log("Releases page: "+ex.Message);}
                 break;
             case "discord-community":
@@ -462,8 +462,8 @@ internal sealed class ClientForm : Form
             case "engine-switch":
                 if(m.Engine=="electron")SwitchToElectron();
                 break;
-            case "update-check":CheckKSUpdate(m.Channel=="stable"?"stable":"alpha",m.Automatic==true,m.AutoDownload==true);break;
-            case "update-install":LaunchUpdateHelper("install",m.Channel=="stable"?"stable":"alpha");break;
+            case "update-check":CheckKSUpdate(m.Channel=="stable"?"stable":m.Channel=="alpha"?"alpha":"beta",m.Automatic==true,m.AutoDownload==true);break;
+            case "update-install":LaunchUpdateHelper("install",m.Channel=="stable"?"stable":m.Channel=="alpha"?"alpha":"beta");break;
             case "browser-config":ReportPrefs();break;
             case "browser-save":
                 if(m.Browser is null)return;
