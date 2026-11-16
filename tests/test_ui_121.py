@@ -1,4 +1,4 @@
-"""KS alpha 1.1.22: partial diagnostics must never break the gear or settings."""
+"""KS alpha 1.1.23: partial diagnostics must never break the gear or settings."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -85,14 +85,14 @@ def run(browser,engine):
       s.querySelector('[data-group="Advanced"]').click();
       s.querySelector('[data-tab="Updates"]').click();
       s.querySelector('[data-action="update-check"]').click();
-      window.__KS_CLIENT__.setUpdateStatus({state:'unavailable',message:'Public feed not published',current:'1.1.22'});
+      window.__KS_CLIENT__.setUpdateStatus({state:'unavailable',message:'Public feed not published',current:'1.1.23'});
       s.querySelector('[data-action="update-open-release"]').click();
     }""")
     assert page.evaluate("""() => window.__out.some(msg=>msg.type==='update-open-release')""")
     assert page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-update-status').textContent.includes('Public feed not published')""")
     assert not errors,errors
     page.close()
-    print('PASS: alpha 1.1.22 stable gear, diagnostics, profile migration, update UI',engine)
+    print('PASS: alpha 1.1.23 stable gear, diagnostics, profile migration, update UI',engine)
 
 with sync_playwright() as p:
     browser=p.chromium.launch(headless=True)
