@@ -1,3 +1,13 @@
+# KS Client alpha 1.1.21 – stabilabb menü, frissítés és diagnosztika
+
+A korábbi verzióban a hiányos diagnosztikai adat miatt a beállításmenü megnyitása JavaScript-hibával megszakadhatott. Az 1.1.21 ezt javítja Electronban és CEF-ben, és megakadályozza, hogy egy hibás részpanel elrejtse a teljes menüt. A **Részletes diagnosztika** valódi CPU-, memória- és folyamatadatokat jelenít meg, amennyiben azok az operációs rendszerből kiolvashatók.
+
+**Alapértelmezett motor új telepítésnél: Electron.** A korábban kifejezetten elmentett CEF-választást megőrizzük. A nem működő Hitmarker és Colored Killfeed kapcsolók és a hozzájuk tartozó szín-/képopciók kikerülnek, minden más beállítás megmarad.
+
+A frissítő most egyértelműen visszajelez hálózati hiba esetén, nem pörög végtelenül, és van **Open GitHub Releases (manual)** gomb. A tényleges automatikus frissítéshez nyilvános, kizárólag kiadási fájlokat tartalmazó `epicjatekosok/KS-Client-Updates` repository szükséges. Mivel ez jelenleg nincs elérhetőként beállítva, a tulajdonosnak azt külön létre kell hoznia, majd a privát KS-Client repository GitHub Actions titkai közé felvennie a `KS_PUBLIC_RELEASE_TOKEN` változót a nyilvános repositoryra korlátozott Contents írási jogosultsággal. A tokent soha ne küldd el chatben.
+
+---
+
 # KS Client alpha 1.1.20 – Modern menü és Discord-közösség
 
 Az új kiadásban a meglévő hat menükategória és minden beállítás megmarad, de az elrendezés letisztultabb, a szövegek áttekinthetőbbek, az elemek közötti távolság következetesebb, a menü pedig kapott egy keresőt. A kereső kategória- és beállításnevekkel segít megtalálni a megfelelő lapot, a mentett beállításokat nem módosítja.
