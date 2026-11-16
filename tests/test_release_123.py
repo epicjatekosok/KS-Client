@@ -14,7 +14,7 @@ assert "ipcMain.on('ks:message',(event,raw)=>{" in e
 assert "Promise.resolve(shell.openExternal('https://discord.gg/cxP386yGjk'))" in e
 assert "['discord.gg','discord.com','www.discord.com','discordapp.com'].includes(u.hostname)" in e
 assert '<button type="button" id="ks-discord-quick" class="ks-quick-btn"' in ui
-assert ui.index('id="ks-gear"')<ui.index('id="ks-discord-quick"')<ui.index('id="ks-quick"',ui.index('id="ks-discord-quick"'))+1600
+assert ui.index('id="ks-quick"')<ui.index('id="ks-gear"')<ui.index('id="ks-discord-quick"')
 assert '#ks-quick #ks-gear,#ks-quick #ks-discord-quick' in ui
 for key in ('ks123-panel-in','ks123-content-in','ks123-pop-in','ks123-glow-in','@media(prefers-reduced-motion:reduce)','#ks-screen.no-motion'):
  assert key in ui,key
