@@ -1,5 +1,5 @@
 'use strict';
-// KS Client alpha 1.1.15: real Electron host. No WebView2 dependency.
+// KS Client alpha 1.1.16: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.15';
+const APP_VERSION = 'alpha 1.1.16';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.15.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.1.16.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -26,11 +26,13 @@ const extrasJS = fs.readFileSync(path.join(__dirname,'overlay','game_extras.js')
 const workshopJS=fs.readFileSync(path.join(__dirname,'overlay','workshop.js'),'utf8');
 const integrationBootJS=fs.readFileSync(path.join(__dirname,'overlay','integration_bootstrap.js'),'utf8');
 const integrationCoreJS=fs.readFileSync(path.join(__dirname,'overlay','integration_core.js'),'utf8');
+const gameRuntimeJS=fs.readFileSync(path.join(__dirname,'overlay','game_runtime.js'),'utf8');
+const drawTelemetryJS=fs.readFileSync(path.join(__dirname,'overlay','render_telemetry.js'),'utf8');
 const graphicsJS=fs.readFileSync(path.join(__dirname,'overlay','webgl_cosmetics.js'),'utf8');
 const advancedJS=fs.readFileSync(path.join(__dirname,'overlay','advanced_integration.js'),'utf8');
 const freezeJS=fs.readFileSync(path.join(__dirname,'overlay','freeze_guard.js'),'utf8');
 // One atomic main-world evaluation, in dependency order, before Kirka page scripts.
-const earlyGameJS=[frameJS,integrationBootJS,graphicsJS,freezeJS].join('\n;\n');
+const earlyGameJS=[frameJS,integrationBootJS,drawTelemetryJS,graphicsJS,freezeJS,gameRuntimeJS].join('\n;\n');
 const SWAPPER=require('./swapper.cjs');
 SWAPPER.registerSchemes();
 const DEFAULT_PREFS = Object.freeze({gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false});
@@ -194,6 +196,8 @@ function createWindow(){
       await win.webContents.executeJavaScript(frameJS,true);
       // Late fallback if early main-world evaluation was blocked or missed.
       await win.webContents.executeJavaScript(integrationBootJS,true);
+      await win.webContents.executeJavaScript(drawTelemetryJS,true);
+      await win.webContents.executeJavaScript(gameRuntimeJS,true);
       await win.webContents.executeJavaScript(overlayJS,true);
       await win.webContents.executeJavaScript(extrasJS,true);
       await win.webContents.executeJavaScript(workshopJS,true);

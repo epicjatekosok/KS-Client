@@ -26,6 +26,8 @@ internal sealed class ClientForm : Form
     private readonly string workshop;
     private readonly string integrationBoot;
     private readonly string integrationCore;
+    private readonly string gameRuntime;
+    private readonly string drawTelemetry;
     private readonly string graphics;
     private readonly string advanced;
     private readonly string freezeGuard;
@@ -46,7 +48,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client alpha 1.1.15 – CEF";
+        Text="KS Client alpha 1.1.16 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -58,11 +60,13 @@ internal sealed class ClientForm : Form
         workshop=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","workshop.js"));
         integrationBoot=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_bootstrap.js"));
         integrationCore=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_core.js"));
+        gameRuntime=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","game_runtime.js"));
+        drawTelemetry=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","render_telemetry.js"));
         graphics=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","webgl_cosmetics.js"));
         advanced=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","advanced_integration.js"));
         freezeGuard=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","freeze_guard.js"));
         // One sequential script evaluation eliminates cross-task injection races.
-        earlyGameJS=string.Join("\n;\n",pacer,integrationBoot,graphics,freezeGuard);
+        earlyGameJS=string.Join("\n;\n",pacer,integrationBoot,drawTelemetry,graphics,freezeGuard,gameRuntime);
         // A real CEF renderer->host PostMessage test. This is an offline page,
         // never an injected live Kirka script or external test dependency.
         var bridgeHtml="<html><body><script>setTimeout(function(){if(window.CefSharp && window.CefSharp.PostMessage){window.CefSharp.PostMessage(JSON.stringify({type:'ks-bridge-probe'}));}},350);</script>KS bridge probe</body></html>";
@@ -106,6 +110,8 @@ internal sealed class ClientForm : Form
         browser.FrameLoadEnd += (_,e)=>{
             if(!e.Frame.IsMain || !Trust(e.Url))return;
             e.Frame.ExecuteJavaScriptAsync(pacer);
+            e.Frame.ExecuteJavaScriptAsync(drawTelemetry);
+            e.Frame.ExecuteJavaScriptAsync(gameRuntime);
             e.Frame.ExecuteJavaScriptAsync(overlay);
             e.Frame.ExecuteJavaScriptAsync(extras);
             e.Frame.ExecuteJavaScriptAsync(workshop);
