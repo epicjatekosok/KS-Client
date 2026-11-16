@@ -1147,6 +1147,9 @@
           `<div class="ks-row"><div><div class="ks-label">Join a Kirka.io room URL</div><input id="ks-join-link" class="ks-input" placeholder="https://kirka.io/games/..." maxlength="400"><button class="ks-btn" data-action="quick-join">Join</button></div>`+
           `<div class="ks-row"><div><div class="ks-label">Screenshot</div><div class="ks-desc">Electron saves a PNG of the current game window. CEF captures the visible window area; overlapping windows may be included.</div></div><button class="ks-btn" data-action="game-screenshot">Save screenshot</button></div>`+
           `<p class="ks-hint">Deep integration: ${esc(JSON.stringify(window.__KS_DEEP__?.getStatus?.()||{}).slice(0,360))}</p>`+
+          `<p class="ks-hint">KS Game Runtime 2.0 (shared scene + events): ${esc(JSON.stringify(window.__KS_GAME_RUNTIME__?.getStatus?.()||{}).slice(0,680))}</p>`+
+          `<p class="ks-hint">Kirka UI compatibility fingerprint (not an official game version): ${esc(window.__KS_GAME_RUNTIME__?.getStatus?.()?.compatibility?.signature||'Not available')}</p>`+
+          `<p class="ks-hint">Read-only WebGL draw telemetry: ${esc(JSON.stringify(window.__KS_RENDER_TELEMETRY__?.getStatus?.()||{}).slice(0,480))}</p>`+
           `<p class="ks-hint">3D WebGL: ${esc(JSON.stringify(window.__KS_WEBGL_COSMETICS__?.getStatus?.()||{}).slice(0,480))} · Configure in Workshop > Weapon Studio.</p>`+
           `<p class="ks-hint" id="ks-extra-status">Optional features are not game cheats or guaranteed cross-version Kirka.io selectors.</p>`+
           `</div>`;
