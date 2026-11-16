@@ -1,5 +1,5 @@
 'use strict';
-// KS Client alpha 1.1.22: real Electron host. No WebView2 dependency.
+// KS Client alpha 1.1.23: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.22';
+const APP_VERSION = 'alpha 1.1.23';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.22.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.1.23.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -41,6 +41,31 @@ function validURL(value, gameOnly=false) {
     const u = new URL(value);
     return u.protocol === 'https:' && (gameOnly ? GAME_HOSTS : ALLOWED).has(u.hostname);
   } catch (_) { return false; }
+}
+// One module-scoped helper shared by the native IPC handler and the Electron
+// navigation/popup callbacks. Keeping it inside createWindow caused a
+// ReferenceError in receiveMessage and an unhandled main-process error dialog.
+function isGameDiscordTarget(raw) {
+  try {
+    const u=new URL(raw);
+    return u.protocol==='https:' &&
+      ['discord.gg','discord.com','www.discord.com','discordapp.com'].includes(u.hostname);
+  }catch(_){return false;}
+}
+function openKSDiscord(){
+  // Constant URL: Kirka JavaScript is never permitted to pass its own URL
+  // into the OS shell, preventing arbitrary external link execution.
+  try{
+    Promise.resolve(shell.openExternal('https://discord.gg/cxP386yGjk'))
+      .then(()=>jsCall('setCommunityStatus','KS Discord invite handed to the Windows default browser.'))
+      .catch(error=>{
+        log('KS Discord external browser: '+String(error?.message||error));
+        jsCall('setCommunityStatus','Cannot open default browser: '+String(error?.message||error).slice(0,160));
+      });
+  }catch(error){
+    log('KS Discord external browser: '+String(error?.message||error));
+    jsCall('setCommunityStatus','Windows could not open the Discord link.');
+  }
 }
 function normPrefs(o) {
   if (!o || typeof o !== 'object') o={};
@@ -69,7 +94,7 @@ function updaterPath(){
 function emitUpdateStatus(payload){
   if(payload && typeof payload==='object' && !Array.isArray(payload))
     jsCall('setUpdateStatus',{state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.1.22').slice(0,40),
+      current:String(payload.current||'1.1.23').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||'alpha').slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -238,25 +263,6 @@ function createWindow(){
       webSecurity:true,devTools:true,backgroundThrottling:false,defaultFontFamily:{standard:'Segoe UI'}}});
   win.setMenu(null);
   // Safety: game content has no Node.js access. No arbitrary file:// or custom URLs.
-  // Kirka may open its Discord link through window.open or a target=_blank
-  // anchor. Keep the game window in place and launch the fixed KS invite via
-  // Windows' system-default HTTPS browser, even if that browser was closed.
-  function isGameDiscordTarget(raw) {
-    try {
-      const u=new URL(raw);
-      return u.protocol==='https:' &&
-        (u.hostname==='discord.gg'||u.hostname==='discord.com'||
-         u.hostname==='www.discord.com'||u.hostname==='discordapp.com');
-    }catch(_){return false;}
-  }
-  function openKSDiscord(){
-    void shell.openExternal('https://discord.gg/cxP386yGjk')
-      .then(()=>jsCall('setCommunityStatus','KS Discord invite handed to the Windows default browser.'))
-      .catch(error=>{
-        log('KS Discord external browser: '+error.message);
-        jsCall('setCommunityStatus','Cannot open default browser: '+error.message);
-      });
-  }
   win.webContents.setWindowOpenHandler(({url})=>{
     if(validURL(win.webContents.getURL(),true)&&isGameDiscordTarget(url))openKSDiscord();
     return {action:'deny'};
@@ -487,7 +493,15 @@ function receiveMessage(event, raw){
     case 'client-error':log('Overlay warning: '+String(raw.message||'').slice(0,240));break;
   }
 }
-ipcMain.on('ks:message',receiveMessage);
+// A malformed or racing page event must never crash Electron's main thread.
+ipcMain.on('ks:message',(event,raw)=>{
+  try{receiveMessage(event,raw);}
+  catch(error){
+    log('KS IPC handler error: '+String(error?.stack||error).slice(0,440));
+    if(raw?.type==='discord-community')
+      jsCall('setCommunityStatus','KS Discord could not be opened. Try again.');
+  }
+});
 ipcMain.on('ks:early-bundle',(event)=>{
   const source=event.senderFrame?.url||event.sender?.getURL?.()||'';
   event.returnValue=(win&&event.sender===win.webContents&&validURL(source,true))?earlyGameJS:'';
