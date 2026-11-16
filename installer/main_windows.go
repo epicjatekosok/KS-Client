@@ -383,7 +383,7 @@ func removeOldShortcuts() {
 		directories = append(directories, filepath.Join(roaming, "Microsoft", "Windows", "Start Menu", "Programs"))
 	}
 	for _, d := range directories {
-		for _, name := range []string{"KS Client alpha 1.1.0.lnk", "KS Client alpha 1.1.1.lnk", "KS Client alpha 1.1.2.lnk", "KS Client alpha 1.1.3.lnk", "KS Client alpha 1.1.4.lnk", "KS Client alpha 1.1.5.lnk", "KS Client alpha 1.1.12.lnk", "KS Client alpha 1.1.13.lnk", "KS Client alpha 1.1.14.lnk", "KS Client alpha 1.1.15.lnk", "KS Client alpha 1.1.16.lnk", "KS Client alpha 1.1.19.lnk", "KS Client alpha 1.1.21.lnk"} {
+		for _, name := range []string{"KS Client alpha 1.1.0.lnk", "KS Client alpha 1.1.1.lnk", "KS Client alpha 1.1.2.lnk", "KS Client alpha 1.1.3.lnk", "KS Client alpha 1.1.4.lnk", "KS Client alpha 1.1.5.lnk", "KS Client alpha 1.1.12.lnk", "KS Client alpha 1.1.13.lnk", "KS Client alpha 1.1.14.lnk", "KS Client alpha 1.1.15.lnk", "KS Client alpha 1.1.16.lnk", "KS Client alpha 1.1.19.lnk", "KS Client alpha 1.1.20.lnk", "KS Client alpha 1.1.21.lnk"} {
 			_ = os.Remove(filepath.Join(d, name))
 		}
 	}
