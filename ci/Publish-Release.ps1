@@ -11,10 +11,10 @@ if($env:GITHUB_REF -ne 'refs/heads/main'){
 if(-not $env:GH_TOKEN){throw 'GITHUB_TOKEN is required to publish verified binaries'}
 $repo=$env:GITHUB_REPOSITORY
 if(-not $repo){throw 'GitHub repository not provided'}
-$tag='v1.1.22-alpha'
+$tag='v1.1.23-alpha'
 $paths=@(
-  'KS-Client-alpha-1.1.22-Portable.zip',
-  'KS-Client-alpha-1.1.22-Setup.exe',
+  'KS-Client-alpha-1.1.23-Portable.zip',
+  'KS-Client-alpha-1.1.23-Setup.exe',
   'SHA256SUMS.txt','RELEASE-MANIFEST.json',
   'CI-TEST-RESULT.txt','SIGNING-STATUS.txt'
 )
@@ -22,11 +22,11 @@ foreach($path in $paths){if(-not (Test-Path $path -PathType Leaf)){throw "Cannot
 & gh release view $tag --repo $repo *> $null
 if($LASTEXITCODE -eq 0){
     # Preserve previously validated release binaries.
-    & gh release edit $tag --repo $repo --notes-file 'RELEASE_122_HU.md'
+    & gh release edit $tag --repo $repo --notes-file 'RELEASE_123_HU.md'
     if($LASTEXITCODE -ne 0){throw "Could not refresh $tag release notes"}
     Write-Host "Private release already exists; verified assets preserved."
 } else {
-    & gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client alpha 1.1.22' --prerelease --notes-file 'RELEASE_122_HU.md'
+    & gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client alpha 1.1.23' --prerelease --notes-file 'RELEASE_123_HU.md'
     if($LASTEXITCODE -ne 0){throw "GitHub private release $tag publishing failed"}
 }
 Write-Host "Verified source release: https://github.com/$repo/releases/tag/$tag"
@@ -52,7 +52,7 @@ try{
         Write-Host "Public release $tag already exists; never overwrite verified downloadable assets."
     } else {
         # Public repo has its own main branch/commit, not the private source SHA.
-        & gh release create $tag @paths --repo $publicRepo --target main --title 'KS Client alpha 1.1.22 (Windows binaries)' --prerelease --notes-file 'RELEASE_122_HU.md'
+        & gh release create $tag @paths --repo $publicRepo --target main --title 'KS Client alpha 1.1.23 (Windows binaries)' --prerelease --notes-file 'RELEASE_123_HU.md'
         if($LASTEXITCODE -ne 0){throw "Could not publish verified update assets to $publicRepo"}
         Write-Host "Public auto-update feed: https://github.com/$publicRepo/releases/tag/$tag"
     }
