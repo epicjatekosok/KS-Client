@@ -588,6 +588,7 @@
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
   let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'1.1.21',channel:'alpha'};
+  let updateRequestId=0;
   function updateStateText(){
     if(updateStatus.state==='available')return 'New release available: '+String(updateStatus.version||'');
     if(updateStatus.state==='current')return 'You are up to date.';
@@ -1211,10 +1212,11 @@
             (updateStatus.notes?'<p style="white-space:pre-wrap;max-height:135px;overflow:auto">'+esc(String(updateStatus.notes||''))+'</p>':'')+
             '</div>':'')+
           '<div class="ks-stack" style="flex-wrap:wrap;margin-top:12px">'+
-          '<button class="ks-btn primary" data-action="update-check">Check for updates</button>'+
+          '<button class="ks-btn primary" data-action="update-check" '+(updateStatus.state==='checking'?'disabled':'')+'>Check for updates</button>'+
           (updateStatus.state==='available'?'<button class="ks-btn" data-action="update-install">Install update &amp; restart</button>':'')+
+          '<button class="ks-btn" data-action="update-open-release">Open GitHub Releases (manual)</button>'+
           '</div></div>'+
-          '<p class="ks-hint">Update files must be published as public GitHub Releases in epicjatekosok/KS-Client-Updates. The existing source code can stay private; until the public release feed is configured automatic downloads are unavailable.</p>';
+          '<p class="ks-hint">Automatic downloads require verified releases in the public binary-only epicjatekosok/KS-Client-Updates repository. Until that repository and publisher-side access are configured, use Open GitHub Releases to download manually while signed in. The client must never contain a private GitHub token.</p>';
       case 'General':
         return title('Client Overview', 'KS Client alpha 1.1.21 starts in Electron by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
@@ -2411,10 +2413,20 @@
     if (a === 'check-gpu') checkGPU();
     if (a === 'browser-check-gpu') checkBrowserGPU();
     if (a === 'update-check') {
+      const requestId=++updateRequestId;
       updateStatus={state:'checking',message:'Checking GitHub Releases…'};
       renderTab();
-      notify('update-check',{channel:state.updateChannel,automatic:false,autoDownload:false});
+      if(!notify('update-check',{channel:state.updateChannel,automatic:false,autoDownload:false})){
+        updateStatus={state:'error',message:'Native updater unavailable. Open GitHub Releases manually.'};
+        renderTab();
+      } else setTimeout(()=>{
+        if(requestId===updateRequestId && updateStatus.state==='checking'){
+          updateStatus={state:'error',message:'Update check timed out. Try again or open GitHub Releases manually.'};
+          if(selectedTab==='Updates')renderTab();
+        }
+      },22000);
     }
+    if (a === 'update-open-release') notify('update-open-release');
     if (a === 'update-install' && updateStatus.state==='available') {
       notify('update-install',{channel:state.updateChannel});
     }
@@ -2535,6 +2547,7 @@
   window.__KS_CLIENT__ = {
     setUpdateStatus: status => {
       if(!status || typeof status!=='object')return;
+      updateRequestId++;
       const allowed=['idle','checking','available','current','unavailable','error','downloading'];
       updateStatus={
         state:allowed.includes(status.state)?status.state:'error',
