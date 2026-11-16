@@ -833,7 +833,8 @@
     #ks-panel #ks-cancel {min-width:150px;min-height:48px;font-size:14px;}
     #ks-panel #ks-apply {min-width:177px;min-height:48px;font-size:14px;}
     #ks-discord-quick {
-      position:absolute;right:16px;bottom:18px;z-index:2;
+      /* Sit next to the existing KS gear, not over Kirka's bottom-right lobby buttons. */
+      position:absolute;left:66px;top:16px;right:auto;bottom:auto;z-index:2;
       display:none;align-items:center;justify-content:center;
       min-height:35px;padding:8px 13px;border:1px solid rgba(255,157,24,.6);
       border-radius:10px;color:#fff;background:rgba(14,13,13,.92);
