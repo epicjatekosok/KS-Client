@@ -156,7 +156,7 @@
   // after the page's own canvas/document handlers. No timer/synthetic event.
   window.addEventListener('click',event=>{
     if(event.button!==0 || !event.isTrusted || !match() || !inGame() ||
-       nativeCursor() || !state.gameAutoMouseCapture)return;
+       nativeCursor() || state.gameAutoMouseCapture===false)return;
     const canvas=event.target;
     if(!(canvas instanceof HTMLCanvasElement) || canvas.clientWidth<160 ||
        canvas.clientHeight<100 || typeof canvas.requestPointerLock!=='function')return;
