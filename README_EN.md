@@ -1,3 +1,13 @@
+# KS Client alpha 1.1.22 — Reference-inspired orange gamer Settings
+
+The old settings interface has been rebuilt as a full, visually consistent black-and-orange dashboard inspired by the supplied mockup. It features a KS logo and large Settings heading, seven logical navigation sections with SVG icons, glowing orange active arrows, visual Low/Medium/High performance cards, cohesive option panels, styled switches/selects, and functional Reset/Cancel/Apply actions. Every existing setting remains under a relevant category. The old Workshop data still saves separately.
+
+Discord now opens the fixed KS community invite https://discord.gg/cxP386yGjk through the Windows default HTTPS browser (including when no browser is open). Native Electron navigation/popup and CEF navigation/popup fallbacks complement the integrated Discord buttons. A status message reports native opening success or failure.
+
+CEF stability: navigations and SPA transitions can destroy CefSharp frames; asynchronous WinForms callbacks no longer retain IFrame references. Frame-loading handlers use IsValid guards and disposal-safe catches. The release keeps both engines, the launcher, auto-update logic, all other gameplay and browser features.
+
+---
+
 # KS Client alpha 1.1.21 — Stability, Diagnostics and Updates
 
 Version 1.1.21 repairs Settings becoming unopenable in both Electron and CEF when an incomplete native diagnostics sample arrived. All missing fields now display a dash; the Settings dialog remains usable even if a panel fails to render. Advanced Diagnostics reads actual CPU, memory and process data from Electron/Chromium and the CEF host and its directly owned subprocesses; the first CPU reading can be zero.

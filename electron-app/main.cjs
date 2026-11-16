@@ -1,5 +1,5 @@
 'use strict';
-// KS Client alpha 1.1.21: real Electron host. No WebView2 dependency.
+// KS Client alpha 1.1.22: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'alpha 1.1.21';
+const APP_VERSION = 'alpha 1.1.22';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.1.21.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.1.22.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -69,7 +69,7 @@ function updaterPath(){
 function emitUpdateStatus(payload){
   if(payload && typeof payload==='object' && !Array.isArray(payload))
     jsCall('setUpdateStatus',{state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.1.21').slice(0,40),
+      current:String(payload.current||'1.1.22').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||'alpha').slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -238,8 +238,36 @@ function createWindow(){
       webSecurity:true,devTools:true,backgroundThrottling:false,defaultFontFamily:{standard:'Segoe UI'}}});
   win.setMenu(null);
   // Safety: game content has no Node.js access. No arbitrary file:// or custom URLs.
-  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
-  win.webContents.on('will-navigate',(event,target)=>{if(!validURL(target)){event.preventDefault();log('Blocked navigation outside client allowlist')}});
+  // Kirka may open its Discord link through window.open or a target=_blank
+  // anchor. Keep the game window in place and launch the fixed KS invite via
+  // Windows' system-default HTTPS browser, even if that browser was closed.
+  function isGameDiscordTarget(raw) {
+    try {
+      const u=new URL(raw);
+      return u.protocol==='https:' &&
+        (u.hostname==='discord.gg'||u.hostname==='discord.com'||
+         u.hostname==='www.discord.com'||u.hostname==='discordapp.com');
+    }catch(_){return false;}
+  }
+  function openKSDiscord(){
+    void shell.openExternal('https://discord.gg/cxP386yGjk')
+      .then(()=>jsCall('setCommunityStatus','KS Discord invite handed to the Windows default browser.'))
+      .catch(error=>{
+        log('KS Discord external browser: '+error.message);
+        jsCall('setCommunityStatus','Cannot open default browser: '+error.message);
+      });
+  }
+  win.webContents.setWindowOpenHandler(({url})=>{
+    if(validURL(win.webContents.getURL(),true)&&isGameDiscordTarget(url))openKSDiscord();
+    return {action:'deny'};
+  });
+  win.webContents.on('will-navigate',(event,target)=>{
+    if(!validURL(target)){
+      event.preventDefault();
+      if(validURL(win.webContents.getURL(),true)&&isGameDiscordTarget(target))openKSDiscord();
+      else log('Blocked navigation outside client allowlist');
+    }
+  });
   win.webContents.on('context-menu',(event)=>{if(!desired.contextMenu)event.preventDefault()});
   win.webContents.on('dom-ready',async()=>{
     if(switchProbe)return;
@@ -341,14 +369,14 @@ function receiveMessage(event, raw){
   if(!validURL(source) || !raw || typeof raw!=='object' || Array.isArray(raw))return;
   let data=''; try{data=JSON.stringify(raw)}catch(_){return}
   if(data.length>8192 || typeof raw.type!=='string')return;
-  const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll','update-check','update-install','update-open-release']);
+  const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll','update-check','update-install','update-open-release','discord-community']);
   if(!validURL(source,true)&&!basic.has(raw.type))return;
   switch(raw.type){
     case 'stats':navigate(STATS);break;
     case 'clan':navigate(CLANS);break;
     case 'game':navigate(GAME);break;
     case 'update-open-release':void shell.openExternal('https://github.com/epicjatekosok/KS-Client/releases').catch(e=>log('Release page: '+e.message));break;
-    case 'discord-community':void shell.openExternal('https://discord.gg/cxP386yGjk').catch(e=>log('Discord link: '+e.message));break;
+    case 'discord-community':openKSDiscord();break;
     case 'fullscreen':win.setFullScreen(!win.isFullScreen());break;
     case 'game-resolution':setGameResolution(String(raw.preset||'native'));break;
     case 'menu-resolution':setWindowSize(String(raw.preset||'native'));break;

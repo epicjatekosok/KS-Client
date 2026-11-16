@@ -1,6 +1,6 @@
 //go:build windows
 
-// KS Client alpha 1.1.21 English per-user uninstaller.
+// KS Client alpha 1.1.22 English per-user uninstaller.
 // English button captions are drawn by our own Win32 dialog, independent of OS language.
 package main
 
@@ -62,7 +62,7 @@ func removeShortcuts() {
 		folders = append(folders, filepath.Join(home, "Desktop"))
 	}
 	for _, dir := range folders {
-		for _, name := range []string{"KS Client.lnk", "KS Client alpha 1.1.0.lnk", "KS Client alpha 1.1.1.lnk", "KS Client alpha 1.1.2.lnk", "KS Client alpha 1.1.3.lnk", "KS Client alpha 1.1.4.lnk", "KS Client alpha 1.1.12.lnk", "KS Client alpha 1.1.13.lnk", "KS Client alpha 1.1.14.lnk", "KS Client alpha 1.1.15.lnk", "KS Client alpha 1.1.16.lnk", "KS Client alpha 1.1.17.lnk", "KS Client alpha 1.1.18.lnk", "KS Client alpha 1.1.19.lnk", "KS Client alpha 1.1.20.lnk", "KS Client alpha 1.1.21.lnk"} {
+		for _, name := range []string{"KS Client.lnk", "KS Client alpha 1.1.0.lnk", "KS Client alpha 1.1.1.lnk", "KS Client alpha 1.1.2.lnk", "KS Client alpha 1.1.3.lnk", "KS Client alpha 1.1.4.lnk", "KS Client alpha 1.1.12.lnk", "KS Client alpha 1.1.13.lnk", "KS Client alpha 1.1.14.lnk", "KS Client alpha 1.1.15.lnk", "KS Client alpha 1.1.16.lnk", "KS Client alpha 1.1.17.lnk", "KS Client alpha 1.1.18.lnk", "KS Client alpha 1.1.19.lnk", "KS Client alpha 1.1.20.lnk", "KS Client alpha 1.1.21.lnk", "KS Client alpha 1.1.22.lnk"} {
 			_ = os.Remove(filepath.Join(dir, name))
 		}
 	}
@@ -141,9 +141,9 @@ func cleanup(folder string, deleteData bool) error {
 	}
 	for _, name := range []string{
 		"browser-settings.json", "selected-engine.txt",
-		"electron-1.1.0.log", "electron-1.1.1.log", "electron-1.1.2.log", "electron-1.1.3.log", "electron-1.1.4.log", "electron-1.1.12.log", "electron-1.1.13.log", "electron-1.1.14.log", "electron-1.1.15.log", "electron-1.1.16.log", "electron-1.1.17.log", "electron-1.1.18.log", "electron-1.1.19.log", "electron-1.1.20.log", "electron-1.1.21.log",
-		"cef-1.1.0.log", "cef-1.1.1.log", "cef-1.1.2.log", "cef-1.1.3.log", "cef-1.1.4.log", "cef-1.1.12.log", "cef-1.1.13.log", "cef-1.1.14.log", "cef-1.1.15.log", "cef-1.1.16.log", "cef-1.1.17.log", "cef-1.1.18.log", "cef-1.1.19.log", "cef-1.1.20.log", "cef-1.1.21.log",
-		"engine-install-1.1.3.log", "engine-install-1.1.4.log", "engine-install-1.1.17.log", "engine-install-1.1.18.log", "engine-install-1.1.19.log", "engine-install-1.1.20.log", "engine-install-1.1.21.log", "setup-1.1.3.log", "setup-1.1.4.log", "setup-1.1.12.log", "setup-1.1.13.log", "setup-1.1.14.log", "setup-1.1.15.log", "setup-1.1.16.log", "setup-1.1.17.log", "setup-1.1.18.log", "setup-1.1.19.log", "setup-1.1.20.log", "setup-1.1.21.log",
+		"electron-1.1.0.log", "electron-1.1.1.log", "electron-1.1.2.log", "electron-1.1.3.log", "electron-1.1.4.log", "electron-1.1.12.log", "electron-1.1.13.log", "electron-1.1.14.log", "electron-1.1.15.log", "electron-1.1.16.log", "electron-1.1.17.log", "electron-1.1.18.log", "electron-1.1.19.log", "electron-1.1.20.log", "electron-1.1.21.log", "electron-1.1.22.log",
+		"cef-1.1.0.log", "cef-1.1.1.log", "cef-1.1.2.log", "cef-1.1.3.log", "cef-1.1.4.log", "cef-1.1.12.log", "cef-1.1.13.log", "cef-1.1.14.log", "cef-1.1.15.log", "cef-1.1.16.log", "cef-1.1.17.log", "cef-1.1.18.log", "cef-1.1.19.log", "cef-1.1.20.log", "cef-1.1.21.log", "cef-1.1.22.log",
+		"engine-install-1.1.3.log", "engine-install-1.1.4.log", "engine-install-1.1.17.log", "engine-install-1.1.18.log", "engine-install-1.1.19.log", "engine-install-1.1.20.log", "engine-install-1.1.21.log", "engine-install-1.1.22.log", "setup-1.1.3.log", "setup-1.1.4.log", "setup-1.1.12.log", "setup-1.1.13.log", "setup-1.1.14.log", "setup-1.1.15.log", "setup-1.1.16.log", "setup-1.1.17.log", "setup-1.1.18.log", "setup-1.1.19.log", "setup-1.1.20.log", "setup-1.1.21.log", "setup-1.1.22.log",
 	} {
 		if err := os.Remove(filepath.Join(data, name)); err != nil && !os.IsNotExist(err) {
 			return err
@@ -161,7 +161,7 @@ func main() {
 			os.Exit(1)
 		}
 		deleteData := os.Args[3] == "--delete-data"
-		w := ksui.New("KS Client • Uninstall 1.1.21", "Removing KS Client", "Application files and browser runtimes · protected cleanup")
+		w := ksui.New("KS Client • Uninstall 1.1.22", "Removing KS Client", "Application files and browser runtimes · protected cleanup")
 		w.SetButtons(ksui.Button{Label: "Close", ID: "close", Enabled: false})
 		w.OnButton = func(id string) {
 			if id == "close" {
@@ -193,7 +193,7 @@ func main() {
 		message("KS Client Uninstaller - Error", "Run this uninstaller from the KS Client installation directory.", 0x10)
 		os.Exit(1)
 	}
-	if askEnglish("KS Client Uninstaller - alpha 1.1.21",
+	if askEnglish("KS Client Uninstaller - alpha 1.1.22",
 		"Remove KS Client from this Windows account?\n\n"+
 			"Application files, Electron and CEF runtime files, and shortcuts will be removed.\n"+
 			"You can choose whether to keep your saved settings and browser profiles.\n\n"+
