@@ -1,3 +1,11 @@
+# KS Client alpha 1.1.17
+
+- CEF: enable native Chromium window activation and default to the Chrome runtime style (diagnostic Alloy switch retained).
+- Remove multiple manual Windows cursor/focus modifications that hide an arrow without real pointer lock.
+- Prefer Kirka's own game click handler; avoid duplicate KS pointerlock during pointerdown. Add a guarded, optional late CEF click fallback and passive native-request diagnostics.
+- Isolate Eye Comfort canvas filters from the CEF #game surface while leaving Electron and settings preview unchanged.
+- New regression checks for game-first input, fallback, native release and Eye Comfort; CEF live match behavior still requires user verification.
+
 # KS Client alpha 1.1.16
 
 - New single Kirka Game Runtime 2.0 for visible scenes, HUD, achievements, feed, compatibility fingerprints and disconnectable observers, shared across CEF and Electron.

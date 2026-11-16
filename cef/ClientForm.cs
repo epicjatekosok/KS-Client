@@ -18,11 +18,11 @@ internal sealed class ClientForm : Form
     private readonly ChromiumWebBrowser browser;
     private KSLoadingPanel? loadingPanel;
     private int pointerLockedFlag;
-    private bool cursorHiddenByKS;
     private System.Windows.Forms.Timer? loadingTimeout;
     private readonly string overlay;
     private readonly string pacer;
     private readonly string extras;
+    private readonly string cefInputProbe;
     private readonly string workshop;
     private readonly string integrationBoot;
     private readonly string integrationCore;
@@ -48,7 +48,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client alpha 1.1.16 – CEF";
+        Text="KS Client alpha 1.1.17 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -57,6 +57,7 @@ internal sealed class ClientForm : Form
         overlay=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","overlay.js"));
         pacer=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","frame_pacer.js"));
         extras=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","game_extras.js"));
+        cefInputProbe=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","cef_input_probe.js"));
         workshop=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","workshop.js"));
         integrationBoot=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_bootstrap.js"));
         integrationCore=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_core.js"));
@@ -66,16 +67,20 @@ internal sealed class ClientForm : Form
         advanced=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","advanced_integration.js"));
         freezeGuard=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","freeze_guard.js"));
         // One sequential script evaluation eliminates cross-task injection races.
-        earlyGameJS=string.Join("\n;\n",pacer,integrationBoot,drawTelemetry,graphics,freezeGuard,gameRuntime);
+        earlyGameJS=string.Join("\n;\n",cefInputProbe,pacer,integrationBoot,drawTelemetry,graphics,freezeGuard,gameRuntime);
         // A real CEF renderer->host PostMessage test. This is an offline page,
         // never an injected live Kirka script or external test dependency.
         var bridgeHtml="<html><body><script>setTimeout(function(){if(window.CefSharp && window.CefSharp.PostMessage){window.CefSharp.PostMessage(JSON.stringify({type:'ks-bridge-probe'}));}},350);</script>KS bridge probe</body></html>";
         var initial=bridgeProbe ? "data:text/html;charset=utf-8;base64,"+Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(bridgeHtml))
             : switchProbe ? "about:blank" : Game;
-        browser=new ChromiumWebBrowser(initial) {Dock=DockStyle.Fill};
+        // CefSharp defaults to WS_EX_NOACTIVATE, unlike Electron's normal BrowserWindow.
+        // Activation must be enabled BEFORE the native child window is created.
+        browser=new ChromiumWebBrowser(initial) {Dock=DockStyle.Fill,ActivateBrowserOnCreation=true};
         browser.MenuHandler = new ClientMenuHandler(() => desired.ContextMenu);
         browser.PermissionHandler = new ClientGamePermissionHandler();
-        browser.DisplayHandler = new KSGameCursorHandler(() => Volatile.Read(ref pointerLockedFlag) == 1);
+        // Do not intercept OnCursorChange: Chromium must own the real cursor,
+        // capture/release and relative mouse deltas. The earlier native handler
+        // could hide an arrow without providing an actual pointer lock.
         browser.RenderProcessMessageHandler = new KSEarlyIntegrationHandler(earlyGameJS);
         if (!switchProbe && !bridgeProbe)
             browser.RequestHandler = new ClientRequestHandler(() => {
@@ -99,7 +104,8 @@ internal sealed class ClientForm : Form
         Activated += (_, _) => { if(!bridgeProbe) FocusGameBrowser(); };
         Deactivate += (_, _) => SetPointerLockState(false);
         FormClosed += (_, _) => { SetPointerLockState(false);CloseLoadingPanel(); };
-        browser.MouseDown += (_, _) => { if(!bridgeProbe) FocusGameBrowser(); };
+        // No forced focus in MouseDown: it can interrupt the trusted click that
+        // Kirka itself uses to request pointer lock.
         browser.FrameLoadStart += (_,e)=>{
             if(e.Frame.IsMain && Trust(e.Url,gameOnly:true))
             {
@@ -109,6 +115,7 @@ internal sealed class ClientForm : Form
         };
         browser.FrameLoadEnd += (_,e)=>{
             if(!e.Frame.IsMain || !Trust(e.Url))return;
+            e.Frame.ExecuteJavaScriptAsync(cefInputProbe);
             e.Frame.ExecuteJavaScriptAsync(pacer);
             e.Frame.ExecuteJavaScriptAsync(drawTelemetry);
             e.Frame.ExecuteJavaScriptAsync(gameRuntime);
@@ -194,32 +201,19 @@ internal sealed class ClientForm : Form
         if(!Trust(browser.Address,gameOnly:true) || !browser.IsBrowserInitialized || !IsHandleCreated || !Visible) return;
         try {
             browser.Focus();
-            var host=browser.GetBrowser().GetHost();
-            // The game receives relative movement only when Chromium's native
-            // child HWND has real Windows keyboard/mouse focus.
-            var nativeHwnd=host.GetWindowHandle();
-            if(nativeHwnd!=IntPtr.Zero) NativeCursor.SetFocus(nativeHwnd);
-            host.SetFocus(true);
+            // Let CefSharp apply the Windows child-window activation rules.
+            // Never call Win32 SetFocus across CEF/UI threads or force cursor state.
+            browser.GetBrowser().GetHost().SetFocus(true);
         } catch(Exception ex) { Program.Log("CEF game native focus: "+ex.Message); }
     }
 
     private void SetPointerLockState(bool locked)
     {
         if(locked && (!Trust(browser.Address,gameOnly:true) || Form.ActiveForm != this)) return;
-        bool wasLocked=Interlocked.Exchange(ref pointerLockedFlag,locked?1:0)==1;
-        if(wasLocked==locked) return;
-        try {
-            if(locked) {
-                FocusGameBrowser();
-                Cursor.Hide();
-                cursorHiddenByKS=true;
-                // CEF may have already submitted a cursor style update.
-                NativeCursor.SetCursor(IntPtr.Zero);
-            } else if(cursorHiddenByKS) {
-                Cursor.Show();
-                cursorHiddenByKS=false;
-            }
-        } catch(Exception ex) { Program.Log("CEF pointer lock display: "+ex.Message); }
+        // Diagnostic mirror ONLY. Actual lock and cursor lifecycle belongs
+        // to Chromium and the real JS document.pointerLockElement.
+        bool previous=Interlocked.Exchange(ref pointerLockedFlag,locked?1:0)==1;
+        if(previous!=locked)Program.Log("CEF JS pointer lock state: "+(locked?"locked":"released"));
     }
 
     private void CloseLoadingPanel()
@@ -400,7 +394,7 @@ internal sealed class ClientForm : Form
                 desired.Save();ReportPrefs("Default preferences saved.");break;
             case "browser-restart":Restart();break;
             case "game-input-diagnostics":
-                if(m.Message is "locked" or "released" or "pointerlockerror" or "gesture" or "motion-ok" or "motion-missing") {
+                if(m.Message is "locked" or "released" or "pointerlockerror" or "gesture" or "motion-ok" or "motion-missing" or "fallback" or "request-failed") {
                     Program.Log("Kirka pointer lock: "+m.Message);
                     if(m.Message=="locked")SetPointerLockState(true);
                     else if(m.Message is "released" or "pointerlockerror")SetPointerLockState(false);
@@ -543,7 +537,7 @@ internal sealed class ClientGamePermissionHandler : CefSharp.Handler.PermissionH
         // Some CEF builds handle raw pointer lock without a permission prompt.
         Program.Log("CEF permission prompt type: "+requestedPermissions);
         if (ClientForm.Trust(requestingOrigin, gameOnly:true) &&
-            string.Equals(requestedPermissions.ToString(), "PointerLock", StringComparison.OrdinalIgnoreCase))
+            requestedPermissions == PermissionRequestType.PointerLock)
         {
             using(callback) callback.Continue(PermissionRequestResult.Accept);
             Program.Log("CEF trusted Kirka.io pointer lock permission granted");
