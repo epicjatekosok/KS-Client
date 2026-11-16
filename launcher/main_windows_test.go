@@ -24,6 +24,15 @@ func TestEnginePaths(t *testing.T){
  c,dir:=runtimeFile(base,"cef")
  if filepath.Base(c)!="KS.Cef.Client.exe"||filepath.Base(dir)!="CEF"{t.Fatal("invalid CEF path")}
 }
+func TestInitialEngineDefaultsToElectron(t *testing.T) {
+ t.Setenv("LOCALAPPDATA",t.TempDir())
+ if chosenEngine()!="electron"{t.Fatal("fresh install should use Electron")}
+ if err:=os.MkdirAll(dataDir(),0700);err!=nil{t.Fatal(err)}
+ if err:=os.WriteFile(prefsFile(),[]byte("unknown\n"),0600);err!=nil{t.Fatal(err)}
+ if chosenEngine()!="electron"{t.Fatal("invalid preference must fall back to Electron")}
+ if err:=saveEngine("cef");err!=nil{t.Fatal(err)}
+ if chosenEngine()!="cef"{t.Fatal("explicitly saved CEF choice must remain")}
+}
 func TestReadyDoesNotChangeSelectionUntilConfirmed(t *testing.T){
  // Isolate the application preference directory and verify that failure
  // cannot overwrite the previously selected engine.
