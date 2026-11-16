@@ -181,6 +181,8 @@ jobs:
         env:
           KS_SIGNING_PFX_BASE64: ${{ secrets.KS_SIGNING_PFX_BASE64 }}
         run: ./ci/Verify-Signing.ps1
+      # Signed-status and checksum outputs (SIGNING-STATUS.txt, SHA256SUMS.txt,
+      # RELEASE-MANIFEST.json) are generated locally and sent by Publish-Release.ps1.
       - name: Generate independently verifiable release SHA256 and source manifest
         run: python ci/make_release_manifest.py
       # No upload-artifact/download-artifact: GitHub Actions artifact storage is
