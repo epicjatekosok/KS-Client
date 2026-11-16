@@ -1,3 +1,13 @@
+# KS Client alpha 1.1.19
+
+- New Client > Updates tab with manual update checking and optional automatic checking/background downloading.
+- Unified Windows launcher update helper for Electron and CEF; verifies pinned GitHub release URLs, size and SHA-256 before installing.
+- User-approved install from the existing offline Setup.exe; portable folders upgrade in place with preserved user profiles.
+- Optional public binary-only GitHub release channel, with private source repository retained.
+- Existing 1.1.18 functionality, FPS defaults, settings button, and Kirka HUD fixes preserved.
+
+---
+
 # KS Client alpha 1.1.18
 
 - Keep the icon-only top-left Settings gear visible through matches and SPA transitions.
