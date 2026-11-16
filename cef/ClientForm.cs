@@ -17,6 +17,8 @@ internal sealed class ClientForm : Form
        {"kirka.io","www.kirka.io","kirka-stats.lovable.app","kirka-clan-tracker-notpro9.lovable.app"};
     private readonly ChromiumWebBrowser browser;
     private KSLoadingPanel? loadingPanel;
+    private int pointerLockedFlag;
+    private bool cursorHiddenByKS;
     private System.Windows.Forms.Timer? loadingTimeout;
     private readonly string overlay;
     private readonly string pacer;
@@ -69,6 +71,7 @@ internal sealed class ClientForm : Form
         browser=new ChromiumWebBrowser(initial) {Dock=DockStyle.Fill};
         browser.MenuHandler = new ClientMenuHandler(() => desired.ContextMenu);
         browser.PermissionHandler = new ClientGamePermissionHandler();
+        browser.DisplayHandler = new KSGameCursorHandler(() => Volatile.Read(ref pointerLockedFlag) == 1);
         browser.RenderProcessMessageHandler = new KSEarlyIntegrationHandler(earlyGameJS);
         if (!switchProbe && !bridgeProbe)
             browser.RequestHandler = new ClientRequestHandler(() => {
@@ -89,14 +92,10 @@ internal sealed class ClientForm : Form
         }
         // Keep native keyboard/mouse focus on the embedded Chromium control.
         // Pointer lock still requires the game's real user gesture and CEF approval.
-        Activated += (_, _) => {
-            if(!bridgeProbe && Trust(browser.Address,gameOnly:true)) {
-                browser.Focus();
-                try { if(browser.IsBrowserInitialized) browser.GetBrowser().GetHost().SetFocus(true); }
-                catch(Exception ex){Program.Log("CEF game focus: "+ex.Message);}
-            }
-        };
-        browser.MouseDown += (_, _) => { if(!bridgeProbe && Trust(browser.Address,gameOnly:true)) browser.Focus(); };
+        Activated += (_, _) => { if(!bridgeProbe) FocusGameBrowser(); };
+        Deactivate += (_, _) => SetPointerLockState(false);
+        FormClosed += (_, _) => { SetPointerLockState(false);CloseLoadingPanel(); };
+        browser.MouseDown += (_, _) => { if(!bridgeProbe) FocusGameBrowser(); };
         browser.FrameLoadStart += (_,e)=>{
             if(e.Frame.IsMain && Trust(e.Url,gameOnly:true))
             {
@@ -184,6 +183,39 @@ internal sealed class ClientForm : Form
         Program.Log("CEF native window created; gameplay loading is independent");
     }
 
+    private void FocusGameBrowser()
+    {
+        if(!Trust(browser.Address,gameOnly:true) || !browser.IsBrowserInitialized || !ContainsFocus && !Focused) return;
+        try {
+            browser.Focus();
+            var host=browser.GetBrowser().GetHost();
+            // The game receives relative movement only when Chromium's native
+            // child HWND has real Windows keyboard/mouse focus.
+            var nativeHwnd=host.GetWindowHandle();
+            if(nativeHwnd!=IntPtr.Zero) NativeCursor.SetFocus(nativeHwnd);
+            host.SetFocus(true);
+        } catch(Exception ex) { Program.Log("CEF game native focus: "+ex.Message); }
+    }
+
+    private void SetPointerLockState(bool locked)
+    {
+        if(locked && (!Trust(browser.Address,gameOnly:true) || !ContainsFocus)) return;
+        bool wasLocked=Interlocked.Exchange(ref pointerLockedFlag,locked?1:0)==1;
+        if(wasLocked==locked) return;
+        try {
+            if(locked) {
+                FocusGameBrowser();
+                Cursor.Hide();
+                cursorHiddenByKS=true;
+                // CEF may have already submitted a cursor style update.
+                NativeCursor.SetCursor(IntPtr.Zero);
+            } else if(cursorHiddenByKS) {
+                Cursor.Show();
+                cursorHiddenByKS=false;
+            }
+        } catch(Exception ex) { Program.Log("CEF pointer lock display: "+ex.Message); }
+    }
+
     private void CloseLoadingPanel()
     {
         loadingTimeout?.Stop();
@@ -194,6 +226,7 @@ internal sealed class ClientForm : Form
         if(panel!=null){
             Controls.Remove(panel);
             panel.Dispose();
+            if(Trust(browser.Address,gameOnly:true))FocusGameBrowser();
         }
     }
 
@@ -361,7 +394,12 @@ internal sealed class ClientForm : Form
                 desired.Save();ReportPrefs("Default preferences saved.");break;
             case "browser-restart":Restart();break;
             case "game-input-diagnostics":
-                if(m.Message is "locked" or "released" or "pointerlockerror")Program.Log("Kirka pointer lock: "+m.Message);
+                if(m.Message is "locked" or "released" or "pointerlockerror" or "gesture" or "motion-ok" or "motion-missing") {
+                    Program.Log("Kirka pointer lock: "+m.Message);
+                    if(m.Message=="locked")SetPointerLockState(true);
+                    else if(m.Message is "released" or "pointerlockerror")SetPointerLockState(false);
+                    else if(m.Message=="gesture")FocusGameBrowser();
+                }
                 break;
             case "crash-status":Reply("setCrashStatus","CEF log: "+Program.LogPath);break;
             case "game-join":
