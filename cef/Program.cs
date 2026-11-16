@@ -57,6 +57,12 @@ internal static class Program
         bool bridgeProbe = args.Contains("--ks-bridge-probe");
         bool selfTest = args.Contains("--ks-self-test");
         bool safe = args.Contains("--ks-browser-safe-mode");
+        // Chrome-style CEF uses Chromium's normal browser UI/input stack.
+        // --ks-cef-alloy is a diagnostic fallback for older CEF behavior.
+        bool alloyFallback = args.Contains("--ks-cef-alloy");
+        CefSharpSettings.RuntimeStyle = alloyFallback ? CefRuntimeStyle.Alloy : CefRuntimeStyle.Chrome;
+        Log("CEF runtime style: "+(alloyFallback?"Alloy fallback":"Chrome")+
+            "; native Chromium pointer lock and cursor handling enabled");
         Active = (safe || selfTest) ? BrowserPrefs.Default() : BrowserPrefs.Load();
         if (safe && !selfTest) Active.Save();
         ApplicationConfiguration.Initialize();
