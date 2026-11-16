@@ -27,6 +27,8 @@
     modules.set(name,{detect,start,dispose:null,active:false});
   }
   function scene(){
+    const shared=window.__KS_GAME_RUNTIME__?.getStatus?.()?.scene;
+    if(shared && shared!=='unknown')return shared;
     if(isMatch() || document.querySelector('.desktop-game-interface,.game-interface canvas#game'))return 'match';
     if(document.querySelector('.create-modal,.create-room,.create-game'))return 'room-creation';
     if(document.querySelector('.friends .list'))return 'friends';
@@ -190,7 +192,7 @@
     return ()=>{document.removeEventListener('pointerlockchange',changed);document.removeEventListener('pointerlockerror',failed)};
   });
 
-  let observer=null, timer=null, queued=false;
+  let observer=null, timer=null, queued=false, unsubscribeRuntime=null;
   function schedule(){if(queued)return;queued=true;setTimeout(()=>{queued=false;if(document.body)refresh()},120)}
   function start(){
     if(status.started||!document.body)return;
@@ -201,11 +203,12 @@
     observer.observe(document.body,{subtree:false,childList:true});
     window.addEventListener('popstate',schedule);
     window.addEventListener('hashchange',schedule);
+    unsubscribeRuntime=window.__KS_GAME_RUNTIME__?.on?.('scene',schedule)||null;
     timer=setInterval(refresh,1200);
     refresh();
   }
   function stop(){
-    observer?.disconnect();clearInterval(timer);
+    observer?.disconnect();clearInterval(timer);unsubscribeRuntime?.();unsubscribeRuntime=null;
     window.removeEventListener('popstate',schedule);
     window.removeEventListener('hashchange',schedule);
     for(const [name,m] of modules)detach(name,m);
@@ -213,7 +216,9 @@
   }
   window.__KS_INTEGRATION__=Object.freeze({
     getStatus:()=>({scene:status.scene,active:[...status.healthy],errors:{...status.errors},
-      checks:status.checks,started:status.started,render:window.__KS_RENDER_OBSERVER__?.getStatus?.()||null}),
+      checks:status.checks,started:status.started,render:window.__KS_RENDER_OBSERVER__?.getStatus?.()||null,
+      gameRuntime:window.__KS_GAME_RUNTIME__?.getStatus?.()||null,
+      drawTelemetry:window.__KS_RENDER_TELEMETRY__?.getStatus?.()||null}),
     on, refresh, stop, safeRoom
   });
   if(document.body)start();else document.addEventListener('DOMContentLoaded',start,{once:true});
