@@ -76,7 +76,7 @@ assert "ks:early-bundle" in electron_host
 preload=(root/'electron-app/preload.cjs').read_text()
 assert "ks:early-bundle" in preload
 assert "executeJavaScriptInIsolatedWorld(0" in preload
-assert "earlyGameJS=[frameJS,integrationBootJS,graphicsJS,freezeJS]" in electron_host
+assert "earlyGameJS=[frameJS,integrationBootJS,drawTelemetryJS,graphicsJS,freezeJS,gameRuntimeJS]" in electron_host
 cef_early=(root/'cef/EarlyIntegrationHandler.cs').read_text()
 assert "new KSEarlyIntegrationHandler(earlyGameJS)" in cef_host
 assert "frame.ExecuteJavaScriptAsync(earlyGameJS)" in cef_early
@@ -90,7 +90,7 @@ assert 'tests/test_game_integration_112.py' in (root/'.github/workflows/windows-
 workflow=(root/'.github/workflows/windows-build.yml').read_text()
 assert 'needs: [source-check, electron, cef]' in workflow
 assert 'tests/test_ci_release_gates.py' in workflow
-print('PASS: alpha 1.1.12 source, runtimes and gated offline package')
+print('PASS: alpha 1.1.16 source, runtimes and gated offline package')
 
 # KS 1.1.16 single game-state runtime and passive GPU event observer.
 assert "window.__KS_GAME_RUNTIME__" in (root/'electron-app/overlay/game_runtime.js').read_text()
