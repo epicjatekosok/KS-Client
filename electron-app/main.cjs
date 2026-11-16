@@ -64,7 +64,7 @@ const switchProbe = process.argv.includes('--ks-switch-probe') && Boolean(switch
 let lastAutoUpdateCheck=0;
 let updateCheckInProgress=false;
 function updaterPath(){
-  return path.resolve(__dirname,'..','..','..','KS-Client.exe');
+  return path.resolve(__dirname,'..','..','..','..','KS-Client.exe');
 }
 function emitUpdateStatus(payload){
   if(payload && typeof payload==='object' && !Array.isArray(payload))
@@ -341,7 +341,7 @@ function receiveMessage(event, raw){
   if(!validURL(source) || !raw || typeof raw!=='object' || Array.isArray(raw))return;
   let data=''; try{data=JSON.stringify(raw)}catch(_){return}
   if(data.length>8192 || typeof raw.type!=='string')return;
-  const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll']);
+  const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll','update-check','update-install']);
   if(!validURL(source,true)&&!basic.has(raw.type))return;
   switch(raw.type){
     case 'stats':navigate(STATS);break;
