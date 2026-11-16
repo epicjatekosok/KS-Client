@@ -185,7 +185,7 @@ internal sealed class ClientForm : Form
 
     private void FocusGameBrowser()
     {
-        if(!Trust(browser.Address,gameOnly:true) || !browser.IsBrowserInitialized || !ContainsFocus && !Focused) return;
+        if(!Trust(browser.Address,gameOnly:true) || !browser.IsBrowserInitialized || !IsHandleCreated || !Visible) return;
         try {
             browser.Focus();
             var host=browser.GetBrowser().GetHost();
@@ -199,7 +199,7 @@ internal sealed class ClientForm : Form
 
     private void SetPointerLockState(bool locked)
     {
-        if(locked && (!Trust(browser.Address,gameOnly:true) || !ContainsFocus)) return;
+        if(locked && (!Trust(browser.Address,gameOnly:true) || Form.ActiveForm != this)) return;
         bool wasLocked=Interlocked.Exchange(ref pointerLockedFlag,locked?1:0)==1;
         if(wasLocked==locked) return;
         try {
