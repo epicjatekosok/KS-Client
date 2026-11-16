@@ -1,3 +1,13 @@
+# KS Client alpha 1.1.21 — Stability, Diagnostics and Updates
+
+Version 1.1.21 repairs Settings becoming unopenable in both Electron and CEF when an incomplete native diagnostics sample arrived. All missing fields now display a dash; the Settings dialog remains usable even if a panel fails to render. Advanced Diagnostics reads actual CPU, memory and process data from Electron/Chromium and the CEF host and its directly owned subprocesses; the first CPU reading can be zero.
+
+**First-launch engine: Electron.** Explicit saved CEF selections are preserved. The inactive Hitmarker and Colored Killfeed menus and their cosmetic code have been removed; keystrokes, game stats, Quick Join, screenshots and all unrelated user preferences remain.
+
+Updates: network lookup and UI now have bounded timeouts and accurate errors, plus an **Open GitHub Releases (manual)** option. Fully automatic downloads still require a public, binary-only `epicjatekosok/KS-Client-Updates` release repository and a publisher-side `KS_PUBLIC_RELEASE_TOKEN` Actions secret. The private source repository cannot serve anonymous client downloads. No GitHub credential is embedded in the client.
+
+---
+
 # KS Client alpha 1.1.20 — Menu refresh and KS Discord community
 
 Alpha 1.1.20 refines the existing six-category KS Client settings menu with calmer dark surfaces, improved visual hierarchy, more consistent spacing and responsive controls. A new section/option keyword search finds existing settings without changing any saved preferences. The unobtrusive in-game lower-left version marker now sits closer to the screen corner. Clicking a Discord-labelled game control opens the verified KS Client community invite (https://discord.gg/cxP386yGjk) in the system browser, without navigating away from Kirka.io. Both Chromium engines share the same UI and native external-link action.

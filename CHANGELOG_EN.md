@@ -1,3 +1,14 @@
+# KS Client alpha 1.1.21
+
+- Fix Settings becoming unopenable due to incomplete native diagnostics samples; the dialog stays operable on rendering errors.
+- Provide actual Electron and CEF host/subprocess CPU, RAM and process counters, with graceful missing-value handling.
+- Default fresh installations to Electron, preserving an explicitly saved CEF preference.
+- Remove nonfunctional Hitmarker, Colored Killfeed, image/color/size options and obsolete CSS modifications; keep all other gameplay extras.
+- Add bounded update checks, clear public-feed diagnostics, and native Open GitHub Releases manual fallback.
+- Preserve all unaffected client options and ship a complete dual-engine Windows Portable ZIP and Setup EXE after verification.
+
+---
+
 # KS Client alpha 1.1.20
 
 - Refresh settings with calmer colors, readable hierarchy, more consistent spacing, accessibility-focused keyboard outlines, and responsive navigation.

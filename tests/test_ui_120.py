@@ -21,7 +21,7 @@ def test_engine(browser,engine):
     const s=document.querySelector('#ks-client-root').shadowRoot;
     return s.querySelectorAll('#ks-sidebar-groups .ks-tab').length;
   }""")==6
-  assert page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-badge').textContent""")=='KS · 1.1.20'
+  assert page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-badge').textContent""")=='KS · 1.1.21'
   badge=page.evaluate("""() => {
     const b=document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-badge');
     const s=getComputedStyle(b);
@@ -30,7 +30,7 @@ def test_engine(browser,engine):
   assert badge=={'bottom':'5px','left':'7px','opacity':'0.36','pointerEvents':'none'},badge
   page.evaluate("""() => {
     const s=document.querySelector('#ks-client-root').shadowRoot;
-    const i=s.querySelector('#ks-menu-search');i.value='hitmarker';i.dispatchEvent(new Event('input',{bubbles:true}));
+    const i=s.querySelector('#ks-menu-search');i.value='keystrokes';i.dispatchEvent(new Event('input',{bubbles:true}));
   }""")
   assert page.evaluate("""() => {
     const s=document.querySelector('#ks-client-root').shadowRoot;
@@ -48,7 +48,7 @@ def test_engine(browser,engine):
   assert len(out)==2,out
   assert page.evaluate("document.location.href")== 'about:blank'
   page.close()
-  print('PASS alpha 1.1.20 Chromium UI + Discord',engine)
+  print('PASS alpha 1.1.21 Chromium UI + Discord',engine)
 with sync_playwright() as p:
   browser=p.chromium.launch(headless=True)
   for engine in ('Electron','CEF'):test_engine(browser,engine)

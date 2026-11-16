@@ -46,7 +46,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
-      - name: Cross-compile 1.1.20 Windows launcher and updater
+      - name: Cross-compile 1.1.21 Windows launcher and updater
         shell: bash
         run: |
           cd launcher
@@ -82,6 +82,7 @@ jobs:
           python tests/test_release_117.py
           python tests/test_release_118.py
           python tests/test_updates_119.py
+          python tests/test_release_121.py
           python tests/test_release_120.py
       - name: Automated browser UI test
         run: |
@@ -96,6 +97,7 @@ jobs:
           python tests/test_runtime_116.py
           python tests/test_ui_118.py
           python tests/test_ui_120.py
+          python tests/test_ui_121.py
 
   offline-installer:
     if: github.event_name != 'pull_request'

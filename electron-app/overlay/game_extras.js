@@ -1,4 +1,4 @@
-/* KS Client alpha 1.1.18 - optional, game-page-only integrations.
+/* KS Client alpha 1.1.21 - optional, game-page-only integrations.
    All modules are visual/read-only and require no Node.js or page privileges.
    Features should never steal game input or consume pointer events.
 */
@@ -60,23 +60,6 @@
       }
     }
   }
-  function refreshKillfeed(){
-    const feed=document.querySelector('.kill-bar-cont');
-    if(!feed)return;
-    for(const row of feed.querySelectorAll('.kill-bar-item')){
-      row.classList.remove('ks-team-blue','ks-team-red');
-      if(!state.gameKillfeedColors)continue;
-      const killer=String(row.querySelector('.killer-name')?.textContent||'').trim();
-      if(!killer)continue;
-      for(const player of document.querySelectorAll('.script-tab .player-cont')){
-        if(String(player.querySelector('.nickname')?.textContent||'').trim()!==killer)continue;
-        const side=player.closest('.player-list');
-        if(side?.classList.contains('side-red'))row.classList.add('ks-team-red');
-        if(side?.classList.contains('side-blue'))row.classList.add('ks-team-blue');
-        break;
-      }
-    }
-  }
   const pressed=new Set();
   const keys=shadow.getElementById('keys'),stats=shadow.getElementById('stats');
   const nativeCursor=()=>Boolean(document.pointerLockElement);
@@ -107,18 +90,6 @@
     keys.style.transformOrigin=pos.replace('-',' ');
 
     stats.style.display=state.gameStats && inGame() && !!stats.textContent?'block':'none';
-    const color=/^#[0-9a-f]{6}$/i.test(state.gameHitmarkerColor||'')?state.gameHitmarkerColor:'#ffb42d';
-    const size=Math.max(12,Math.min(48,Number(state.gameHitmarkerSize)||24));
-    const old=document.getElementById('ks-hitmarker-css');
-    if((!state.gameHitmarker&&!state.gameKillfeedColors)||!match()){old?.remove();}
-    else {
-      const css=old||Object.assign(document.createElement('style'),{id:'ks-hitmarker-css'});
-      // Only HTML-based hitmarkers; never read or patch internal WebGL state.
-      const image=(()=>{try{const url=new URL(state.gameHitmarkerImage||'');return url.protocol==='https:'&&url.href.length<=350?url.href:'';}catch(_){return '';}})();
-      css.textContent=(state.gameHitmarker?'.hitmark,.hitmarker{filter:drop-shadow(0 0 2px '+color+')!important;max-width:'+size+'px!important;max-height:'+size+'px!important'+(image?';background-image:url("'+image.replace(/["\\]/g,'')+'")!important;background-size:contain!important;background-repeat:no-repeat!important':'')+'}':'')+
-        '.ks-team-blue{color:#84cfff!important}.ks-team-red{color:#ff8787!important}';
-      if(!css.isConnected)document.head.appendChild(css);
-    }
   }
   function updateKeys(){
     for(const el of keys.querySelectorAll('[data-code]'))el.classList.toggle('down',pressed.has(el.dataset.code));
@@ -207,7 +178,7 @@
       lastStats=ts;
       if(lastLocation!==location.pathname){lastLocation=location.pathname;assistsCount=0;headshotCount=0;}
       updateObservers();
-      updateStats();refresh();refreshKillfeed();
+      updateStats();refresh();
     }
     requestAnimationFrame(loop);
   }
@@ -215,7 +186,7 @@
     pointerLocked:nativeCursor(),game:match(),lockRequests,lockErrors,relativeMoves,
     cefNative:window.__KS_CEF_INPUT__?.getStatus?.()||null,
     cefAutoCapture:cef(),keystrokes:!!state.gameKeystrokes,
-    stats:!!state.gameStats,hitmarker:!!state.gameHitmarker
+    stats:!!state.gameStats
   })});
   if(document.body)install();else document.addEventListener('DOMContentLoaded',install,{once:true});
   requestAnimationFrame(loop);

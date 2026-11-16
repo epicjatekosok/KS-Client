@@ -50,7 +50,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client alpha 1.1.20 – CEF";
+        Text="KS Client alpha 1.1.21 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -248,7 +248,7 @@ internal sealed class ClientForm : Form
     private string UpdateLauncher() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","KS-Client.exe"));
     private async void CheckKSUpdate(string channel,bool automatic,bool prefetch)
     {
-        if(updateCheckInProgress)return;
+        if(updateCheckInProgress){Reply("setUpdateStatus",new {state="checking",message="A GitHub release check is already in progress…"});return;}
         if(automatic && DateTime.UtcNow-lastAutoUpdateCheck<TimeSpan.FromHours(24))return;
         if(automatic)lastAutoUpdateCheck=DateTime.UtcNow;
         updateCheckInProgress=true;
@@ -261,7 +261,7 @@ internal sealed class ClientForm : Form
                 RedirectStandardOutput=true,WorkingDirectory=Path.GetDirectoryName(exe)!
                 ,ArgumentList={"--ks-update-check","--channel="+channel}
             }) ?? throw new InvalidOperationException("Updater could not start.");
-            using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(28));
+            using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(18));
             string raw=await process.StandardOutput.ReadToEndAsync(timeout.Token);
             await process.WaitForExitAsync(timeout.Token);
             if(raw.Length>65536 || process.ExitCode!=0)throw new InvalidOperationException("Update response failed.");
@@ -426,10 +426,14 @@ internal sealed class ClientForm : Form
     {
         if(!Trust(source)||!Trust(browser.Address))return;
         string type=m.Type ?? "";
-        if(!Trust(source,true) && type is not("stats" or "clan" or "game" or "fullscreen" or "crash-status" or "diagnostics-poll" or "update-check" or "update-install"))return;
+        if(!Trust(source,true) && type is not("stats" or "clan" or "game" or "fullscreen" or "crash-status" or "diagnostics-poll" or "update-check" or "update-install" or "update-open-release"))return;
         switch(type)
         {
             case "game": Go(Game);break;
+            case "update-open-release":
+                try {Process.Start(new ProcessStartInfo {FileName="https://github.com/epicjatekosok/KS-Client/releases",UseShellExecute=true});}
+                catch(Exception ex){Program.Log("Releases page: "+ex.Message);}
+                break;
             case "discord-community":
                 try { Process.Start(new ProcessStartInfo { FileName="https://discord.gg/cxP386yGjk",UseShellExecute=true }); }
                 catch(Exception ex) { Program.Log("Could not open KS Discord: "+ex.Message); }
@@ -519,7 +523,7 @@ internal sealed class ClientForm : Form
                     note="CEF startup flags requested; GPU/game FPS cannot be inferred"
                 });break;
             case "diagnostics-poll":
-                Reply("setDiagnostics",new {browserRAM=(int)(Process.GetCurrentProcess().WorkingSet64/1048576),engine="CEF",note="Host process RAM only"});break;
+                Reply("setDiagnostics",KSDiagnostics.Sample());break;
             case "open-logs":Process.Start(new ProcessStartInfo {FileName="explorer.exe",Arguments="\""+Program.Root+"\"",UseShellExecute=true});break;
             case "client-error":Program.Log("Overlay warning: "+(m.Message??"")[..Math.Min((m.Message??"").Length,240)]);break;
         }
