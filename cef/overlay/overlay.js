@@ -1,4 +1,4 @@
-/* KS Client alpha 1.1.20 – Electron/CEF unified game overlay. */
+/* KS Client alpha 1.1.21 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
@@ -51,17 +51,16 @@
     menuImageEnabled: true, menuSelector: '', uiImageSelector: '', menuSoundEnabled: false,
     minimalHUD: false, minimalSelectors: '', customCrosshairPresets: [],
     language: 'en',
-    gameKeystrokes: false, gameStats: true, gameHitmarker: false,
-    gameHitmarkerColor:'#ffb42d', gameHitmarkerSize:24,
+    gameKeystrokes: false, gameStats: true,
     gameAutoMouseCapture: true, gameQuickJoin: true,
-    gameKeysPosition:'bottom-left', gameKeysScale:100,gameKillfeedColors:false,gameHitmarkerImage:'',
+    gameKeysPosition:'bottom-left', gameKeysScale:100,
     autoCheckUpdates: true, autoDownloadUpdates: false, updateChannel: 'alpha'
   });
 
   function stored() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; } }
   const previousSettings = stored();
   let state = { ...defaults, ...previousSettings };
-  // One-time alpha 1.1.20 migration: undo the previous forced 150% default.
+  // One-time alpha 1.1.21 migration: undo the previous forced 150% default.
   // Non-150% choices remain unchanged. Users can select 150% again afterwards.
   try {
     if (localStorage.getItem('ksclient.menu-scale-alpha109') !== '1') {
@@ -82,7 +81,7 @@
     }
   } catch (_) { /* Storage may be disabled: use in-memory defaults. */ }
   // Clear settings belonging to removed features from existing profiles.
-  const removedSettings = ['discordEnabled','discordAppId','hitmarkerEnabled','hitmarkerShape','hitmarkerColor','hitmarkerSize','hitmarkerDuration','updateFeed','autoCheck'];
+  const removedSettings = ['discordEnabled','discordAppId','hitmarkerEnabled','hitmarkerShape','hitmarkerColor','hitmarkerSize','hitmarkerDuration','updateFeed','autoCheck','gameHitmarker','gameHitmarkerColor','gameHitmarkerSize','gameHitmarkerImage','gameKillfeedColors'];
   if (removedSettings.some(k => Object.prototype.hasOwnProperty.call(state,k))) {
     for (const key of removedSettings) delete state[key];
     try { localStorage.setItem(KEY,JSON.stringify(state)); } catch (_) {}
@@ -116,7 +115,7 @@
     Display: ['menuResolution','gameResolution','uiScale','showFPS','fpsSource','fpsPosition'],
     Performance: ['fpsLimit','smoothPreset','showGraph','lowLatency','performancePreset','uiAnimations'],
     'Frame Stability': [],
-    'Game Integration':['gameKeystrokes','gameStats','gameHitmarker','gameHitmarkerColor','gameHitmarkerSize','gameHitmarkerImage','gameKillfeedColors','gameKeysPosition','gameKeysScale','gameAutoMouseCapture','gameQuickJoin'],
+    'Game Integration':['gameKeystrokes','gameStats','gameKeysPosition','gameKeysScale','gameAutoMouseCapture','gameQuickJoin'],
     'Eye Comfort': ['eyeEnabled','eyePreset','eyeBrightness','eyeContrast','eyeSaturation','eyeWarmth','eyeSoftness','breakReminderMinutes'],
     Crosshair: [...crosshairFields,'previewBackground','customCrosshairPresets'],
     Appearance: ['themePreset','customAccent','customBackground','customPanel','customText','customMuted','fontFamily','fontSize','uiAnimations'],
@@ -347,7 +346,7 @@
       #ks-quick { top: 12px; left: 12px; right: auto; }
     }
 
-    /* alpha 1.1.20: native CSS zoom (layout-level, vector-sharp), responsive bounds. */
+    /* alpha 1.1.21: native CSS zoom (layout-level, vector-sharp), responsive bounds. */
     #ks-panel {width:min(1180px,calc((100vw - 24px) / var(--ks-ui-scale,1)));max-height:min(920px,calc((100vh - 24px) / var(--ks-ui-scale,1)));border-radius:12px;}
     #ks-main {grid-template-columns:174px minmax(0,1fr);flex:1;}
     #ks-nav {overflow-y:auto; gap:5px; padding:17px 10px; background:var(--ks-soft,#101217); min-height:0;}
@@ -393,7 +392,7 @@
     #ks-nav::-webkit-scrollbar-thumb:hover,#ks-body::-webkit-scrollbar-thumb:hover {background:var(--ks-accent,#f0aa35);}
     #ks-nav::-webkit-scrollbar-button,#ks-body::-webkit-scrollbar-button,.ks-select-popup::-webkit-scrollbar-button,#ks-panel textarea::-webkit-scrollbar-button {display:none!important;width:0!important;height:0!important;}
 
-    /* alpha 1.1.20: scale is committed only after releasing the slider.
+    /* alpha 1.1.21: scale is committed only after releasing the slider.
        CSS zoom reflows text sharply; never raster-stretch with transform. */
     #ks-panel {transform:none!important;transform-origin:center center;}
     #ks-preview-svg {width:162px;height:162px;max-width:100%;}
@@ -456,7 +455,7 @@
     .ks-section-reset {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding:13px 14px;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:var(--ks-panel,#171c23);color:var(--ks-muted,#9aa4b4);font-size:11px;}
     @media(max-width:760px){.ks-crosshair-editor{grid-template-columns:minmax(0,1fr);} .ks-crosshair-preview-column{position:relative;top:auto;grid-row:1;} .ks-preview-large{min-height:145px;} .ks-preview-large #ks-preview-svg{width:130px;height:130px;} .ks-section-reset{flex-wrap:wrap;} }
 
-    /* Alpha 1.1.20: calm, consistent settings design. Existing controls and bindings unchanged. */
+    /* Alpha 1.1.21: calm, consistent settings design. Existing controls and bindings unchanged. */
     #ks-panel {
       width:min(1120px,calc((100vw - 32px) / var(--ks-ui-scale,1)));
       max-height:min(860px,calc((100vh - 32px) / var(--ks-ui-scale,1)));
@@ -554,18 +553,18 @@
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge" aria-label="KS Client alpha 1.1.20">KS · 1.1.20</div>
+    <div id="ks-badge" aria-label="KS Client alpha 1.1.21">KS · 1.1.21</div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings" title="KS Client Settings"><span class="ks-gear-icon" aria-hidden="true">⚙</span></button>
     </div>
     <div id="ks-dimmer"><div id="ks-panel" role="dialog" aria-label="KS Client Settings" aria-modal="true">
       <div id="ks-top">
-        <div id="ks-brand"><img id="ks-brand-icon" alt="KS Client Logo"><div id="ks-brand-main">KS CLIENT</div><div id="ks-brand-sub">Custom Kirka.io Client · alpha 1.1.20</div></div>
-        <div class="ks-stack"><span class="ks-pill">● CHROMIUM</span><span class="ks-alpha">alpha 1.1.20</span><button id="ks-close" aria-label="Close Settings">✕</button></div>
+        <div id="ks-brand"><img id="ks-brand-icon" alt="KS Client Logo"><div id="ks-brand-main">KS CLIENT</div><div id="ks-brand-sub">Custom Kirka.io Client · alpha 1.1.21</div></div>
+        <div class="ks-stack"><span class="ks-pill">● CHROMIUM</span><span class="ks-alpha">alpha 1.1.21</span><button id="ks-close" aria-label="Close Settings">✕</button></div>
       </div>
       <div id="ks-main"><div id="ks-nav"></div>
       <div id="ks-body"></div></div>
-      <div id="ks-foot"><span>F1 Settings · F10 Hide Client HUD · F11 Fullscreen</span><span>Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.20</span></div>
+      <div id="ks-foot"><span>F1 Settings · F10 Hide Client HUD · F11 Fullscreen</span><span>Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.21</span></div>
     </div></div>
   </div>`;
 
@@ -588,7 +587,7 @@
   let browserActive = { ...browserPrefs };
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
-  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'1.1.20',channel:'alpha'};
+  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'1.1.21',channel:'alpha'};
   function updateStateText(){
     if(updateStatus.state==='available')return 'New release available: '+String(updateStatus.version||'');
     if(updateStatus.state==='current')return 'You are up to date.';
@@ -661,7 +660,7 @@
   "Saved profiles":"Elmentett profilok",
   "Save, load or delete up to 12 complete presets, including outlines and shadows.":"Legfeljebb 12 teljes profilt menthetsz, betölthetsz vagy törölhetsz, körvonallal és árnyékkal együtt.",
   "Preview uses the same vector drawing as the in-game overlay. Center dot and outlines are independent.":"Az előnézet ugyanazt a vektoros rajzolást használja, mint a játék feletti jelölés. A középpont és a körvonal külön beállítható.",
-  "alpha 1.1.20":"alpha 1.1.20",
+  "alpha 1.1.21":"alpha 1.1.21",
     "Gameplay":"Játékmenet","Personalization":"Testreszabás","Client":"Kliens",
     "Customize accent, surface, text and typography for the client interface.":"A kliens kiemelőszíneinek, hátterének, szövegének és betűtípusának testreszabása.",
     "Color palette":"Színpaletta","Accent color of active elements":"Az aktív elemek kiemelőszíne",
@@ -691,9 +690,9 @@
   "Update status": "Frissítés állapota",
   "Open KS Client settings": "KS Client beállításainak megnyitása",
   "KS Client Settings": "KS Client beállítások",
-  "Custom Kirka.io Client · alpha 1.1.20": "Egyedi Kirka.io-kliens · alpha 1.1.20",
+  "Custom Kirka.io Client · alpha 1.1.21": "Egyedi Kirka.io-kliens · alpha 1.1.21",
   "F1 Settings · F10 Hide Client HUD · F11 Fullscreen": "F1 Beállítások · F10 Kliens-HUD elrejtése · F11 Teljes képernyő",
-  "Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.20": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · alpha 1.1.20",
+  "Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.21": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · alpha 1.1.21",
   "Close Settings": "Beállítások bezárása",
   "● ACTIVE": "● AKTÍV",
   "Client Overview": "A kliens áttekintése",
@@ -704,7 +703,7 @@
   "Toggle fullscreen · F11": "Teljes képernyő be/ki · F11",
   "Reset client settings": "Kliensbeállítások visszaállítása",
   "Reset all settings": "Összes beállítás visszaállítása",
-  "This build uses the visible label alpha 1.1.20. Game files and player data still come from Kirka.io.": "Ez a kiadás az alpha 1.1.20 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
+  "This build uses the visible label alpha 1.1.21. Game files and player data still come from Kirka.io.": "Ez a kiadás az alpha 1.1.21 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
   "Settings Backup & Language": "Beállításmentés és nyelv",
   "Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.": "Mentsd el és oszd meg a KS Client beállításait. Csak JSON-fájl használható; ismeretlen személy mentését ne importáld.",
   "Language": "Nyelv",
@@ -1131,6 +1130,7 @@
 
 
   const releaseHistory = [
+    {v:'1.1.21',en:['Prevent diagnostics errors from breaking the Settings gear.','Show actual Electron/CEF CPU, RAM and process counters.','Electron default, clearer update errors and removal of inactive hitmarker/colored killfeed options.'],hu:['A diagnosztika többé nem akadályozhatja a beállítások megnyitását.','Valódi Electron/CEF CPU-, memória- és folyamatadatok.','Electron az alapértelmezett motor, javított frissítési üzenetek, felesleges hitmarker és killfeed beállítások eltávolítva.']},
     {v:'1.1.20',en:['A calmer, more consistent menu layout with clearer categories, improved typography and responsive spacing.','Quick settings search finds existing sections without removing or resetting any options.','Subtle bottom-left version label and KS Client Discord community link in Kirka.io.'],hu:['Letisztultabb, egységesebb menü, jól áttekinthető kategóriák és kényelmesebb elrendezés.','Gyorskereső a meglévő beállításokhoz; semmi nem tűnik el és a mentett opciók nem változnak.','Visszafogott verziófelirat a bal alsó sarokban és a KS Client Discord-közössége a Kirka.io-ban.']},
     {v:'1.1.19',en:['Added GitHub release update checking and in-client installation requests.','Opt-in background downloads and Alpha/Stable release channels.','Files are checked against SHA256 and installed after user confirmation, preserving data.'],hu:['Kliensből elérhető GitHub-verzióellenőrzés és frissítés.','Választható automatikus letöltés és Alpha/Stable kiadási csatornák.','SHA256 ellenőrzés és felhasználói jóváhagyás a telepítés előtt.']},
     {v:'1.1.17',en:['CEF mouse fixes: Chrome-style embedded browser and native activation instead of passive Alloy focus.','Replaced competing manual Windows cursor hiding/focus with Chromium-owned pointer lock and game-first click ordering.','CEF mouse recovery only after trusted click when Kirka did not request lock; improved native input diagnostics.','Eye Comfort no longer applies compositor filters to the live CEF #game canvas; Electron settings remain unchanged.'],hu:['CEF egér: Chrome-stílusú böngésző és valódi natív ablakaktiválás.','A Windows-kurzor kézi elrejtése/fókusz-erőltetése megszűnt, a tényleges egérbefogást Chromium kezeli.','A Kirka saját kattintásos egérbefogása élvez elsőbbséget; CEF-ben csak szükség esetén lép életbe a kiegészítő kérés.','Szemkímélő CSS-szűrő CEF-ben nem vonatkozik a #game vászonra; az Electron működése nem változik.']},
@@ -1173,9 +1173,9 @@
     $('ks-gear').setAttribute('aria-label',L('Open KS Client settings'));
     $('ks-panel').setAttribute('aria-label',L('KS Client Settings'));
     $('ks-close').setAttribute('aria-label',L('Close Settings'));
-    $('ks-brand-sub').textContent=L('Custom Kirka.io Client · alpha 1.1.20');
+    $('ks-brand-sub').textContent=L('Custom Kirka.io Client · alpha 1.1.21');
     $('ks-foot').children[0].textContent=L('F1 Settings · F10 Hide Client HUD · F11 Fullscreen');
-    $('ks-foot').children[1].textContent=L('Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.20');
+    $('ks-foot').children[1].textContent=L('Unofficial client inspired by your KirkaStats / clan tracker theme · alpha 1.1.21');
   }
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -1200,7 +1200,7 @@
       case 'Updates':
         return title('Software Updates','Update through GitHub Releases without losing your existing KS Client settings.')+
           '<div class="ks-card">'+
-          '<div class="ks-row"><div><div class="ks-label">Current version</div><div class="ks-desc">KS Client alpha 1.1.20</div></div><span class="ks-pill">● INSTALLED</span></div>'+
+          '<div class="ks-row"><div><div class="ks-label">Current version</div><div class="ks-desc">KS Client alpha 1.1.21</div></div><span class="ks-pill">● INSTALLED</span></div>'+
           toggleRow('Automatically check for updates','Check once per day when the client opens. Never automatically install.','autoCheckUpdates')+
           toggleRow('Download updates automatically','Download verified packages quietly when available. Installation always asks permission.','autoDownloadUpdates')+
           selectRow('Update channel','Alpha includes prereleases. Stable includes only full releases.','updateChannel',[
@@ -1216,7 +1216,7 @@
           '</div></div>'+
           '<p class="ks-hint">Update files must be published as public GitHub Releases in epicjatekosok/KS-Client-Updates. The existing source code can stay private; until the public release feed is configured automatic downloads are unavailable.</p>';
       case 'General':
-        return title('Client Overview', 'KS Client alpha 1.1.20 starts in CEF by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client alpha 1.1.21 starts in Electron by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ. Native shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
@@ -1224,7 +1224,7 @@
           `<div class="ks-row"><div class="ks-label">Borderless fullscreen</div><button class="ks-btn" data-action="fullscreen">Toggle fullscreen · F11</button></div>` +
           `<div class="ks-row"><div class="ks-label">Reset client settings</div><button class="ks-btn danger" data-action="reset">Reset all settings</button></div>` +
           `</div>` +
-          `<p class="ks-hint">This build uses the visible label alpha 1.1.20. Game files and player data still come from Kirka.io.</p>` + historyHTML();
+          `<p class="ks-hint">This build uses the visible label alpha 1.1.21. Game files and player data still come from Kirka.io.</p>` + historyHTML();
       case 'Sharing':
         return title('Settings Backup & Language','Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.') +
           `<div class="ks-card">` +
@@ -1273,11 +1273,6 @@
           rangeRow('Keystroke size','gameKeysScale',70,170,'%')+
           `</div><div class="ks-card"><h3 class="ks-section-heading">Optional game HUD</h3>`+
           toggleRow('Read-only game stats','Display kills, deaths, assists and headshot indicators where Kirka.io exposes them as HTML.','gameStats')+
-          toggleRow('Custom visual hitmarker','Restyle visible Kirka.io hitmarker elements where accessible; does not affect hit detection.','gameHitmarker')+
-          `<div class="ks-row"><div class="ks-label">Hitmarker color</div><input data-setting="gameHitmarkerColor" type="color" value="${esc(state.gameHitmarkerColor)}"></div>`+
-          rangeRow('Hitmarker size','gameHitmarkerSize',12,48,'px')+
-          toggleRow('Colored killfeed','Highlight visible team killfeed entries using the game team lists.','gameKillfeedColors')+
-          `<div class="ks-row"><div><div class="ks-label">Optional hitmarker image (HTTPS)</div><div class="ks-desc">Applied only to HTML hitmarkers, not hits drawn directly into WebGL.</div></div><input data-setting="gameHitmarkerImage" class="ks-input" placeholder="https://..." value="${esc(state.gameHitmarkerImage||'')}" maxlength="350"></div>`+
           `</div><div class="ks-card"><h3 class="ks-section-heading">Convenience tools</h3>`+
           toggleRow('Quick join links','Allow joining a validated Kirka.io game link through the built-in navigator.','gameQuickJoin')+
           `<div class="ks-row"><div><div class="ks-label">Join a Kirka.io room URL</div><input id="ks-join-link" class="ks-input" placeholder="https://kirka.io/games/..." maxlength="400"><button class="ks-btn" data-action="quick-join">Join</button></div>`+
@@ -1684,18 +1679,20 @@
   }
 
   function updateDiagnosticsUI() {
-    const d = diagnostics;
-    const set = (id, text) => { const el = $(id); if (el) el.textContent = text; };
-    if (d) {
-      set('ks-browser-cpu', d.browserCPU.toFixed(1) + '%');
-      set('ks-client-cpu', d.clientCPU.toFixed(1) + '%');
-      set('ks-browser-ram', Math.round(d.browserRAM) + ' MB');
-      set('ks-client-ram', Math.round(d.clientRAM) + ' MB');
-      set('ks-browser-processes', String(d.browserProcesses));
-    }
-    set('ks-gpu-state', L(gpuInfo.status));
-    set('ks-gpu-renderer', gpuInfo.renderer);
-    set('ks-diagnostics-note', (d ? d.sampling + '. ' : '') + L(gpuInfo.note));
+    // Native samples may be incomplete. Never let missing fields break Settings.
+    const d=diagnostics;
+    const set=(id,value)=>{const el=$(id);if(el)el.textContent=value;};
+    const valid=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
+    const cpu=value=>valid(value)?value.toFixed(1)+'%':'—';
+    const ram=value=>valid(value)?Math.round(value)+' MB':'—';
+    set('ks-browser-cpu',cpu(d?.browserCPU));
+    set('ks-client-cpu',cpu(d?.clientCPU));
+    set('ks-browser-ram',ram(d?.browserRAM));
+    set('ks-client-ram',ram(d?.clientRAM));
+    set('ks-browser-processes',Number.isInteger(d?.browserProcesses)&&d.browserProcesses>=0?String(d.browserProcesses):'—');
+    set('ks-gpu-state',L(gpuInfo.status));
+    set('ks-gpu-renderer',gpuInfo.renderer);
+    set('ks-diagnostics-note',[d?.sampling,L(gpuInfo.note)].filter(Boolean).join('. '));
   }
 
   function drawLineGraph(canvasId, values, label, maxValue, suffix) {
@@ -1765,7 +1762,7 @@
     Display:'resolution fullscreen scaling zoom monitor screen felbontas kepernyo kijelzo',
     Performance:'fps unlimited uncap limit low latency high performance renderer frame pacing cpu teljesitmeny sebesseg korlatlan',
     'Frame Stability':'stutter frametime jitter webgl antialiasing sync fps graph kepkocka stabilitas akadas',
-    'Game Integration':'stats hitmarker keystrokes quick join mouse lock screenshot hud jatekintegracio billentyu statisztika talalat eger',
+    'Game Integration':'stats keystrokes quick join mouse lock screenshot hud jatekintegracio billentyu statisztika talalat eger',
     'Eye Comfort':'brightness contrast warmth saturation softness blue light break reminders szemkimelo szemkomfort fenyero szinhomerseklet',
     Crosshair:'crosshair dot color shape outline shadow thickness gap celkereszt szin korvonal arnyek',
     Appearance:'theme accent dark colors background text font megjelenes tema betutipus',
@@ -1812,7 +1809,7 @@
       `<div id="ks-search-results" role="group" hidden></div>`+
       `<div id="ks-sidebar-groups">`+
       groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon" aria-hidden="true">${g.icon}</span><span>${translateTab(g.key)}</span></button>`).join('')+
-      `</div><div class="ks-sidebar-foot">● ${state.language==='hu'?'AUTOMATIKUS MENTÉS':'AUTOSAVED'}<div style="opacity:.66;margin-top:5px">KS Client · alpha 1.1.20</div></div>`;
+      `</div><div class="ks-sidebar-foot">● ${state.language==='hu'?'AUTOMATIKUS MENTÉS':'AUTOSAVED'}<div style="opacity:.66;margin-top:5px">KS Client · alpha 1.1.21</div></div>`;
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
@@ -2068,27 +2065,34 @@
   }
 
   function show(toggle) {
-    open = typeof toggle === 'boolean' ? toggle : !open;
-    if (open && document.pointerLockElement) document.exitPointerLock?.();
-    if (open) {
-      renderTab();
-      if (state.menuSoundEnabled && assetURLs.menuSound) { void playMenuSound(); }
+    open=typeof toggle==='boolean'?toggle:!open;
+    try {
+      if(open && document.pointerLockElement)document.exitPointerLock?.();
+      if(open) {
+        try {renderTab();}
+        catch(error) {
+          const body=$('ks-body');
+          if(body)body.innerHTML='<h2 class="ks-title">Settings temporarily unavailable</h2><p class="ks-sub">Choose another category or restart the client. Saved settings are unchanged.</p>';
+          notify('client-error',{message:'Settings render: '+String(error?.message||error).slice(0,160)});
+        }
+        if(state.menuSoundEnabled && assetURLs.menuSound)void playMenuSound();
+        if(selectedTab==='Diagnostics'){notify('diagnostics-poll');notify('crash-status');}
+      }
+    } finally {
+      try{apply();}
+      catch(error){
+        $('ks-dimmer')?.classList.toggle('visible',open);
+        notify('client-error',{message:'Settings apply: '+String(error?.message||error).slice(0,160)});
+      }
     }
-    apply();
   }
 
   function setSetting(k, value) {
     if (!(k in defaults)) return;
     if (typeof defaults[k] === 'number') value = Number(value);
     if (k === 'customCSS') value = String(value).slice(0, 12000);
-    if(k==='gameHitmarkerImage') {
-      value=String(value||'').trim().slice(0,350);
-      if(value && !/^https:\/\/[^\\s"<>]+$/i.test(value))return;
-    }
     if(k==='gameKeysScale')value=Math.max(70,Math.min(170,Math.round(Number(value)||100)));
     if(k==='gameKeysPosition' && !['bottom-left','bottom-right','top-left','top-right'].includes(value))return;
-    if (k==='gameHitmarkerSize')value=Math.max(12,Math.min(48,Math.round(Number(value)||24)));
-    if (k==='gameHitmarkerColor' && !/^#[a-f0-9]{6}$/i.test(value))return;
     if (k === 'performancePreset') { applyPerformancePreset(value); return; }
     if (k === 'smoothPreset') { applySmoothPreset(String(value));return; }
     if (k === 'eyePreset') { applyEyePreset(String(value));return; }
@@ -2140,7 +2144,7 @@
     // Export only supported settings; local assets live in IndexedDB.
     const safe = Object.fromEntries(Object.keys(defaults)
       .map(k=>[k,state[k]]));
-    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client alpha 1.1.20',exportedAt:new Date().toISOString(),settings:safe};
+    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client alpha 1.1.21',exportedAt:new Date().toISOString(),settings:safe};
     const blob = new Blob([JSON.stringify(doc,null,2)],{type:'application/json'});
     const objectURL = URL.createObjectURL(blob);
     const link=document.createElement('a');link.href=objectURL;link.download='KS-Client-alpha-1.0.11-settings.json';
@@ -2534,7 +2538,7 @@
       const allowed=['idle','checking','available','current','unavailable','error','downloading'];
       updateStatus={
         state:allowed.includes(status.state)?status.state:'error',
-        current:String(status.current||'1.1.20').slice(0,40),
+        current:String(status.current||'1.1.21').slice(0,40),
         version:String(status.version||'').slice(0,40),
         channel:String(status.channel||state.updateChannel).slice(0,12),
         message:String(status.message||'').slice(0,380),
@@ -2586,7 +2590,7 @@
         const el=$(id);if(el)el.textContent=fpsDiagnosticText();
       }
     },
-    setDiagnostics: d => { if(d && Number.isFinite(d.browserRAM)) { diagnostics=d;updateDiagnosticsUI(); } },
+    setDiagnostics: d => {if(d && typeof d==='object'){diagnostics=d;updateDiagnosticsUI();}},
     setCrashStatus: s => {crashStatus=String(s);const el=$('ks-crash-status');if(el)el.textContent=L(crashStatus);},
 
   };
