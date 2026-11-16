@@ -1,14 +1,16 @@
-"""KS Client alpha 1.1.21 — modern settings and fixed Discord invite contract."""
+"""KS Client alpha 1.1.22 — modern settings and fixed Discord invite contract."""
 from pathlib import Path
 r=Path(__file__).resolve().parents[1]
 a=(r/'electron-app/overlay/overlay.js').read_text(encoding='utf8')
 b=(r/'cef/overlay/overlay.js').read_text(encoding='utf8')
 assert a==b, 'Both engines must share the modern menu and Discord redirect'
-for required in ('ks-menu-search','ks-search-results','ks-sidebar-groups','updateSettingsSearch','settingsSearchTerms','KS · 1.1.21','isKirkaDiscordButton', "notify('discord-community')"):
+for required in ('ks-menu-search','ks-search-results','ks-sidebar-groups','updateSettingsSearch','settingsSearchTerms','KS · 1.1.22','isKirkaDiscordButton', "notify('discord-community')"):
  assert required in a,required
 assert "showFPS: false" in a
 assert "ensureOverlayMounted()" in a
-assert "['Display']" in a and "['Performance','Frame Stability','Game Integration','Eye Comfort','Crosshair']" in a
+assert "items:['Performance','Frame Stability','Browser Graphics','Browser GPU Info']" in a
+assert "items:['Display','Eye Comfort','Crosshair']" in a
+assert "items:['Game Integration','Lobby','Friends & Profiles']" in a
 assert "['General','Updates','Sharing','Diagnostics']" in a
 assert (r/'electron-app/overlay/workshop.js').read_text()==(r/'cef/overlay/workshop.js').read_text()
 e=(r/'electron-app/main.cjs').read_text()
@@ -19,6 +21,6 @@ assert "shell.openExternal('https://discord.gg/cxP386yGjk')" in e
 assert 'FileName="https://discord.gg/cxP386yGjk"' in c
 assert "discord-community" not in "stats clan game fullscreen crash-status diagnostics-poll update-check update-install"
 for path in ('launcher/main_windows.go','installer/main_windows.go','electron-app/main.cjs','cef/Program.cs','ci/Publish-Release.ps1'):
- assert '1.1.21' in (r/path).read_text(),path
-assert 'RELEASE_121_HU.md' in (r/'ci/Publish-Release.ps1').read_text()
-print('PASS: KS 1.1.21 modern searchable menu, subtle badge, strict Discord native bridge and preserved dual-engine settings')
+ assert '1.1.22' in (r/path).read_text(),path
+assert 'RELEASE_122_HU.md' in (r/'ci/Publish-Release.ps1').read_text()
+print('PASS: KS 1.1.22 modern searchable menu, subtle badge, strict Discord native bridge and preserved dual-engine settings')

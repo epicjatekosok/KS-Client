@@ -1,4 +1,4 @@
-"""Engine-independent KS Client 1.1.21 UI smoke test in local Chromium.
+"""Engine-independent KS Client 1.1.22 UI smoke test in local Chromium.
 Not a live test of Windows Electron, CEF, or FPS unlock.
 """
 from pathlib import Path
@@ -38,7 +38,7 @@ with sync_playwright() as play:
   page.evaluate("window.__KS_CLIENT__.setEngineSwitchStatus('Checking new engine startup')")
 
   page.evaluate('window.__KS_CLIENT__.open()')
-  page.locator('.ks-tab[data-group="Client"]').click()
+  page.locator('.ks-tab[data-group="Advanced"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
   body=page.locator('#ks-body').inner_text()
   assert 'Electron' in body,(width,body[:200])
@@ -48,7 +48,7 @@ with sync_playwright() as play:
   page.evaluate("""() => window.__KS_CLIENT__.setBrowserConfig(
     {gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false},
     {gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false},false,'')""")
-  page.locator('.ks-tab[data-group="Gameplay"]').click()
+  page.locator('.ks-tab[data-group="Graphics"]').click()
   page.locator('.ks-subtab[data-tab="Performance"]').click()
   page.evaluate("""() => {
     const select=document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-setting="fpsLimit"]');
@@ -69,7 +69,7 @@ with sync_playwright() as play:
   assert page.locator('#ks-fps-callback-diag').count()==1
 
 
-  page.locator('.ks-tab[data-group="Client"]').click()
+  page.locator('.ks-tab[data-group="Advanced"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
 
   page.locator('[data-action="engine-cef"]').click()
@@ -92,9 +92,11 @@ with sync_playwright() as play:
   assert page.locator('[data-setting="gameKillfeedColors"]').count()==0
   page.locator('[data-action="game-screenshot"]').click()
   assert page.evaluate("window.__out.some(m=>m.type==='game-screenshot')")
+  page.locator('.ks-tab[data-group="Graphics"]').click()
   assert page.locator('.ks-subtab[data-tab="Performance"]').count()==1
-  assert page.locator('.ks-subtab[data-tab="Eye Comfort"]').count()==1
   assert page.locator('.ks-subtab[data-tab="Frame Stability"]').count()==1
+  page.locator('.ks-tab[data-group="Display"]').click()
+  assert page.locator('.ks-subtab[data-tab="Eye Comfort"]').count()==1
   page.locator('.ks-tab[data-group="Workshop"]').click()
   assert page.locator('.ks-subtab[data-tab="Weapon Studio"]').count()==1
   assert page.locator('.ks-subtab[data-tab="Resource Swapper"]').count()==1
@@ -117,16 +119,16 @@ with sync_playwright() as play:
   assert page.evaluate("window.__KS_WORKSHOP__.getConfig().plugins.length===1")
   page.locator('[data-action="wk-plugin-run-0"]').click()
   assert page.locator('iframe[title="Isolated local plugin preview"]').count()==1
-  page.locator('.ks-tab[data-group="Gameplay"]').click()
+  page.locator('.ks-tab[data-group="Display"]').click()
 
   page.locator('.ks-subtab[data-tab="Eye Comfort"]').click()
   assert page.locator('[data-setting="eyeEnabled"]').is_checked()
   page.locator('.ks-subtab[data-tab="Crosshair"]').click()
   assert page.locator('[data-setting="crosshairEnabled"]').count()==1
-  page.locator('.ks-tab[data-group="Client"]').click()
+  page.locator('.ks-tab[data-group="Advanced"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
-  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.21')
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client alpha 1.1.22')
   assert not errors,(width,errors)
-  print('PASS 1.1.21 engine UI',width,height)
+  print('PASS 1.1.22 engine UI',width,height)
   page.close()
  browser.close()
