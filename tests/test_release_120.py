@@ -18,7 +18,8 @@ c=(r/'cef/ClientForm.cs').read_text()
 assert "case 'discord-community':" in e
 assert 'case "discord-community":' in c
 assert "shell.openExternal('https://discord.gg/cxP386yGjk')" in e
-assert 'FileName="https://discord.gg/cxP386yGjk"' in c
+assert 'ClientCommunityLinks.OpenInvite()' in c
+assert 'https://discord.gg/cxP386yGjk' in (r/'cef/ClientCommunityLinks.cs').read_text()
 assert "discord-community" not in "stats clan game fullscreen crash-status diagnostics-poll update-check update-install"
 for path in ('launcher/main_windows.go','installer/main_windows.go','electron-app/main.cjs','cef/Program.cs','ci/Publish-Release.ps1'):
  assert '1.1.22' in (r/path).read_text(),path
