@@ -161,7 +161,7 @@
     if(!(canvas instanceof HTMLCanvasElement) || canvas.clientWidth<160 ||
        canvas.clientHeight<100 || typeof canvas.requestPointerLock!=='function')return;
     const observed=window.__KS_CEF_INPUT__?.getStatus?.()||null;
-    if(cef() && observed?.installed &&
+    if(cef() && observed?.installed && observed.lastRequestMs>0 &&
        performance.now()-observed.lastRequestMs < 850)return;
     // Do not introduce a second capture path on Electron; Electron already
     // handles Kirka's native permission flow correctly.
