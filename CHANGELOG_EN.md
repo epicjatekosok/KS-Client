@@ -1,3 +1,10 @@
+# KS Client alpha 1.1.15
+
+- Dark gold KS-logo startup animation for CEF and Electron, with an offline-safe fallback.
+- CEF genuine game canvas Pointer Lock capture attempts, native Chromium HWND focus and locked-cursor display sync. Requires live Kirka.io game verification.
+- Remove duplicate WebGL observer in frame-pacing module and preserve antialiasing diagnostics in the shared registry.
+- Optional real Authenticode signing, visible signature audit, SHA256 reports and readable (non-encoded) Windows shortcut creation.
+
 # KS Client alpha 1.1.14
 
 - Opt-in real WebGL texImage2D exact-image texture replacement and manual signature-calibrated 3D scale/offset in Workshop.

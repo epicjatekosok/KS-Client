@@ -1,4 +1,4 @@
-/* KS Client alpha 1.1.14 - optional, game-page-only integrations.
+/* KS Client alpha 1.1.15 - optional, game-page-only integrations.
    All modules are visual/read-only and require no Node.js or page privileges.
    Features should never steal game input or consume pointer events.
 */
@@ -80,6 +80,14 @@
   const pressed=new Set();
   const keys=shadow.getElementById('keys'),stats=shadow.getElementById('stats');
   const nativeCursor=()=>Boolean(document.pointerLockElement);
+  // Chromium's real DOM pointer lock determines native cursor state. The CEF
+  // host never hides a cursor merely because a game URL was opened.
+  const cef=()=>typeof window.CefSharp?.PostMessage==='function';
+  const notifyInput=message=>{
+    if(!cef())return;
+    try{window.CefSharp.PostMessage(JSON.stringify({type:'game-input-diagnostics',message}))}catch(_){}
+  };
+  let lockRequests=0,lockErrors=0,relativeMoves=0,lastMoveReport=0;
   function inGame(){return match() && !document.querySelector('#ks-client-root')?.shadowRoot?.querySelector('#ks-dimmer.visible');}
   function refresh(){
     state=settings();
@@ -114,16 +122,38 @@
   document.addEventListener('keydown',e=>{if(!e.repeat)pressed.add(e.code);updateKeys();},true);
   document.addEventListener('keyup',e=>{pressed.delete(e.code);updateKeys();},true);
   window.addEventListener('blur',()=>{pressed.clear();updateKeys();},true);
-  document.addEventListener('pointerlockchange',()=>{refresh();},true);
-  document.addEventListener('pointerlockerror',()=>{console.warn('[KS Client] Game mouse capture denied by browser or game');},true);
+  document.addEventListener('pointerlockchange',()=>{
+    refresh();
+    notifyInput(nativeCursor()?'locked':'released');
+    if(nativeCursor()) {relativeMoves=0;lastMoveReport=0;}
+  },true);
+  document.addEventListener('pointerlockerror',()=>{
+    lockErrors++;
+    notifyInput('pointerlockerror');
+    console.warn('[KS Client] CEF pointer lock failed: inspect native focus and permissions');
+  },true);
+  document.addEventListener('mousemove',event=>{
+    if(!nativeCursor()||!event.isTrusted)return;
+    if(event.movementX===0&&event.movementY===0)return;
+    relativeMoves++;
+    if(!lastMoveReport||performance.now()-lastMoveReport>5000){
+      lastMoveReport=performance.now();
+      notifyInput('motion-ok');
+    }
+  },true);
   // A click on the actual game canvas is a real user gesture. No synthetic mouse
   // events or forced pointer lock from timers; the game owns the movement loop.
   document.addEventListener('pointerdown',event=>{
-    if(event.button!==0 || !event.isTrusted || !match() || !state.gameAutoMouseCapture || !inGame() || nativeCursor())return;
+    if(event.button!==0 || !event.isTrusted || !match() || !inGame() || nativeCursor())return;
     const canvas=event.target;
     if(!(canvas instanceof HTMLCanvasElement))return;
     if(canvas.clientWidth<160 || canvas.clientHeight<100)return;
+    if(cef())notifyInput('gesture');
+    // In CEF an FPS must obtain the real native Pointer Lock even when the
+    // optional auto-capture toggle was off. Electron retains its user setting.
+    if(!state.gameAutoMouseCapture&&!cef())return;
     if(typeof canvas.requestPointerLock==='function') {
+      lockRequests++;
       try {
         const pending=canvas.requestPointerLock();
         if(pending && typeof pending.catch==='function')pending.catch(()=>{});
@@ -165,7 +195,8 @@
     requestAnimationFrame(loop);
   }
   window.__KS_GAME_EXTRAS__=Object.freeze({refresh,getStatus:()=>({
-    pointerLocked:nativeCursor(),game:match(),keystrokes:!!state.gameKeystrokes,
+    pointerLocked:nativeCursor(),game:match(),lockRequests,lockErrors,relativeMoves,
+    cefAutoCapture:cef(),keystrokes:!!state.gameKeystrokes,
     stats:!!state.gameStats,hitmarker:!!state.gameHitmarker
   })});
   if(document.body)install();else document.addEventListener('DOMContentLoaded',install,{once:true});

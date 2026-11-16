@@ -1,3 +1,7 @@
+# KS Client alpha 1.1.15 – game integration and trusted release readiness
+
+Retains the 1.1.14 deep Kirka integration and adds a KS-logo animated startup on CEF/Electron, real pointer-lock-driven CEF cursor handling and motion diagnostics, and fixes a duplicate FPS WebGL observer. Optional genuine Authenticode signing and SHA256 build reports improve publisher verification. Unsigned first-time downloads may still be warned by SmartScreen or Chrome; no security bypasses are used. See RELEASE_115_HU.md.
+
 # KS Client alpha 1.1.14 – advanced Kirka game integration (Windows release candidate)
 
 Version 1.1.14 extends 1.1.13 with opt-in exact-asset WebGL texture replacement and manually calibrated 3D transforms, early CEF V8-context setup, Kirka's native Join/Spectate controls, visible game events, profile/inventory/market snapshots, audited sandbox plugin snapshots and an optional freeze workaround. All existing dual-engine settings and features remain available.

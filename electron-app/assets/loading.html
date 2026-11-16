@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'">
+<title>KS Client • Betöltés</title>
+<style>
+:root{color-scheme:dark;--amber:#f0aa35;--ink:#0d1015;--panel:#121720;--line:#303743}
+*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--ink);font-family:'Segoe UI',Arial,sans-serif;color:#e8eaf0}
+body{display:grid;place-items:center;background:radial-gradient(ellipse at 50% 5%,#49331653,transparent 68%),linear-gradient(155deg,#101723,#0d1015)}
+.shell{height:100%;width:100%;border:1px solid #72532666;display:flex;align-items:center;justify-content:center;flex-direction:column;position:relative}
+.shell:before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,transparent,var(--amber),transparent)}
+.logo-wrap{width:98px;height:98px;display:grid;place-items:center;position:relative;margin:15px 0 8px}
+.logo-wrap:before,.logo-wrap:after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid transparent;border-top-color:var(--amber);border-left-color:#f0aa3533;animation:spin 2.2s linear infinite}
+.logo-wrap:after{inset:8px;animation-direction:reverse;animation-duration:3.4s;border-top-color:#f8d48b99}
+.logo{max-width:58px;max-height:58px;object-fit:contain;filter:drop-shadow(0 0 12px #f0aa3555);animation:breathe 2s ease-in-out infinite}
+.title{font-size:22px;letter-spacing:5px;font-weight:800;margin-top:5px}.title strong{color:var(--amber)}.sub{font-size:10px;font-weight:600;letter-spacing:2.6px;color:#a9b1c2;margin-top:11px}
+.track{width:62%;height:4px;background:#2f3743;border-radius:9px;margin-top:25px;overflow:hidden}
+.track .moving{height:100%;width:31%;background:linear-gradient(90deg,#8e5c19,var(--amber),#ffe6a1);border-radius:9px;animation:load 1.7s ease-in-out infinite}
+.detail{font-size:10px;letter-spacing:1.4px;margin-top:12px;color:#b0bac7}
+.version{position:absolute;right:16px;bottom:12px;color:#6c788b;font-size:10px;letter-spacing:1px}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes breathe{50%{filter:drop-shadow(0 0 20px #f0aa35cc);transform:scale(1.045)}}
+@keyframes load{0%{transform:translateX(-110%)}55%{transform:translateX(185%)}100%{transform:translateX(350%)}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:0s!important}}
+</style></head>
+<body><main class="shell" role="status" aria-label="KS Client betöltése"><div class="logo-wrap"><img class="logo" src="ks-logo.png" alt="KS Client logó"></div><div class="title">KS <strong>CLIENT</strong></div><div class="sub">KIRKA.IO GAME INTEGRATION</div><div class="track" aria-hidden="true"><div class="moving"></div></div><div class="detail">KLIENS BETÖLTÉSE</div><span class="version">ALPHA 1.1.15</span></main></body></html>

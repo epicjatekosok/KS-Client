@@ -10,7 +10,7 @@ def add(path,content=b'test'):
  path.write_bytes(content)
 def mark(folder,engine,filename):
  blob=(folder/filename).read_bytes()
- value={'version':'1.1.14','engine':engine,'exeName':filename,
+ value={'version':'1.1.15','engine':engine,'exeName':filename,
         'exeSha256':sha256(blob).hexdigest(),'runner':'windows','result':'PASS'}
  add(folder/'ks-smoke-pass.json',json.dumps(value).encode('utf8'))
 with TemporaryDirectory() as temp:
@@ -19,6 +19,8 @@ with TemporaryDirectory() as temp:
  for rel in ('KS-Client.exe','Uninstall-KS-Client.exe','README_EN.md','LICENSE',
              'runtime/Electron/electron.exe','runtime/Electron/resources/app/main.cjs',
              'runtime/Electron/resources/app/preload.cjs',
+             'runtime/Electron/resources/app/assets/loading.html',
+             'runtime/Electron/resources/app/assets/ks-logo.png',
              'runtime/Electron/resources/app/overlay/workshop.js',
              'runtime/Electron/resources/app/overlay/integration_core.js',
              'runtime/Electron/resources/app/overlay/integration_bootstrap.js',
@@ -26,6 +28,7 @@ with TemporaryDirectory() as temp:
              'runtime/Electron/resources/app/overlay/advanced_integration.js',
              'runtime/Electron/resources/app/overlay/freeze_guard.js',
              'runtime/Electron/resources/app/swapper.cjs',
+             'runtime/CEF/assets/ks-logo.png',
              'runtime/CEF/overlay/workshop.js',
              'runtime/CEF/overlay/integration_core.js',
              'runtime/CEF/overlay/integration_bootstrap.js',
@@ -52,5 +55,5 @@ with TemporaryDirectory() as temp:
  mark(root/'runtime/CEF','CEF','KS.Cef.Client.exe')
  ok=run()
  assert ok.returncode==0,(ok.stdout,ok.stderr)
- assert (root/'KS-Client-alpha-1.1.14-Portable.zip').is_file()
+ assert (root/'KS-Client-alpha-1.1.15-Portable.zip').is_file()
  print('PASS: release requires both current Windows smoke markers')

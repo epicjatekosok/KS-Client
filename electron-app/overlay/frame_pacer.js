@@ -106,35 +106,7 @@
     nativeRequestAnimationFrame: nativeRAF
   }) });
 
-  // Observe WebGL contexts created by Kirka.io without changing their options
-  // or shaders. This provides actual context attributes where available.
-  // Not a game anti-aliasing override and not a GPU FPS measurement.
-  try {
-    const proto=window.HTMLCanvasElement?.prototype;
-    if (proto && !window.__KS_RENDER_OBSERVER__) {
-      const originalGetContext=proto.getContext;
-      let seen=null;
-      proto.getContext=function(kind, ...args) {
-        const result=originalGetContext.call(this,kind,...args);
-        if(result && /^(webgl2?|experimental-webgl)$/i.test(String(kind))) {
-          let aa=null;
-          try {const attrs=result.getContextAttributes?.();if(attrs && typeof attrs.antialias==='boolean')aa=attrs.antialias;}catch(_){}
-          const options=args[0];
-          const asked=options && typeof options.antialias==='boolean'?options.antialias:null;
-          if(!seen || this.width*this.height >= seen.canvas.width*seen.canvas.height)
-            seen={canvas:this,context:result,asked,reported:aa,type:String(kind)};
-        }
-        return result;
-      };
-      Object.defineProperty(window,'__KS_RENDER_OBSERVER__',{
-        value:Object.freeze({getStats:()=>seen?{
-          antialiasRequested:seen.asked,
-          antialiasReported:seen.reported,
-          canvasWidth:Number(seen.context.drawingBufferWidth||seen.canvas.width||0),
-          canvasHeight:Number(seen.context.drawingBufferHeight||seen.canvas.height||0),
-          contextType:seen.type
-        }:null}),configurable:false
-      });
-    }
-  }catch(_) { /* The FPS pacing and the game must remain usable. */ }
+  // WebGL observation now lives in integration_bootstrap.js, the single
+  // shared early game context registry. No competing getContext wrappers.
+
 })();
