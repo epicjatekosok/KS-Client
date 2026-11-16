@@ -841,6 +841,15 @@
       pointer-events:auto;cursor:pointer;box-shadow:0 6px 25px rgba(0,0,0,.38);
     }
     #ks-discord-quick:hover {background:linear-gradient(105deg,#ff7900,#ffad00);border-color:#ffc146;color:#17100a;}
+    #ks-community-status {
+      position:absolute;right:16px;bottom:60px;max-width:310px;
+      padding:10px 14px;border-radius:10px;
+      border:1px solid rgba(255,148,0,.57);background:rgba(10,11,16,.97);
+      box-shadow:0 8px 30px rgba(0,0,0,.5);
+      color:#fff;font:600 11px/1.5 'Segoe UI',Arial,sans-serif;
+      pointer-events:none;z-index:4;
+    }
+    #ks-community-status[hidden] {display:none!important;}
     @media(max-width:1250px){
       #ks-panel {width:calc((100vw - 20px)/var(--ks-ui-scale,1));height:calc((100vh - 20px)/var(--ks-ui-scale,1));}
       #ks-top {height:94px;padding:12px 24px;}
@@ -912,6 +921,7 @@
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings" title="KS Client Settings"><span class="ks-gear-icon" aria-hidden="true">⚙</span></button>
     </div>
     <button type="button" id="ks-discord-quick" aria-label="Open KS Client Discord in default browser">KS Discord</button>
+    <div id="ks-community-status" role="status" aria-live="polite" hidden></div>
     <div id="ks-dimmer"><div id="ks-panel" role="dialog" aria-label="KS Client Settings" aria-modal="true">
       <div id="ks-top">
         <div id="ks-brand"><img id="ks-brand-icon" alt="KS Client Logo"><span id="ks-brand-rule"></span><div id="ks-brand-copy"><div id="ks-brand-main">Settings</div><div id="ks-brand-sub">Customize your game experience</div></div></div>
@@ -1031,6 +1041,7 @@
   "Preview uses the same vector drawing as the in-game overlay. Center dot and outlines are independent.":"Az előnézet ugyanazt a vektoros rajzolást használja, mint a játék feletti jelölés. A középpont és a körvonal külön beállítható.",
   "alpha 1.1.22":"alpha 1.1.22",
     "Gameplay":"Játékmenet","Personalization":"Testreszabás","Client":"Kliens",
+    "Graphics":"Grafika","Controls":"Vezérlés","Advanced":"Haladó","Workshop":"Műhely","Interface":"Felület",
     "Customize accent, surface, text and typography for the client interface.":"A kliens kiemelőszíneinek, hátterének, szövegének és betűtípusának testreszabása.",
     "Color palette":"Színpaletta","Accent color of active elements":"Az aktív elemek kiemelőszíne",
     "Background color":"Háttérszín","Panel color":"Panelek színe","Text color":"Szöveg színe","Muted text color":"Másodlagos szöveg színe",
@@ -2652,8 +2663,13 @@
     window.__KS_FRAME_PACER__?.setLimit(state.fpsLimit);
     renderTab();apply();
   });
-  $('ks-discord-menu').addEventListener('click',()=>notify('discord-community'));
-  $('ks-discord-quick').addEventListener('click',()=>notify('discord-community'));
+  function openCommunity() {
+    const notice=$('ks-community-status');
+    if(notice){notice.hidden=false;notice.textContent=state.language==='hu'?'Discord meghívó megnyitása…':'Opening KS Discord in your default browser…';}
+    if(!notify('discord-community'))window.__KS_CLIENT__?.setCommunityStatus?.('Native client bridge unavailable. Copy https://discord.gg/cxP386yGjk into your browser.');
+  }
+  $('ks-discord-menu').addEventListener('click',openCommunity);
+  $('ks-discord-quick').addEventListener('click',openCommunity);
   $('ks-gear').addEventListener('click', () => show(true));
   $('ks-dimmer').addEventListener('click', e => { if (e.target === $('ks-dimmer')) show(false); });
 
@@ -3028,6 +3044,14 @@
     },
     setDiagnostics: d => {if(d && typeof d==='object'){diagnostics=d;updateDiagnosticsUI();}},
     setCrashStatus: s => {crashStatus=String(s);const el=$('ks-crash-status');if(el)el.textContent=L(crashStatus);},
+    setCommunityStatus: status => {
+      const notice=$('ks-community-status');
+      if(!notice)return;
+      notice.textContent=String(status||'').slice(0,260);
+      notice.hidden=false;
+      const marker=notice.textContent;
+      setTimeout(()=>{if(notice.textContent===marker)notice.hidden=true;},6500);
+    },
 
   };
 

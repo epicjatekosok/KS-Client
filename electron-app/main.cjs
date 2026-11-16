@@ -251,7 +251,11 @@ function createWindow(){
   }
   function openKSDiscord(){
     void shell.openExternal('https://discord.gg/cxP386yGjk')
-      .catch(error=>log('KS Discord external browser: '+error.message));
+      .then(()=>jsCall('setCommunityStatus','KS Discord invite handed to the Windows default browser.'))
+      .catch(error=>{
+        log('KS Discord external browser: '+error.message);
+        jsCall('setCommunityStatus','Cannot open default browser: '+error.message);
+      });
   }
   win.webContents.setWindowOpenHandler(({url})=>{
     if(validURL(win.webContents.getURL(),true)&&isGameDiscordTarget(url))openKSDiscord();
@@ -365,7 +369,7 @@ function receiveMessage(event, raw){
   if(!validURL(source) || !raw || typeof raw!=='object' || Array.isArray(raw))return;
   let data=''; try{data=JSON.stringify(raw)}catch(_){return}
   if(data.length>8192 || typeof raw.type!=='string')return;
-  const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll','update-check','update-install','update-open-release']);
+  const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll','update-check','update-install','update-open-release','discord-community']);
   if(!validURL(source,true)&&!basic.has(raw.type))return;
   switch(raw.type){
     case 'stats':navigate(STATS);break;

@@ -20,13 +20,14 @@ internal static class ClientCommunityLinks
             or "www.discord.com" or "discordapp.com" or "www.discordapp.com";
     }
 
-    internal static void OpenInvite()
+    internal static bool OpenInvite()
     {
         try {
             var p=Process.Start(new ProcessStartInfo {FileName=Invite,UseShellExecute=true});
-            if(p is null)Program.Log("KS Discord: Windows returned no default browser process");
-            else p.Dispose();
-        }catch(Exception ex){Program.Log("KS Discord default browser failed: "+ex.Message);}
+            if(p is null){Program.Log("KS Discord: Windows returned no default browser process");return false;}
+            p.Dispose();
+            return true;
+        }catch(Exception ex){Program.Log("KS Discord default browser failed: "+ex.Message);return false;}
     }
 }
 
@@ -44,7 +45,7 @@ internal sealed class ClientCommunityPopupHandler : CefSharp.Handler.LifeSpanHan
         if(userGesture && ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true)
             && ClientCommunityLinks.IsDiscordTarget(targetUrl))
         {
-            _=Task.Run(ClientCommunityLinks.OpenInvite);
+            _=Task.Run(()=>ClientCommunityLinks.OpenInvite());
             return true;
         }
         return false; // Preserve other CEF popups, including login flows.
