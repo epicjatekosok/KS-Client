@@ -56,6 +56,29 @@ try{
         if($LASTEXITCODE -ne 0){throw "Could not publish verified update assets to $publicRepo"}
         Write-Host "Public auto-update feed: https://github.com/$publicRepo/releases/tag/$tag"
     }
+    # A release being present is not enough: every expected binary must be
+    # completely uploaded or clients will never offer the update.
+    $publicAssets=@(& gh api "repos/$publicRepo/releases/tags/$tag" --jq '.assets[] | select(.state == "uploaded") | .name')
+    if($LASTEXITCODE -ne 0){throw "Public release metadata cannot be read"}
+    foreach($asset in $paths) {
+        if($publicAssets -notcontains $asset){throw "Public update release is missing uploaded asset: $asset"}
+    }
+    # Final unauthenticated check. This must work on end-user machines without
+    # a GitHub token, even when the source repository is private.
+    $anonHeaders=@{'User-Agent'='KS-Client-Update-Public-Verification';'Accept'='application/vnd.github+json'}
+    $anonymous=Invoke-RestMethod -Uri "https://api.github.com/repos/$publicRepo/releases/tags/$tag" -Method Get -Headers $anonHeaders -TimeoutSec 20
+    if($anonymous.tag_name -ne $tag){throw "Public GitHub update API returned a different tag"}
+    $setupName='KS-Client-alpha-1.1.23-Setup.exe'
+    $asset=@($anonymous.assets | Where-Object { $_.name -eq $setupName -and $_.state -eq 'uploaded' })
+    if($asset.Count -ne 1 -or $asset[0].digest -notmatch '^sha256:[0-9a-f]{64}
+} finally {
+    $env:GH_TOKEN=$privateToken
+}
+){
+        throw "Unauthenticated update API missing an uploaded, SHA-256-digested Setup.exe"
+    }
+    Write-Host "PASS: public feed anonymously readable, all six assets uploaded, Setup EXE SHA-256 published"
+    }
 } finally {
     $env:GH_TOKEN=$privateToken
 }

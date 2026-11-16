@@ -1,3 +1,11 @@
+# KS Client alpha 1.1.23 — Discord crash fix, matched quick buttons and settings animations
+
+Fixed the Electron main-process `openKSDiscord is not defined` crash when clicking the KS Discord button; the fixed community invite now opens in the system-default HTTPS browser from a module-scoped native helper. The upper-left Settings gear and KS Discord quick button share matching black/orange visuals and a common toolbar. The Settings panel, category changes, buttons, dropdowns and sliders animate smoothly with full support for reduced-motion preferences.
+
+**Automatic update status:** Source `epicjatekosok/KS-Client` is private, and public binary repository `epicjatekosok/KS-Client-Updates` is not available (GitHub 404). Automatic downloads require the publisher to create this separate PUBLIC, binary-only repository and configure `KS_PUBLIC_RELEASE_TOKEN` in the private repo's Actions secrets. Never embed access tokens in the client. See [Public updates setup (Hungarian)](PUBLIC_UPDATES_SETUP_HU.md). Until configured, use Open GitHub Releases (manual) while signed in.
+
+---
+
 # KS Client alpha 1.1.22 — Reference-inspired orange gamer Settings
 
 The old settings interface has been rebuilt as a full, visually consistent black-and-orange dashboard inspired by the supplied mockup. It features a KS logo and large Settings heading, seven logical navigation sections with SVG icons, glowing orange active arrows, visual Low/Medium/High performance cards, cohesive option panels, styled switches/selects, and functional Reset/Cancel/Apply actions. Every existing setting remains under a relevant category. The old Workshop data still saves separately.
