@@ -50,7 +50,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client alpha 1.1.19 – CEF";
+        Text="KS Client alpha 1.1.20 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -430,6 +430,10 @@ internal sealed class ClientForm : Form
         switch(type)
         {
             case "game": Go(Game);break;
+            case "discord-community":
+                try { Process.Start(new ProcessStartInfo { FileName="https://discord.gg/cxP386yGjk",UseShellExecute=true }); }
+                catch(Exception ex) { Program.Log("Could not open KS Discord: "+ex.Message); }
+                break;
             case "stats": Go(Stats);break;
             case "clan": Go(Clans);break;
             case "fullscreen":ToggleFull();break;
