@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright
 root=Path(__file__).resolve().parents[1]
 def test_engine(browser,engine):
   page=browser.new_page(viewport={'width':1280,'height':800})
-  page.set_content('<!doctype html><html><head></head><body><main>Mock Kirka lobby</main><a id="discord-original" href="https://discord.gg/other">Discord</a><button id="join-community" aria-label="Join our Discord">Join</button><button id="not-discord">Other game button</button></body></html>')
+  page.set_content('<!doctype html><html><head></head><body><main>Mock Kirka lobby</main><a id="discord-original" href="https://discord.gg/other">Discord</a><button id="join-community" aria-label="Join our Discord">Join</button><button id="other-action">Other game button</button></body></html>')
   page.evaluate("""() => {
     window.__KS_TEST_LOCATION__={hostname:'kirka.io',protocol:'https:',pathname:'/',href:'https://kirka.io/'};
     window.__out=[];
@@ -41,7 +41,7 @@ def test_engine(browser,engine):
   page.evaluate('window.__KS_CLIENT__.close()')
   page.locator('#discord-original').click()
   page.locator('#join-community').click()
-  page.locator('#not-discord').click()
+  page.locator('#other-action').click()
   out=page.evaluate('window.__out.filter(m=>m.type==="discord-community")')
   assert len(out)==2,out
   assert page.evaluate("document.location.href")== 'about:blank'
