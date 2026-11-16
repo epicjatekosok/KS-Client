@@ -991,6 +991,69 @@
         animation:none!important;transition:none!important;
       }
     }
+
+    /* Beta 1.0.0: unified unobtrusive HUD / KS shortcut visual language. */
+    #ks-fps,#ks-break-reminder,#ks-community-status {
+      border:1px solid rgba(255,157,24,.60)!important;
+      background:rgba(14,13,13,.92)!important;
+      color:#f8f8fa!important;
+      border-radius:10px!important;
+      box-shadow:0 6px 25px rgba(0,0,0,.38)!important;
+      font-family:'Segoe UI',Arial,sans-serif!important;
+      font-size:12px!important;font-weight:760!important;letter-spacing:0!important;
+    }
+    #ks-fps {
+      display:none;min-height:36px;line-height:18px;padding:8px 13px!important;
+      pointer-events:none!important;font-variant-numeric:tabular-nums;
+      border-left:3px solid #ff9200!important;
+    }
+    #ks-break-reminder {max-width:min(340px,calc(100vw - 36px));}
+    #ks-break-text {line-height:1.5;}
+    #ks-break-dismiss {
+      display:grid;place-items:center;flex:0 0 29px;width:29px;height:29px;
+      background:#171513!important;color:#fff!important;
+      border:1px solid rgba(255,157,24,.60)!important;border-radius:8px!important;
+      font:750 16px 'Segoe UI',sans-serif!important;transition:background .16s,color .16s,transform .16s;
+    }
+    #ks-break-dismiss:hover {background:#ff9200!important;color:#151009!important;transform:scale(1.05);}
+    #ks-panel #ks-close {
+      display:grid;place-items:center;flex:0 0 38px;
+      width:38px!important;min-width:38px;height:38px!important;min-height:38px;
+      padding:0!important;border:1px solid rgba(255,157,24,.60)!important;
+      border-radius:10px!important;background:rgba(14,13,13,.92)!important;color:#fff!important;
+      font:760 20px/1 'Segoe UI',Arial,sans-serif!important;
+      box-shadow:0 6px 25px rgba(0,0,0,.38)!important;
+      transition:background .18s,color .18s,border-color .18s,transform .18s,box-shadow .18s;
+    }
+    #ks-panel #ks-close:hover {
+      background:linear-gradient(105deg,#ff7900,#ffad00)!important;
+      color:#17100a!important;border-color:#ffc146!important;
+      transform:translateY(-1px);box-shadow:0 9px 26px rgba(255,132,0,.19)!important;
+    }
+    #ks-panel #ks-close:active {transform:scale(.96);}
+    #ks-panel #ks-close:focus-visible {outline:2px solid #ffb838;outline-offset:3px;}
+    #ks-panel .ks-tab[data-group="Workshop"] {gap:9px;flex-wrap:wrap;}
+    #ks-panel .ks-tab[data-group="Workshop"]>span:nth-child(2) {margin-right:auto;}
+    #ks-panel .ks-experimental-badge {
+      flex:none;display:inline-flex;align-items:center;justify-content:center;
+      padding:4px 6px;border:1px solid rgba(255,184,68,.46);
+      border-radius:6px;background:rgba(255,147,0,.14);
+      color:#ffb83b;font:780 8px/1 'Segoe UI',sans-serif;letter-spacing:.5px;
+    }
+    #ks-panel .ks-tab.active .ks-experimental-badge {border-color:rgba(255,255,255,.65);background:rgba(0,0,0,.2);color:#fff;}
+    #ks-panel .ks-workshop-experimental {
+      display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+      padding:12px 15px;margin-bottom:17px;background:rgba(255,144,0,.08);
+      border:1px solid rgba(255,159,25,.38);border-radius:12px;
+      color:#e6d1b3;font:500 11px/1.6 'Segoe UI',sans-serif;
+    }
+    #ks-panel .ks-workshop-experimental strong {
+      color:#ffb83b;font-size:10px;font-weight:850;letter-spacing:.6px;
+    }
+    @media(max-width:1250px) {#ks-panel .ks-experimental-badge {font-size:7px;padding:3px 5px;}}
+    @media(max-width:900px) {#ks-panel .ks-tab[data-group="Workshop"] {gap:6px;}}
+    @media(max-width:650px) {#ks-panel #ks-close {width:35px!important;min-width:35px;height:35px!important;min-height:35px;}}
+    @media(prefers-reduced-motion:reduce){#ks-panel #ks-close,#ks-break-dismiss {transition:none!important;}}
   </style>
   <div id="ks-screen">
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
