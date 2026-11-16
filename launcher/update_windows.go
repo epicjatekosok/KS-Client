@@ -26,7 +26,7 @@ import (
 
 const updateRepo = "epicjatekosok/KS-Client-Updates"
 const updateMaxBytes int64 = 950 * 1024 * 1024
-var updateTag = regexp.MustCompile("^v([0-9]+)\\.([0-9]+)\\.([0-9]+)(-alpha)?$")
+var updateTag = regexp.MustCompile("^v([0-9]+)[.]([0-9]+)[.]([0-9]+)(-alpha)?$")
 var digestPattern = regexp.MustCompile("^sha256:[0-9a-f]{64}$")
 
 type updateAsset struct {
