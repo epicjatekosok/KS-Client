@@ -30,7 +30,7 @@ def test_engine(browser,engine):
   assert badge=={'bottom':'5px','left':'7px','opacity':'0.36','pointerEvents':'none'},badge
   page.evaluate("""() => {
     const s=document.querySelector('#ks-client-root').shadowRoot;
-    const i=s.querySelector('#ks-menu-search');i.value='hitmarker';i.dispatchEvent(new Event('input',{bubbles:true}));
+    const i=s.querySelector('#ks-menu-search');i.value='keystrokes';i.dispatchEvent(new Event('input',{bubbles:true}));
   }""")
   assert page.evaluate("""() => {
     const s=document.querySelector('#ks-client-root').shadowRoot;
