@@ -90,12 +90,25 @@ assert 'tests/test_game_integration_112.py' in (root/'.github/workflows/windows-
 workflow=(root/'.github/workflows/windows-build.yml').read_text()
 assert 'needs: [source-check, electron, cef]' in workflow
 assert 'tests/test_ci_release_gates.py' in workflow
-print('PASS: alpha 1.1.16 source, runtimes and gated offline package')
+print('PASS: alpha 1.1.17 source, runtimes and gated offline package')
 
-# KS 1.1.16 single game-state runtime and passive GPU event observer.
+# KS 1.1.17 single game-state runtime and passive GPU event observer.
 assert "window.__KS_GAME_RUNTIME__" in (root/'electron-app/overlay/game_runtime.js').read_text()
 assert "window.__KS_RENDER_TELEMETRY__" in (root/'electron-app/overlay/render_telemetry.js').read_text()
 assert "shared.on('killfeed'" in (root/'electron-app/overlay/advanced_integration.js').read_text()
 assert "runtimeSubscriptions" in (root/'electron-app/overlay/advanced_integration.js').read_text()
 assert "render_telemetry.js" in (root/'ci/Prepare-Electron.ps1').read_text()
 assert "render_telemetry.js" in (root/'ci/Build-CEF.ps1').read_text()
+
+# Native CEF input is Chromium-owned after 1.1.17 (no fake cursor capture).
+cef_program=(root/'cef/Program.cs').read_text()
+cef_probe=(root/'cef/overlay/cef_input_probe.js').read_text()
+assert 'CefRuntimeStyle.Chrome' in cef_program and '--ks-cef-alloy' in cef_program
+assert 'ActivateBrowserOnCreation=true' in cef_host
+assert 'Cursor.Hide()' not in cef_host and 'NativeCursor.SetCursor' not in cef_host
+assert 'KSGameCursorHandler(' not in cef_host
+assert 'cefInputProbe' in cef_host and 'cef_input_probe.js' in cef_host
+assert 'proto.requestPointerLock=passThrough' in cef_probe
+assert 'overlay\\cef_input_probe.js' in (root/'ci/Build-CEF.ps1').read_text()
+assert 'tests/test_cef_input_117.py' in workflow
+print('PASS: KS 1.1.17 CEF focus, pointer-lock, and eye-filter source invariants')
