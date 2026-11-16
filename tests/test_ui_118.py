@@ -22,9 +22,9 @@ def run(browser,engine):
   page.wait_for_timeout(200)
   initial=page.evaluate("""() => {
     const s=document.querySelector('#ks-client-root').shadowRoot;
-    return [s.querySelector('#ks-gear').textContent.trim(),s.querySelector('#ks-fps').style.display,s.querySelector('#ks-quick').style.display,s.querySelector('.ks-alpha').textContent];
+    return [s.querySelector('#ks-gear').textContent.trim(),s.querySelector('#ks-fps').style.display,s.querySelector('#ks-quick').style.display,s.querySelector('#ks-brand-main').textContent];
   }""")
-  assert initial==['⚙','none','flex','alpha 1.1.22'],initial
+  assert initial==['⚙','none','flex','Settings'],initial
   page.evaluate("window.__KS_TEST_LOCATION__.pathname='/games/test';document.body.innerHTML='<main id=game><canvas width=800 height=600></canvas></main>'")
   page.wait_for_timeout(350)
   assert page.evaluate("document.querySelector('#ks-client-root')?.parentElement===document.body")
