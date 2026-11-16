@@ -50,3 +50,6 @@ assert 'cef_input_probe.js' in (root/'cef/ClientForm.cs').read_text(encoding='ut
 assert "runtime/CEF/overlay/cef_input_probe.js" in package
 assert 'test_cef_input_117.py' in workflow
 print('PASS: CEF 1.1.17 pointer-lock ownership and compatibility test gates')
+
+# The standalone GitHub Release must use its own 1.1.17 QA documentation.
+assert "RELEASE_117_HU.md" in (root/'ci/Publish-Release.ps1').read_text(encoding='utf8')
