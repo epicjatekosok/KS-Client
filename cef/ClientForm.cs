@@ -440,7 +440,7 @@ internal sealed class ClientForm : Form
     {
         if(!Trust(source)||!Trust(browser.Address))return;
         string type=m.Type ?? "";
-        if(!Trust(source,true) && type is not("stats" or "clan" or "game" or "fullscreen" or "crash-status" or "diagnostics-poll" or "update-check" or "update-install" or "update-open-release"))return;
+        if(!Trust(source,true) && type is not("stats" or "clan" or "game" or "fullscreen" or "crash-status" or "diagnostics-poll" or "update-check" or "update-install" or "update-open-release" or "discord-community"))return;
         switch(type)
         {
             case "game": Go(Game);break;
@@ -449,7 +449,9 @@ internal sealed class ClientForm : Form
                 catch(Exception ex){Program.Log("Releases page: "+ex.Message);}
                 break;
             case "discord-community":
-                ClientCommunityLinks.OpenInvite();
+                Reply("setCommunityStatus",ClientCommunityLinks.OpenInvite()
+                    ? "KS Discord invite handed to Windows default browser."
+                    : "Could not start your Windows default browser. Copy https://discord.gg/cxP386yGjk");
                 break;
             case "stats": Go(Stats);break;
             case "clan": Go(Clans);break;
@@ -603,7 +605,7 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
         if(userGesture && ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true)
             && ClientCommunityLinks.IsDiscordTarget(request.Url))
         {
-            _=Task.Run(ClientCommunityLinks.OpenInvite);
+            _=Task.Run(()=>ClientCommunityLinks.OpenInvite());
             return true;
         }
         try {
