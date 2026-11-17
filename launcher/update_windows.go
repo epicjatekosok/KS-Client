@@ -302,6 +302,7 @@ func updateWorkerCLI(mode,target string,waitPID int){
   return
  }
  w:=ksui.New("KS Client - Update "+choice.release.Tag,"Downloading KS Client update","Verified GitHub release · both engines · saved settings kept")
+ w.Version="Beta "+version
  w.SetButtons(ksui.Button{Label:"Close",ID:"close",Enabled:false})
  w.OnButton=func(id string){if id=="close"{w.Close()}}
  go func(){
@@ -333,6 +334,7 @@ func updateWorkerCLI(mode,target string,waitPID int){
 func showUpdateError(e error){
  appendLog("Update service error: "+e.Error())
  w:=ksui.New("KS Client - Update error","Could not update KS Client","The current installation has not been changed.")
+ w.Version="Beta "+version
  w.AddLog(e.Error())
  w.Update("NO CHANGE",e.Error(),0)
  w.SetButtons(ksui.Button{Label:"Close",ID:"close",Enabled:true})

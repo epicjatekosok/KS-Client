@@ -1,4 +1,4 @@
-"""Beta 1.0.3: timeout and release-verification regression (source/offline)."""
+"""Beta 1.0.4: timeout and release-verification regression (source/offline)."""
 from pathlib import Path
 import re
 
@@ -22,7 +22,7 @@ for safety in ['validUpdateAsset','digestPattern','expectedURL','https://github.
                'sha256.New()','updateMaxBytes','compareVersion(v,current)<=0',
                'CheckRedirect']:
  assert safety in native, safety
-assert 'v1.0.4-beta' in tests and 'v1.0.3-beta' in tests
-assert "v1.0.3-beta" in publish and "RELEASE_BETA_103_HU.md" in publish
+assert 'v1.0.5-beta' in tests and 'v1.0.4-beta' in tests
+assert "v1.0.4-beta" in publish and "RELEASE_BETA_104_EN.md" in publish
 assert "epicjatekosok/KS-Client-Updates" in native
-print('PASS: Beta 1.0.3 bounded retry, longer UI deadline, exact SHA-256-pinned release selection')
+print('PASS: Beta 1.0.4 bounded retry, longer UI deadline, exact SHA-256-pinned release selection')

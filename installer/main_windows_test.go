@@ -46,3 +46,36 @@ func TestExtractAndCopyOfflinePayload(t *testing.T) {
   // Exercise the in-place replacement path without needing the GUI.
   if err=installFiles(stage,dir);err!=nil {t.Fatal("in-place upgrade failed:",err)}
 }
+
+
+// Test the version DISPLAYED in Setup against the actual embedded ZIP.
+// Include a synthetic later release to prove the UI has no hard-coded version.
+func TestBundledVersionMatchesBothEngines(t *testing.T){
+  got,err:=bundledVersion()
+  if err!=nil{t.Fatal(err)}
+  if got!="1.0.4"{t.Fatalf("built ZIP version = %q, want Beta 1.0.4",got)}
+}
+func TestBundledVersionIsNotHardCoded(t *testing.T){
+  makeBundle:=func(electron,cef string)[]byte{
+    var buf bytes.Buffer
+    writer:=zip.NewWriter(&buf)
+    for _,pair:=range [][2]string{
+      {"runtime/Electron/resources/app/package.json",`{"version":"`+electron+`"}`},
+      {"runtime/CEF/ks-smoke-pass.json",`{"version":"`+cef+`"}`},
+    } {
+      file,err:=writer.Create(pair[0]);if err!=nil{t.Fatal(err)}
+      if _,err=file.Write([]byte(pair[1]));err!=nil{t.Fatal(err)}
+    }
+    if err:=writer.Close();err!=nil{t.Fatal(err)}
+    return buf.Bytes()
+  }
+  next:=makeBundle("9.8.7-beta","9.8.7")
+  got,err:=bundledVersionFromArchive(next)
+  if err!=nil||got!="9.8.7"{t.Fatalf("version not derived from package metadata: got %q, err %v",got,err)}
+  if _,err:=bundledVersionFromArchive(makeBundle("9.8.7-beta","9.8.6"));err==nil{
+    t.Fatal("mismatched Electron and CEF versions must be rejected")
+  }
+  if _,err:=bundledVersionFromArchive(makeBundle("invalid-version","9.8.7"));err==nil{
+    t.Fatal("malformed release version must be rejected")
+  }
+}
