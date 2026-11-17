@@ -1,4 +1,4 @@
-"""Offline Chromium verification for the 1.1.23 KS Settings dashboard."""
+"""Offline Chromium verification for the 1.0.0 KS Settings dashboard."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 r=Path(__file__).resolve().parents[1]
@@ -65,5 +65,5 @@ with sync_playwright() as p:
   assert len(page.evaluate("window.__out.filter(m=>m.type==='discord-community')"))>=2
   assert not errors,errors
   page.close()
-  print('PASS 1.1.23 full orange gamer UI, categories, presets, Cancel/Apply and Discord',engine)
+  print('PASS 1.0.0 full orange gamer UI, categories, presets, Cancel/Apply and Discord',engine)
  browser.close()

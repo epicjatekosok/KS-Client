@@ -26,7 +26,7 @@ import (
 
 const updateRepo = "epicjatekosok/KS-Client-Updates"
 const updateMaxBytes int64 = 950 * 1024 * 1024
-var updateTag = regexp.MustCompile("^v([0-9]+)[.]([0-9]+)[.]([0-9]+)(-alpha)?$")
+var updateTag = regexp.MustCompile("^v([0-9]+)[.]([0-9]+)[.]([0-9]+)(-alpha|-beta)?$")
 var digestPattern = regexp.MustCompile("^sha256:[0-9a-f]{64}$")
 
 type updateAsset struct {
@@ -49,43 +49,67 @@ type updateChoice struct {
  asset updateAsset
  cached bool
 }
-type versionParts struct { major,minor,patch int; alpha bool }
+type versionParts struct {major,minor,patch int; track string}
 func parseVersion(s string)(versionParts,bool){
  m:=updateTag.FindStringSubmatch(s)
  if m==nil{return versionParts{},false}
  a,e:=strconv.Atoi(m[1]);if e!=nil{return versionParts{},false}
  b,e:=strconv.Atoi(m[2]);if e!=nil{return versionParts{},false}
  c,e:=strconv.Atoi(m[3]);if e!=nil{return versionParts{},false}
- return versionParts{a,b,c,m[4]!=""},true
+ track:=strings.TrimPrefix(m[4],"-")
+ if track==""{track="stable"}
+ return versionParts{a,b,c,track},true
 }
+func trackPriority(track string)int{
+ switch track{
+ case "alpha":return 0
+ case "beta":return 1
+ case "stable":return 2
+ }
+ return -1
+}
+// Alpha 1.1.23 -> Beta 1.0.0 is a product-track promotion,
+// intentionally NOT numerical semver ordering. Within one track the
+// version numbers use conventional major/minor/patch ordering.
 func compareVersion(a,b versionParts)int{
+ if x,y:=trackPriority(a.track),trackPriority(b.track);x!=y {
+  if x>y{return 1};return -1
+ }
  for i,v:=range []int{a.major,a.minor,a.patch}{
   w:=[]int{b.major,b.minor,b.patch}[i]
   if v>w{return 1};if v<w{return -1}
  }
- if a.alpha&&!b.alpha{return -1}
- if !a.alpha&&b.alpha{return 1}
  return 0
 }
-func updateChannel(channel string)string{if channel=="stable"{return "stable"};return "alpha"}
+func updateChannel(channel string)string {
+ switch channel{
+ case "alpha","beta","stable":return channel
+ default:return "beta"
+ }
+}
 func validUpdateAsset(asset updateAsset, tag string)bool{
- version:=strings.TrimSuffix(strings.TrimPrefix(tag,"v"),"-alpha")
- expected:="KS-Client-alpha-"+version+"-Setup.exe"
- if !strings.HasSuffix(tag,"-alpha"){expected="KS-Client-"+version+"-Setup.exe"}
+ parsed,ok:=parseVersion(tag)
+ if !ok{return false}
+ full:=fmt.Sprintf("%d.%d.%d",parsed.major,parsed.minor,parsed.patch)
+ expected:="KS-Client-"+full+"-Setup.exe"
+ if parsed.track!="stable"{expected="KS-Client-"+parsed.track+"-"+full+"-Setup.exe"}
  if asset.Name!=expected||asset.State!="uploaded"||asset.Size<1000000||asset.Size>updateMaxBytes{return false}
  if !digestPattern.MatchString(strings.ToLower(asset.Digest)){return false}
  expectedURL:="https://github.com/"+updateRepo+"/releases/download/"+tag+"/"+expected
  return asset.URL==expectedURL
 }
 func chooseUpdate(releases []updateRelease,channel string)(updateChoice,bool){
- current,_:=parseVersion("v"+version+"-alpha")
+ tag:="v"+version
+ if releaseTrack!="stable"{tag+="-"+releaseTrack}
+ current,_:=parseVersion(tag)
  var best updateChoice
  var bestVer versionParts
  found:=false
  for _,release:=range releases{
   v,ok:=parseVersion(release.Tag)
-  if !ok||release.Draft||release.Prerelease!=v.alpha{continue}
-  if channel=="stable"&&v.alpha{continue}
+  if !ok||release.Draft||release.Prerelease!=(v.track!="stable"){continue}
+  if channel=="stable"&&v.track!="stable"{continue}
+  if channel=="beta"&&v.track=="alpha"{continue}
   if compareVersion(v,current)<=0{continue}
   for _,asset:=range release.Assets{
    if !validUpdateAsset(asset,release.Tag){continue}
@@ -115,7 +139,7 @@ func getUpdates()(updateChoice,bool,error){
  endpoint:="https://api.github.com/repos/"+updateRepo+"/releases?per_page=40"
  request,e:=http.NewRequest("GET",endpoint,nil);if e!=nil{return updateChoice{},false,e}
  request.Header.Set("Accept","application/vnd.github+json")
- request.Header.Set("User-Agent","KS-Client-Updater/"+version)
+ request.Header.Set("User-Agent","KS-Client-Updater/"+releaseTrack+"-"+version)
  response,e:=client.Do(request);if e!=nil{return updateChoice{},false,e}
  defer response.Body.Close()
  if response.StatusCode!=200{
@@ -130,7 +154,7 @@ func getUpdates()(updateChoice,bool,error){
  return choice,found,nil
 }
 // updateMode is set from the launcher argument, never directly from web content.
-var updateMode="alpha"
+var updateMode="beta"
 func updateCachePath(choice updateChoice)string{
  dir:=filepath.Join(dataDir(),"Updates","cache",choice.release.Tag)
  return filepath.Join(dir,choice.asset.Name)
@@ -152,7 +176,7 @@ func downloadUpdate(choice updateChoice,progress func(int64,int64)) (string,erro
  if e:=os.MkdirAll(filepath.Dir(dest),0700);e!=nil{return "",e}
  client:=updateHTTP();client.Timeout=30*time.Minute
  request,e:=http.NewRequest("GET",choice.asset.URL,nil);if e!=nil{return "",e}
- request.Header.Set("User-Agent","KS-Client-Updater/"+version)
+ request.Header.Set("User-Agent","KS-Client-Updater/"+releaseTrack+"-"+version)
  response,e:=client.Do(request);if e!=nil{return "",e};defer response.Body.Close()
  if response.StatusCode!=200{return "",fmt.Errorf("update download HTTP %d",response.StatusCode)}
  if response.ContentLength>updateMaxBytes{return "",errors.New("update exceeds download size limit")}
@@ -292,7 +316,7 @@ func showUpdateError(e error){
 // handleUpdateCLI intercepts update commands before the normal engine launcher.
 // There is no token embedded in the client and no URL accepted from game JS.
 func handleUpdateCLI(args []string)bool{
- mode:="";channel:="alpha";target:="";waitPID:=0;worker:=false
+ mode:="";channel:="beta";target:="";waitPID:=0;worker:=false
  for _,arg:=range args{
   switch{
   case arg=="--ks-update-check":mode="check"

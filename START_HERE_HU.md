@@ -1,3 +1,15 @@
+# KS Client Beta 1.0.0 – egységes HUD és működő GitHub-frissítések
+
+**Mostantól Beta 1.0.0 a verziószám.** A fogaskerékkel és a Discord-gombbal azonos fekete–narancssárga stílust kapott az FPS-számláló, a Keystrokes, a játékbeli statisztika, a pihenőemlékeztető és a beállítások X bezárógombja. Az FPS-számláló továbbra is alapból kikapcsolt. A Workshop mellett **Experimental** jelzés jelenik meg, mert ez a rész még tesztelés alatt áll.
+
+**Automatikus és kézi frissítés:** az új Beta már a ténylegesen elérhető, nyilvános `epicjatekosok/KS-Client-Updates` kiadási tárhelyet használja. A Check for updates kézi ellenőrzése és az Install update & restart gomb ellenőrzött SHA-256-ú telepítőt használ, a kézi GitHub Releases hivatkozás is a nyilvános oldalra mutat. Az új profilban automatikus keresés és letöltés van bekapcsolva; a telepítéshez mindig jóváhagyás kell, és a korábban elmentett beállításokat megőrizzük.
+
+**Alpha 1.1.23 → Beta 1.0.0:** a régi frissítő csak `-alpha` taggeket értene, ezért a kiadási folyamat egy egyszeri, külön jelölt `v1.1.24-alpha` kompatibilitási hidat is publikál, amely bitre ugyanazt az ellenőrzött Beta-telepítőt kínálja. Ez nem önálló Alpha-fejlesztés.
+
+Nyilvános letöltés: https://github.com/epicjatekosok/KS-Client-Updates/releases
+
+---
+
 # KS Client alpha 1.1.23 – Discord, animációk és frissítések
 
 Megszűnt a Discord-gombot érintő Electron-főfolyamat hiba (`openKSDiscord is not defined`). A Discord-meghívó most a Windows alapértelmezett böngészőjében nyílik meg. A bal felső beállítás-fogaskerék és a KS Discord gomb egységes stílust és közös sort kapott. A menü, kártyák, kategóriák, kapcsolók és gombok rövid, letiltható animációkkal működnek.

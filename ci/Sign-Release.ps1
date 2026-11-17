@@ -14,7 +14,7 @@ if(-not $encoded) {
 $files=switch($Stage) {
     'cef' { @(Join-Path $repo 'runtime/CEF/KS.Cef.Client.exe') }
     'native' { @((Join-Path $repo 'KS-Client.exe'),(Join-Path $repo 'Uninstall-KS-Client.exe')) }
-    'setup' { @(Join-Path $repo 'KS-Client-alpha-1.1.23-Setup.exe') }
+    'setup' { @(Join-Path $repo 'KS-Client-beta-1.0.0-Setup.exe') }
 }
 $exe=Get-Command signtool.exe -ErrorAction SilentlyContinue
 if(-not $exe) {
