@@ -319,8 +319,7 @@ function createWindow(){
     return {action:'allow',overrideBrowserWindowOptions:{
       title:'KS Client - Account sign-in',width:540,height:720,minWidth:420,minHeight:520,
       parent:win,autoHideMenuBar:true,backgroundColor:'#0d1015',
-      webPreferences:{sandbox:true,nodeIntegration:false,contextIsolation:true,webSecurity:true,
-        partition:'persist:ks-client-oauth'}
+      webPreferences:{sandbox:true,nodeIntegration:false,contextIsolation:true,webSecurity:true}
     }};
   });
   win.webContents.on('did-create-window',child=>configureAuthPopup(child));
