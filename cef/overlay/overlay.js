@@ -47,6 +47,7 @@
     lowLatency: false,
     performancePreset: 'Balanced',
     themePreset: 'Amber', customAccent: '#f0aa35', customBackground: '#0d1015', customPanel: '#171c23', customText: '#edf0f6', customMuted: '#97a3b2', gameThemeEnabled: false,
+    themeSurface:'Solid',themeGlow:0,themeRadius:12,themePattern:'None',themeDensity:'Comfortable',
     fontFamily: 'Segoe UI', fontSize: 110, gameFontEnabled: false,
     menuImageEnabled: true, menuSelector: '', uiImageSelector: '', menuSoundEnabled: false,
     minimalHUD: false, minimalSelectors: '', customCrosshairPresets: [],
@@ -102,7 +103,23 @@
   let displayedGameFPS = 0;
   let displayedFrameMs = 0;
   let measuredLabel = 'Browser animation ticks (not game GPU FPS)';
-  const themeColors = Object.freeze({ Amber:'#f0aa35', Ember:'#ef7958', Ice:'#74cce8', Forest:'#78c99c', Violet:'#b7a0f2', Custom:null });
+  // Named presets are complete visual palettes; they never touch gameplay settings.
+  const themePalettes = Object.freeze({
+    Amber:{accent:'#f0aa35',bg:'#0d1015',panel:'#171c23',text:'#edf0f6',muted:'#97a3b2'},
+    Ember:{accent:'#ef7958',bg:'#151012',panel:'#251a20',text:'#fff0e9',muted:'#bea5a1'},
+    Ice:{accent:'#74cce8',bg:'#0b1620',panel:'#172a37',text:'#e9f8ff',muted:'#9cb9c7'},
+    Forest:{accent:'#78c99c',bg:'#0e1815',panel:'#1a2b23',text:'#e9f8ee',muted:'#a3c0b0'},
+    Violet:{accent:'#b7a0f2',bg:'#151221',panel:'#241d37',text:'#f2edff',muted:'#b4aac9'},
+    Midnight:{accent:'#738fff',bg:'#0a1021',panel:'#171f39',text:'#e9eeff',muted:'#a5b5d5'},
+    Ocean:{accent:'#39d0ce',bg:'#09191c',panel:'#142f33',text:'#e4ffff',muted:'#91bec2'},
+    Crimson:{accent:'#f36b8b',bg:'#1a1017',panel:'#321b2a',text:'#fff0f4',muted:'#cea4b2'},
+    Cyber:{accent:'#b9ff4b',bg:'#10150b',panel:'#222e18',text:'#f4ffe5',muted:'#b6cb9b'},
+    Rose:{accent:'#ff9fc7',bg:'#1b1420',panel:'#2e2036',text:'#fff0f8',muted:'#ccb1c7'},
+    Sand:{accent:'#efbf81',bg:'#1b1713',panel:'#2c251d',text:'#fff2db',muted:'#c6b29c'},
+    Monochrome:{accent:'#d9e2ed',bg:'#101214',panel:'#24282e',text:'#f5f7fa',muted:'#a9b4be'},
+    Copper:{accent:'#ef9d65',bg:'#17130e',panel:'#2b211a',text:'#f9f0e7',muted:'#c5aa96'}
+  });
+  const themeColors = Object.freeze({...Object.fromEntries(Object.entries(themePalettes).map(([k,v])=>[k,v.accent])),Custom:null});
   const assetKeys = ['menuBackground', 'uiImage', 'menuSound', 'localFont'];
   const assets = Object.create(null);
   const assetURLs = Object.create(null);
@@ -118,7 +135,7 @@
     'Game Integration':['gameKeystrokes','gameStats','gameKeysPosition','gameKeysScale','gameAutoMouseCapture','gameQuickJoin'],
     'Eye Comfort': ['eyeEnabled','eyePreset','eyeBrightness','eyeContrast','eyeSaturation','eyeWarmth','eyeSoftness','breakReminderMinutes'],
     Crosshair: [...crosshairFields,'previewBackground','customCrosshairPresets'],
-    Appearance: ['themePreset','customAccent','customBackground','customPanel','customText','customMuted','fontFamily','fontSize','uiAnimations'],
+    Appearance: ['themePreset','customAccent','customBackground','customPanel','customText','customMuted','themeSurface','themeGlow','themeRadius','themePattern','themeDensity','fontFamily','fontSize','uiAnimations'],
     Interface: ['showHUD','showBadge','reduceMotion','minimalHUD'],
     Resources: ['menuImageEnabled','menuSelector','uiImageSelector','menuSoundEnabled'],
     'CSS Editor': ['gameThemeEnabled','gameFontEnabled','menuSelector','uiImageSelector','minimalSelectors','customCSSEnabled','customCSS'],
@@ -1054,6 +1071,15 @@
     @media(max-width:900px) {#ks-panel .ks-tab[data-group="Workshop"] {gap:6px;}}
     @media(max-width:650px) {#ks-panel #ks-close {width:35px!important;min-width:35px;height:35px!important;min-height:35px;}}
     @media(prefers-reduced-motion:reduce){#ks-panel #ks-close,#ks-break-dismiss {transition:none!important;}}
+    #ks-panel .ks-palette-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(94px,1fr));gap:9px;margin:12px 0 16px;}
+    #ks-panel .ks-palette-tile{display:flex;flex-direction:column;gap:5px;align-items:stretch;cursor:pointer;
+      padding:7px;border:1px solid rgba(180,193,210,.19);background:rgba(0,0,0,.15);color:var(--ks-text);
+      font:600 11px 'Segoe UI',sans-serif;transition:border-color .18s,transform .18s;}
+    #ks-panel .ks-palette-tile:hover{transform:translateY(-2px);border-color:var(--ks-accent);}
+    #ks-panel .ks-palette-tile:focus-visible{outline:2px solid var(--ks-accent);outline-offset:2px;}
+    #ks-panel .ks-palette-preview{height:29px;display:flex;align-items:center;gap:5px;padding:5px;
+      border:1px solid;border-radius:5px;}
+    #ks-panel .ks-palette-preview i{display:block;height:13px;flex:1;border-radius:3px;}
   </style>
   <div id="ks-screen">
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
@@ -1715,6 +1741,18 @@
   const selectRow = (label, desc, key, options) => `<div class="ks-row"><div><div class="ks-label">${label}</div><div class="ks-desc">${desc}</div></div><select class="ks-input" data-setting="${key}">${options.map(o => `<option value="${o.value}" ${String(state[key]) === String(o.value) ? 'selected' : ''}>${o.label}</option>`).join('')}</select></div>`;
   const title = (t, s) => `<h2 class="ks-title">${t}</h2><p class="ks-sub">${s}</p>`;
 
+  function paletteTiles() {
+    return '<div class="ks-palette-grid" role="group" aria-label="Color palette presets">'+
+      Object.entries(themePalettes).map(([name,c])=>
+        `<button type="button" class="ks-palette-tile ${state.themePreset===name?'selected':''}"
+          data-palette="${esc(name)}" aria-pressed="${state.themePreset===name}">
+          <span class="ks-palette-preview" style="background:${c.bg};border-color:${c.accent}">
+            <i style="background:${c.accent}"></i><i style="background:${c.panel}"></i>
+            <i style="background:${c.text}"></i>
+          </span><span>${esc(name)}</span>
+        </button>`).join('')+
+      '</div>';
+  }
   function currentAccent() {
     const candidate = themeColors[state.themePreset] || state.customAccent;
     return /^#[0-9a-f]{6}$/i.test(String(candidate)) ? candidate : '#f0aa35';
@@ -1963,15 +2001,23 @@
           `<p class="ks-hint">Preview uses the same vector drawing as the in-game overlay. Center dot and outlines are independent.</p>` +
           `</div></aside></div>`;
       case 'Appearance':
-        return title('Appearance & Themes','Customize accent, surface, text and typography for the client interface.') +
-          `<div class="ks-grid"><div class="ks-card"><h3 class="ks-section-heading">Color palette</h3>`+
-          selectRow('Client theme','Accent color of active elements','themePreset',[{value:'Amber',label:'Amber / Gold'},{value:'Ember',label:'Ember'},{value:'Ice',label:'Ice Blue'},{value:'Forest',label:'Forest Green'},{value:'Violet',label:'Violet'},{value:'Custom',label:'Custom'}]) +
+        return title('Appearance & Themes','Complete ready-made color palettes and optional visual-only effects. Your gameplay settings never change.') +
+          `<div class="ks-grid"><div class="ks-card"><h3 class="ks-section-heading">Ready-made color palettes</h3>`+
+          paletteTiles() +
+          selectRow('Client theme','Apply a complete palette or keep custom colors','themePreset',Object.keys(themePalettes).map(name=>({value:name,label:name})).concat([{value:'Custom',label:'Custom colors'}])) +
           `<div class="ks-row"><div class="ks-label">Custom accent color</div><input data-setting="customAccent" type="color" value="${esc(state.customAccent)}"></div>` +
           `<div class="ks-row"><div class="ks-label">Background color</div><input data-setting="customBackground" type="color" value="${esc(state.customBackground)}"></div>` +
           `<div class="ks-row"><div class="ks-label">Panel color</div><input data-setting="customPanel" type="color" value="${esc(state.customPanel)}"></div>` +
           `<div class="ks-row"><div class="ks-label">Text color</div><input data-setting="customText" type="color" value="${esc(state.customText)}"></div>` +
           `<div class="ks-row"><div class="ks-label">Muted text color</div><input data-setting="customMuted" type="color" value="${esc(state.customMuted)}"></div>` +
-          `</div><div class="ks-card"><h3 class="ks-section-heading">Typography & motion</h3>`+
+          `</div><div class="ks-card"><h3 class="ks-section-heading">Extra visual effects</h3>`+
+          selectRow('Surface style','Flat, frosted glass or subtle neon frame','themeSurface',[{value:'Solid',label:'Solid / Classic'},{value:'Frosted',label:'Frosted Glass'},{value:'Neon',label:'Neon Edge'}]) +
+          selectRow('Background texture','Pattern inside KS Settings only','themePattern',[{value:'None',label:'None'},{value:'Grid',label:'Fine Grid'},{value:'Dots',label:'Soft Dots'}]) +
+          selectRow('Spacing density','Only adjusts menu row spacing','themeDensity',[{value:'Compact',label:'Compact'},{value:'Comfortable',label:'Comfortable'},{value:'Spacious',label:'Spacious'}]) +
+          rangeRow('Accent glow','themeGlow',0,100,'%') +
+          rangeRow('Corner rounding','themeRadius',6,24,'px') +
+          `<p class="ks-hint">Visual-only effects: no changes to game rendering, mouse control, hit detection, network or performance presets.</p></div>` +
+          `<div class="ks-card"><h3 class="ks-section-heading">Typography & motion</h3>`+
           selectRow('Font family','Fonts already available in Windows / Electron/CEF','fontFamily',[{value:'Segoe UI',label:'Segoe UI'},{value:'Arial',label:'Arial'},{value:'Verdana',label:'Verdana'},{value:'Tahoma',label:'Tahoma'},{value:'Consolas',label:'Consolas'},{value:'KS Custom Font',label:'Uploaded font (Resources)'}]) +
           rangeRow('Client font size','fontSize',90,150,'%') +
           toggleRow('Menu animations','Enable client transitions and blur effects.','uiAnimations') +
@@ -2621,6 +2667,54 @@
         control.style.removeProperty('border-color');
       }
     }
+    // Scoped to KS Settings; do not inject styling into Kirka's gameplay DOM.
+    const visualExtras=$('ks-visual-extras')||document.createElement('style');
+    visualExtras.id='ks-visual-extras';
+    const radius=Math.max(6,Math.min(24,Number(state.themeRadius)||12));
+    const glow=Math.max(0,Math.min(100,Number(state.themeGlow)||0))/100;
+    const surface=['Solid','Frosted','Neon'].includes(state.themeSurface)?state.themeSurface:'Solid';
+    const pattern=['None','Grid','Dots'].includes(state.themePattern)?state.themePattern:'None';
+    const density=['Compact','Comfortable','Spacious'].includes(state.themeDensity)?state.themeDensity:'Comfortable';
+    const glowBlur=Math.round(glow*36);
+    const glowAlpha=(glow*.32).toFixed(3);
+    const lineAlpha=(.13+glow*.27).toFixed(3);
+    const rowPad=density==='Compact'?7:density==='Spacious'?16:11;
+    const backdrop=surface==='Frosted'?18:0;
+    const patternImage=pattern==='Grid'
+      ?'linear-gradient(to right, color-mix(in srgb,var(--ks-accent) 9%,transparent) 1px, transparent 1px),linear-gradient(to bottom,color-mix(in srgb,var(--ks-accent) 9%,transparent) 1px,transparent 1px)'
+      :pattern==='Dots'?'radial-gradient(color-mix(in srgb,var(--ks-accent) 20%,transparent) 1px,transparent 1px)':'none';
+    visualExtras.textContent=`
+      #ks-screen #ks-panel {
+        border-radius:${radius+6}px!important;
+        box-shadow:0 22px 76px rgba(0,0,0,.50),0 0 ${glowBlur}px rgba(0,0,0,.16)!important;
+        backdrop-filter:blur(${backdrop}px);
+      }
+      #ks-screen #ks-panel #ks-body {
+        background-image:${patternImage}!important;
+        background-size:${pattern==='Grid'?'24px 24px':pattern==='Dots'?'18px 18px':'auto'}!important;
+      }
+      #ks-screen #ks-panel :is(.ks-card,.ks-note,.ks-hint-box) {
+        border-radius:${radius}px!important;
+        border-color:color-mix(in srgb,var(--ks-accent) ${Math.round(13+glow*27)}%,transparent)!important;
+        box-shadow:0 0 ${glowBlur}px color-mix(in srgb,var(--ks-accent) ${Math.round(glow*22)}%,transparent)!important;
+        ${surface==='Frosted'?'backdrop-filter:blur(12px)!important;':''}
+      }
+      #ks-screen #ks-panel :is(.ks-input,.ks-select-trigger,.ks-btn,.ks-palette-tile) {
+        border-radius:${Math.max(5,radius-3)}px!important;
+      }
+      #ks-screen #ks-panel .ks-row {
+        padding-top:${rowPad}px!important;padding-bottom:${rowPad}px!important;
+      }
+      #ks-screen #ks-panel .ks-section-heading {
+        text-shadow:0 0 ${glowBlur}px color-mix(in srgb,var(--ks-accent) ${Math.round(glow*35)}%,transparent);
+      }
+      #ks-screen #ks-panel .ks-palette-tile.selected{
+        box-shadow:0 0 ${glowBlur}px color-mix(in srgb,var(--ks-accent) ${Math.round(glow*35)}%,transparent)!important;
+        border-color:var(--ks-accent)!important;
+      }
+      ${surface==='Neon'? '#ks-screen #ks-panel .ks-card{border-color:var(--ks-accent)!important;}':''}
+    `;
+    if(!visualExtras.isConnected)shadow.appendChild(visualExtras);
     const panel = $('ks-panel');
     panel.style.background = state.menuImageEnabled && assetURLs.menuBackground
       ? `linear-gradient(rgba(8,12,16,.88),rgba(8,12,16,.94)), url("${assetURLs.menuBackground}") center/cover no-repeat`
@@ -2751,7 +2845,17 @@
     if (k === 'smoothPreset') { applySmoothPreset(String(value));return; }
     if (k === 'eyePreset') { applyEyePreset(String(value));return; }
     if (['menuSelector','uiImageSelector','minimalSelectors'].includes(k)) value = String(value).slice(0,120);
-    if (k === 'themePreset' && !(value in themeColors)) return;
+    if (k === 'themePreset' && !Object.hasOwn(themeColors,value)) return;
+    if(k==='themePreset' && value!=='Custom'){
+      const palette=themePalettes[value];
+      if(palette)Object.assign(state,{customAccent:palette.accent,customBackground:palette.bg,
+        customPanel:palette.panel,customText:palette.text,customMuted:palette.muted});
+    }
+    if(k==='themeSurface' && !['Solid','Frosted','Neon'].includes(value))return;
+    if(k==='themePattern' && !['None','Grid','Dots'].includes(value))return;
+    if(k==='themeDensity' && !['Compact','Comfortable','Spacious'].includes(value))return;
+    if(k==='themeGlow')value=Math.max(0,Math.min(100,Math.round(Number(value)||0)));
+    if(k==='themeRadius')value=Math.max(6,Math.min(24,Math.round(Number(value)||12)));
     if (k === 'fontFamily' && !['Segoe UI','Arial','Verdana','Tahoma','Consolas','KS Custom Font'].includes(value)) return;
     if (['customAccent','customBackground','customPanel','customText','customMuted'].includes(k) &&
         !/^#[a-f0-9]{6}$/i.test(value)) return;
@@ -2940,6 +3044,11 @@
     catch(error) {sharingStatus='Import failed: '+String(error.message||error);const n=$('ks-sharing-status');if(n)n.textContent=L(sharingStatus);}
     // The import can re-render the panel; never dereference a detached event target.
     if(fileInput.isConnected) fileInput.value='';
+  });
+  $('ks-body').addEventListener('click',e=>{
+    const tile=e.target.closest('button[data-palette]');
+    if(!tile)return;
+    setSetting('themePreset',tile.dataset.palette);
   });
   $('ks-body').addEventListener('click', async e => {
     const button = e.target.closest('[data-clear-asset]');
