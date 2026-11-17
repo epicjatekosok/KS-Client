@@ -79,7 +79,7 @@ def check(browser,engine):
   }""")
   assert 'Public repository missing' in page.evaluate("""() =>
     document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-update-status').textContent""")
-  assert 'KS_PUBLIC_RELEASE_TOKEN' in page.evaluate("""() =>
+  assert 'public KS-Client-Updates repository now contains verified ZIP and EXE releases' in page.evaluate("""() =>
     document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-body').textContent""")
   assert not errors,errors
   page.close()
