@@ -2610,6 +2610,16 @@
     `;
     themeStyle.textContent=typographyRules+(customPaletteEnabled()?paletteRules:'');
     if(!themeStyle.isConnected)shadow.appendChild(themeStyle);
+    // Beta's older full-border shorthand used !important. Native color
+    // pickers must win this conflict without changing the default design.
+    for (const id of ['ks-gear','ks-discord-quick','ks-close']) {
+      const control=$(id);
+      if(customPaletteEnabled()) {
+        control.style.setProperty('border-color',accent,'important');
+      } else {
+        control.style.removeProperty('border-color');
+      }
+    }
     const panel = $('ks-panel');
     panel.style.background = state.menuImageEnabled && assetURLs.menuBackground
       ? `linear-gradient(rgba(8,12,16,.88),rgba(8,12,16,.94)), url("${assetURLs.menuBackground}") center/cover no-repeat`
