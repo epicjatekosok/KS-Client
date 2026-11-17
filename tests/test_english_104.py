@@ -16,7 +16,7 @@ overlay=(root/'electron-app/overlay/overlay.js').read_text(encoding='utf-8')
 assert "RELEASE_BETA_105_EN.md" in publish
 assert "RELEASE_BETA_103_HU.md" not in publish
 assert "v1.0.5-beta" in publish
-assert "What's fixed" in notes and "Loading screen" in notes
+assert "Account sign-in: security and recovery" in notes and "Google" in notes
 assert "lang=\"en\"" in loading
 assert "LOADING KS CLIENT" in loading
 assert "KLIENS BETÖLTÉSE" not in loading and "Betöltés" not in loading
