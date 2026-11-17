@@ -5,6 +5,8 @@ package main
 import (
  "archive/zip"
  "bytes"
+ "encoding/json"
+ "strings"
  "os"
  "path/filepath"
  "testing"
@@ -53,7 +55,15 @@ func TestExtractAndCopyOfflinePayload(t *testing.T) {
 func TestBundledVersionMatchesBothEngines(t *testing.T){
   got,err:=bundledVersion()
   if err!=nil{t.Fatal(err)}
-  if got!="1.0.4"{t.Fatalf("built ZIP version = %q, want Beta 1.0.4",got)}
+  // Derive the expected version from the source package used to build the
+  // verified offline archive, not a hard-coded previous release version.
+  source,err:=os.ReadFile(filepath.Join("..","electron-app","package.json"))
+  if err!=nil{t.Fatal(err)}
+  var pkg struct{Version string `json:"version"`}
+  if err:=json.Unmarshal(source,&pkg);err!=nil{t.Fatal(err)}
+  if !strings.HasSuffix(pkg.Version,"-beta"){t.Fatalf("invalid source package version %q",pkg.Version)}
+  expected:=strings.TrimSuffix(pkg.Version,"-beta")
+  if got!=expected{t.Fatalf("built ZIP version = %q, source package version = %q",got,expected)}
 }
 func TestBundledVersionIsNotHardCoded(t *testing.T){
   makeBundle:=func(electron,cef string)[]byte{
