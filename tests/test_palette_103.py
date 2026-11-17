@@ -91,6 +91,17 @@ with sync_playwright() as p:
   }""")
   assert data()['saved']['customAccent']=='#f0aa35'
   assert data()['saved']['customBackground']=='#0d1015'
+  # Editing one of the 5 palette swatches must switch to Custom without
+  # discarding any gameplay controls or forcing a full client reload.
+  page.evaluate("""() => {
+    const root=document.querySelector('#ks-client-root').shadowRoot;
+    const input=root.querySelector('[data-setting="customPanel"]');
+    input.value='#253040';
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  }""")
+  assert data()['saved']['themePreset']=='Custom'
+  assert data()['saved']['customPanel']=='#253040'
   assert not errors,(engine,errors)
   page.close()
   print('PASS: Beta 1.0.3 13 palettes + extra appearance without changing gameplay',engine)
