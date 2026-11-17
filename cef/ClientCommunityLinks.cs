@@ -48,6 +48,17 @@ internal sealed class ClientCommunityPopupHandler : CefSharp.Handler.LifeSpanHan
             _=Task.Run(()=>ClientCommunityLinks.OpenInvite());
             return true;
         }
-        return false; // Preserve other CEF popups, including login flows.
+        // Kirka's OAuth providers need a real popup with window.opener intact.
+        // Non-HTTPS/unrecognized destinations stay blocked.
+        bool trustedOpener=ClientForm.Trust(frame.Url,gameOnly:true) ||
+            (browser.IsPopup && ClientAuthentication.IsAllowed(frame.Url));
+        if(trustedOpener && ClientAuthentication.IsAllowed(targetUrl,allowBlank:userGesture))
+        {
+            noJavascriptAccess=false; // Required for OAuth popup result -> opener.
+            Program.Log("CEF allowed OAuth sign-in popup");
+            return false;
+        }
+        Program.Log("CEF blocked non-authentication popup");
+        return true;
     }
 }

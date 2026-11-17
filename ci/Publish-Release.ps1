@@ -11,10 +11,10 @@ if($env:GITHUB_REF -ne 'refs/heads/main'){
 if(-not $env:GH_TOKEN){throw 'GITHUB_TOKEN is required to publish verified binaries'}
 $repo=$env:GITHUB_REPOSITORY
 if(-not $repo){throw 'GitHub repository not provided'}
-$tag='v1.0.0-beta'
+$tag='v1.0.1-beta'
 $paths=@(
-  'KS-Client-beta-1.0.0-Portable.zip',
-  'KS-Client-beta-1.0.0-Setup.exe',
+  'KS-Client-beta-1.0.1-Portable.zip',
+  'KS-Client-beta-1.0.1-Setup.exe',
   'SHA256SUMS.txt','RELEASE-MANIFEST.json',
   'CI-TEST-RESULT.txt','SIGNING-STATUS.txt'
 )
@@ -22,11 +22,11 @@ foreach($path in $paths){if(-not (Test-Path $path -PathType Leaf)){throw "Cannot
 & gh release view $tag --repo $repo *> $null
 if($LASTEXITCODE -eq 0){
     # Preserve previously validated release binaries.
-    & gh release edit $tag --repo $repo --notes-file 'RELEASE_BETA_100_HU.md'
+    & gh release edit $tag --repo $repo --notes-file 'RELEASE_BETA_101_HU.md'
     if($LASTEXITCODE -ne 0){throw "Could not refresh $tag release notes"}
     Write-Host "Private release already exists; verified assets preserved."
 } else {
-    & gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client Beta 1.0.0' --prerelease --notes-file 'RELEASE_BETA_100_HU.md'
+    & gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client Beta 1.0.1' --prerelease --notes-file 'RELEASE_BETA_101_HU.md'
     if($LASTEXITCODE -ne 0){throw "GitHub private release $tag publishing failed"}
 }
 Write-Host "Verified source release: https://github.com/$repo/releases/tag/$tag"
@@ -50,7 +50,7 @@ try{
         Write-Host "Public release $tag already exists; never overwrite verified downloadable assets."
     } else {
         # Public repo has its own main branch/commit, not the private source SHA.
-        & gh release create $tag @paths --repo $publicRepo --target main --title 'KS Client Beta 1.0.0 (Windows binaries)' --prerelease --notes-file 'RELEASE_BETA_100_HU.md'
+        & gh release create $tag @paths --repo $publicRepo --target main --title 'KS Client Beta 1.0.1 (Windows binaries)' --prerelease --notes-file 'RELEASE_BETA_101_HU.md'
         if($LASTEXITCODE -ne 0){throw "Could not publish verified update assets to $publicRepo"}
         Write-Host "Public auto-update feed: https://github.com/$publicRepo/releases/tag/$tag"
     }
@@ -64,13 +64,16 @@ try{
     $anonHeaders=@{'User-Agent'='KS-Client-Public-Feed-Verification';'Accept'='application/vnd.github+json'}
     $anonymous=Invoke-RestMethod -Uri "https://api.github.com/repos/$publicRepo/releases/tags/$tag" -Method Get -Headers $anonHeaders -TimeoutSec 20
     if($anonymous.tag_name -ne $tag){throw "Public GitHub API returned a different release"}
-    $setupName='KS-Client-beta-1.0.0-Setup.exe'
+    $setupName='KS-Client-beta-1.0.1-Setup.exe'
     $assets=@($anonymous.assets | Where-Object { $_.name -eq $setupName -and $_.state -eq 'uploaded' })
     if($assets.Count -ne 1 -or $assets[0].digest -notmatch '^sha256:[0-9a-f]{64}$'){
         throw "Anonymous API missing a fully uploaded, SHA256-digested Setup.exe"
     }
     Write-Host "PASS: public feed anonymously readable; all release files and Setup SHA256 confirmed"
 
+    # This existing bridge was published for Beta 1.0.0. Never replace its
+    # hash-verified setup with Beta 1.0.1 (older Alpha users keep their bridge).
+    if($tag -eq 'v1.0.0-beta') {
     # Legacy Alpha 1.1.23 clients have an updater that only recognizes -alpha
     # release tags. Their normal automatic/manual checks cannot parse -beta,
     # regardless of current GitHub permissions. Publish a ONE-TIME, clearly
@@ -95,6 +98,8 @@ try{
         throw 'Legacy Alpha client bridge asset missing or differs from verified Beta Setup'
     }
     Write-Host 'PASS: Alpha 1.1.23 can discover and securely install Beta 1.0.0 via v1.1.24-alpha compatibility bridge'
+
+    }
 
 } finally {
     $env:GH_TOKEN=$privateToken

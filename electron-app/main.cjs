@@ -1,5 +1,5 @@
 'use strict';
-// KS Client Beta 1.0.0: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.1: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'Beta 1.0.0';
+const APP_VERSION = 'Beta 1.0.1';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.0.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.1.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -51,6 +51,45 @@ function isGameDiscordTarget(raw) {
     return u.protocol==='https:' &&
       ['discord.gg','discord.com','www.discord.com','discordapp.com'].includes(u.hostname);
   }catch(_){return false;}
+}
+// Kirka's account login uses real cross-origin OAuth popup windows.
+// Keep these windows in Electron's persistent session, with the opener
+// relationship intact. No blanket popups, Node.js, or file:// navigation.
+const AUTH_HOSTS=new Set([
+  'accounts.google.com','consent.google.com','myaccount.google.com',
+  'facebook.com','www.facebook.com','m.facebook.com','web.facebook.com',
+  'appleid.apple.com','idmsa.apple.com',
+  'login.microsoftonline.com','login.live.com','account.live.com',
+  'github.com','www.github.com','discord.com','www.discord.com',
+  'twitter.com','www.twitter.com','x.com','www.x.com','api.twitter.com',
+  'id.twitch.tv','www.twitch.tv','steamcommunity.com','store.steampowered.com',
+  'auth.kirka.io','accounts.kirka.io'
+]);
+const AUTH_SUFFIXES=['.firebaseapp.com','.auth0.com','.supabase.co','.web3auth.io'];
+function validAuthURL(raw,allowBlank=false){
+  if(allowBlank && (raw==='' || raw==='about:blank'))return true;
+  try{
+    const u=new URL(raw);
+    return u.protocol==='https:' && !u.username && !u.password && (u.port===''||u.port==='443') &&
+      (validURL(raw,true) || AUTH_HOSTS.has(u.hostname) ||
+       AUTH_SUFFIXES.some(suffix=>u.hostname.endsWith(suffix)));
+  }catch(_){return false;}
+}
+function configureAuthPopup(child){
+  const content=child.webContents;
+  child.setMenu(null);
+  content.setWindowOpenHandler(()=>({action:'deny'}));
+  const validate=(event,url)=>{
+    if(!validAuthURL(url)) {
+      event.preventDefault();
+      log('Blocked unsafe OAuth popup navigation');
+    }
+  };
+  content.on('will-navigate',validate);
+  content.on('will-redirect',validate);
+  content.on('did-fail-load',(_event,code,description,_url,isMainFrame)=>{
+    if(isMainFrame && code!==-3)log('OAuth window failed to load: '+code+' '+String(description).slice(0,90));
+  });
 }
 function openKSDiscord(){
   // Constant URL: Kirka JavaScript is never permitted to pass its own URL
@@ -94,7 +133,7 @@ function updaterPath(){
 function emitUpdateStatus(payload){
   if(payload && typeof payload==='object' && !Array.isArray(payload))
     jsCall('setUpdateStatus',{state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.0').slice(0,40),
+      current:String(payload.current||'1.0.1').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||'beta').slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -262,18 +301,38 @@ function createWindow(){
     webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,nodeIntegration:false,contextIsolation:true,
       webSecurity:true,devTools:true,backgroundThrottling:false,defaultFontFamily:{standard:'Segoe UI'}}});
   win.setMenu(null);
-  // Safety: game content has no Node.js access. No arbitrary file:// or custom URLs.
-  win.webContents.setWindowOpenHandler(({url})=>{
-    if(validURL(win.webContents.getURL(),true)&&isGameDiscordTarget(url))openKSDiscord();
-    return {action:'deny'};
-  });
-  win.webContents.on('will-navigate',(event,target)=>{
-    if(!validURL(target)){
-      event.preventDefault();
-      if(validURL(win.webContents.getURL(),true)&&isGameDiscordTarget(target))openKSDiscord();
-      else log('Blocked navigation outside client allowlist');
+  // Only game-originated, known HTTPS identity providers can open native
+  // OAuth windows. This preserves window.opener and Kirka's existing cookies.
+  // Google may independently reject embedded user agents; never spoof it.
+  win.webContents.setWindowOpenHandler(({url,referrer})=>{
+    const source=win.webContents.getURL();
+    if(!validURL(source,true))return {action:'deny'};
+    if(isGameDiscordTarget(url)){openKSDiscord();return {action:'deny'};}
+    const initiator=referrer?.url||'';
+    if(initiator && !validURL(initiator,true) && !validAuthURL(initiator))
+      return {action:'deny'};
+    if(!validAuthURL(url,true)){
+      log('Blocked non-authentication popup');
+      return {action:'deny'};
     }
+    log('Allowed Kirka OAuth popup');
+    return {action:'allow',overrideBrowserWindowOptions:{
+      title:'KS Client - Account sign-in',width:540,height:720,minWidth:420,minHeight:520,
+      parent:win,autoHideMenuBar:true,backgroundColor:'#0d1015',
+      webPreferences:{sandbox:true,nodeIntegration:false,contextIsolation:true,webSecurity:true}
+    }};
   });
+  win.webContents.on('did-create-window',child=>configureAuthPopup(child));
+  const guardMainNavigation=(event,target)=>{
+    if(validURL(target))return;
+    const source=win.webContents.getURL();
+    if(validAuthURL(target) && (validURL(source,true)||validAuthURL(source)))return;
+    event.preventDefault();
+    if(validURL(source,true)&&isGameDiscordTarget(target))openKSDiscord();
+    else log('Blocked navigation outside client/OAuth allowlist');
+  };
+  win.webContents.on('will-navigate',guardMainNavigation);
+  win.webContents.on('will-redirect',guardMainNavigation);
   win.webContents.on('context-menu',(event)=>{if(!desired.contextMenu)event.preventDefault()});
   win.webContents.on('dom-ready',async()=>{
     if(switchProbe)return;

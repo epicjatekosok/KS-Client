@@ -50,7 +50,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client Beta 1.0.0 – CEF";
+        Text="KS Client Beta 1.0.1 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -588,6 +588,7 @@ internal sealed class ClientMenuHandler : CefSharp.Handler.ContextMenuHandler
 internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
 {
     private readonly Action requestSwitchToElectron;
+    private bool authMainFrameNavigation;
     internal ClientRequestHandler(Action requestSwitchToElectron)
       => this.requestSwitchToElectron=requestSwitchToElectron;
     protected override IResourceRequestHandler GetResourceRequestHandler(
@@ -621,7 +622,22 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
                 requestSwitchToElectron();
             return true; // Do not actually navigate the game to this internal path.
         }
-        return frame.IsMain && !ClientForm.Trust(request.Url);
+        // A separate CEF popup keeps its own OAuth navigation chain and
+        // the same persistent cookie profile as Kirka. Never block its
+        // whitelisted login-provider redirects using the game's main-frame rule.
+        if(browser.IsPopup)return !ClientAuthentication.IsAllowed(request.Url);
+        if(!frame.IsMain)return false;
+        if(ClientForm.Trust(request.Url)){
+            authMainFrameNavigation=false;
+            return false;
+        }
+        if(ClientAuthentication.IsAllowed(request.Url) &&
+           (authMainFrameNavigation || ClientForm.Trust(frame.Url,gameOnly:true))){
+            authMainFrameNavigation=true;
+            return false;
+        }
+        Program.Log("CEF blocked non-authentication main-frame navigation");
+        return true;
         } catch(ObjectDisposedException){return true;}
     }
 }
