@@ -20,7 +20,7 @@ for key in ('ks123-panel-in','ks123-content-in','ks123-pop-in','ks123-glow-in','
  assert key in ui,key
 assert "Automatic downloads require" not in ui[ui.index("case 'Updates':"):ui.index("case 'General':")]
 assert 'Public binary release feed' in ui and 'public KS-Client-Updates repository now contains verified ZIP and EXE releases' in ui
-assert "Public auto-update" in up or "Automatic update downloads unavailable" in up
+assert "The public KS-Client-Updates release feed was not found" in up or "GitHub update lookup" in up
 assert 'epicjatekosok/KS-Client-Updates' in up
 assert 'if response.StatusCode==404' in up
 assert 'digestPattern' in up and 'validUpdateAsset' in up
