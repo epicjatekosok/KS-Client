@@ -104,7 +104,9 @@ jobs:
           python tests/test_ui_122.py
           python tests/test_ui_123.py
           python tests/test_ui_beta_100.py
+          python tests/test_auth_theme_101.py
           node tests/test_discord_123.cjs
+          node tests/test_auth_101.cjs
 
   offline-installer:
     if: github.event_name != 'pull_request'
