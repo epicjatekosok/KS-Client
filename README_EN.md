@@ -1,3 +1,15 @@
+# KS Client Beta 1.0.0 — Public updates and unified black/orange HUD
+
+**Beta release:** All existing user settings and Workshop data are retained. The FPS counter, Keystrokes, readable game statistics, break reminder and Settings close button now share the black/orange visual language of the KS gear and Discord controls. The Workshop category and its features are marked **Experimental**.
+
+**Automatic updates now use real public GitHub Releases.** The separate `epicjatekosok/KS-Client-Updates` repository is publicly accessible. The Beta channel checks for verified newer Beta or Stable releases; SHA-256 pinning, filename/host validation and the Windows installer protect the update process. New profiles check automatically and pre-download verified installers; installation always requires confirmation. Manual **Check for updates**, **Install update & restart**, and **Open GitHub Releases (manual)** use the public feed. Previously saved settings are preserved, including any explicit choice to disable background downloads.
+
+**Alpha → Beta migration:** The Alpha 1.1.23 updater cannot parse Beta tags. The publisher creates a single documented `v1.1.24-alpha` *compatibility bridge* containing the verified Beta 1.0.0 installer byte-for-byte, so older Alpha users can use their existing update buttons. The official new release is `v1.0.0-beta`; only Windows binaries and checksums are public, source remains private.
+
+Direct binary-only distribution: https://github.com/epicjatekosok/KS-Client-Updates/releases
+
+---
+
 # KS Client alpha 1.1.23 — Discord crash fix, matched quick buttons and settings animations
 
 Fixed the Electron main-process `openKSDiscord is not defined` crash when clicking the KS Discord button; the fixed community invite now opens in the system-default HTTPS browser from a module-scoped native helper. The upper-left Settings gear and KS Discord quick button share matching black/orange visuals and a common toolbar. The Settings panel, category changes, buttons, dropdowns and sliders animate smoothly with full support for reduced-motion preferences.
