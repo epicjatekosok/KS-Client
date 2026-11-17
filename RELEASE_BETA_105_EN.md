@@ -29,6 +29,6 @@ If you need Google account sign-in today, use the official Kirka.io page in your
 
 ## Downloads
 
-Get the verified Beta 1.0.5 Setup EXE, Portable ZIP and source ZIP from [KS Client public Releases](https://github.com/epicjatekosok/KS-Client-Updates/releases/tag/v1.0.5-beta). See the checksums and signing status on that page.
+Get the verified Beta 1.0.5 Setup EXE, Portable ZIP and public source-code snapshot `KS-Client-beta-1.0.5-Source.zip` from [KS Client public Releases](https://github.com/epicjatekosok/KS-Client-Updates/releases/tag/v1.0.5-beta). See the checksums and signing status on that page.
 
 KS Client is an unofficial third-party Kirka.io desktop client and is not affiliated with Kirka.io or Google.
