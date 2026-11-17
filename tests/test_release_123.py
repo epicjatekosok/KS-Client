@@ -19,7 +19,7 @@ assert '#ks-quick #ks-gear,#ks-quick #ks-discord-quick' in ui
 for key in ('ks123-panel-in','ks123-content-in','ks123-pop-in','ks123-glow-in','@media(prefers-reduced-motion:reduce)','#ks-screen.no-motion'):
  assert key in ui,key
 assert "Automatic downloads require" not in ui[ui.index("case 'Updates':"):ui.index("case 'General':")]
-assert 'Public binary release feed' in ui and 'KS_PUBLIC_RELEASE_TOKEN' in ui
+assert 'Public binary release feed' in ui and 'public KS-Client-Updates repository now contains verified ZIP and EXE releases' in ui
 assert "Public auto-update" in up or "Automatic update downloads unavailable" in up
 assert 'epicjatekosok/KS-Client-Updates' in up
 assert 'if response.StatusCode==404' in up
