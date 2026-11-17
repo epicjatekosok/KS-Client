@@ -74,8 +74,11 @@ internal sealed class ClientForm : Form
                     MessageBoxButtons.OK,MessageBoxIcon.Warning);
             }finally{Interlocked.Exchange(ref externalAuthPromptPending,0);}
           }));
-        }catch(InvalidOperationException){Interlocked.Exchange(ref externalAuthPromptPending,0);}
-          catch(ObjectDisposedException){Interlocked.Exchange(ref externalAuthPromptPending,0);}
+        }catch(InvalidOperationException){
+          // Includes ObjectDisposedException; the UI handle may disappear
+          // while a provider is opening the account dialog.
+          Interlocked.Exchange(ref externalAuthPromptPending,0);
+        }
     }
 
 
