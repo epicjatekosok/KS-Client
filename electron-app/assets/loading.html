@@ -1,14 +1,14 @@
 <!doctype html>
-<html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'">
-<title>KS Client • Betöltés</title>
+<title>KS Client • Loading</title>
 <style>
 :root{color-scheme:dark;--amber:#ff9d18;--bg:#0e0d0d;--panel:#1b1715;--line:#463225;--text:#f6f2ed;--muted:#aba097}
 *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg);font-family:'Segoe UI',Arial,sans-serif;color:var(--text)}
 body{display:grid;place-items:center;background:radial-gradient(ellipse at 50% 0%,#ff9d181f,transparent 64%),linear-gradient(155deg,#171311,#0e0d0d)}
-.shell{height:100%;width:100%;border:1px solid #6645277a;display:grid;place-items:center;position:relative;padding:18px}
+.shell{height:100%;width:100%;min-height:0;border:1px solid #6645277a;display:grid;place-items:center;position:relative;padding:16px}
 .shell:before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--amber),transparent)}
-.card{position:relative;width:min(420px,100%);padding:28px 28px 22px;text-align:center;background:linear-gradient(155deg,#231b15,#151312);border:1px solid var(--line);border-radius:17px;box-shadow:0 22px 70px #0008,0 0 36px #ff9d1809}
+.card{position:relative;width:min(420px,100%);max-height:calc(100vh - 32px);padding:24px 26px 20px;text-align:center;background:linear-gradient(155deg,#231b15,#151312);border:1px solid var(--line);border-radius:17px;box-shadow:0 22px 70px #0008,0 0 36px #ff9d1809}
 .card:before{content:"";position:absolute;inset:13px auto 13px 0;width:3px;background:var(--amber);border-radius:5px}
 .eyebrow{color:var(--amber);font-size:10px;font-weight:800;letter-spacing:2.3px;margin-bottom:14px}
 .logo-wrap{width:92px;height:92px;display:grid;place-items:center;position:relative;margin:0 auto 14px}
@@ -25,17 +25,19 @@ body{display:grid;place-items:center;background:radial-gradient(ellipse at 50% 0
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes breathe{50%{filter:drop-shadow(0 0 17px #ff9d1899);transform:scale(1.04)}}
 @keyframes load{0%{transform:translateX(-110%)}55%{transform:translateX(175%)}100%{transform:translateX(350%)}}
+@media(max-height:340px){.card{padding:10px 18px}.logo-wrap{height:65px;width:65px;margin-bottom:7px}.logo{max-height:44px;max-width:44px}.eyebrow{margin-bottom:7px}.track{margin-top:12px}.sub{margin-top:4px}.detail{margin-top:8px}.helper{margin-top:4px}}
+@media(max-width:400px){.card{padding-left:14px;padding-right:14px}.sub{letter-spacing:1px}.title{letter-spacing:2px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:0s!important}}
 </style></head><body>
-<main class="shell" role="status" aria-label="KS Client betöltése">
+<main class="shell" role="status" aria-label="Loading KS Client">
   <section class="card">
     <div class="eyebrow">KS CLIENT • BETA</div>
-    <div class="logo-wrap"><img class="logo" src="ks-logo.png" alt="KS Client logó"></div>
+    <div class="logo-wrap"><img class="logo" src="ks-logo.png" alt="KS Client logo"></div>
     <div class="title">KS <strong>CLIENT</strong></div>
     <div class="sub">KIRKA.IO GAME INTEGRATION</div>
     <div class="track" aria-hidden="true"><div class="moving"></div></div>
-    <div class="detail">KLIENS BETÖLTÉSE</div>
-    <div class="helper">Electron / CEF • Profilok és beállítások megtartva</div>
+    <div class="detail">LOADING KS CLIENT</div>
+    <div class="helper">Your settings and profiles stay safe</div>
   </section>
-  <span class="version">BETA 1.0.3</span>
+  <span class="version">BETA 1.0.4</span>
 </main></body></html>
