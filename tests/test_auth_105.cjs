@@ -47,7 +47,7 @@ async function run(){
     assert(!x.context.auth.checkGoogle(url),url);
   }
   const events={};
-  const popup={setMenu(){},webContents:{
+  const popup={setMenu(){},on(){},webContents:{
     getURL:()=> 'https://www.facebook.com/dialog/oauth',
     setWindowOpenHandler(fn){this.handler=fn;},
     on:(name,fn)=>{events[name]=fn;}
@@ -62,7 +62,7 @@ async function run(){
   assert.equal(popup.webContents.handler({url:'https://example.org/'}).action,'deny');
   assert(!x.reports.join(' ').includes('SECRET'),'Do not log provider tokens');
   const events2={};
-  const late={closed:false,setMenu(){},isDestroyed(){return this.closed;},close(){this.closed=true;}};
+  const late={closed:false,setMenu(){},on(){},isDestroyed(){return this.closed;},close(){this.closed=true;}};
   late.webContents={getURL:()=> 'about:blank',
     setWindowOpenHandler(){},on:(name,fn)=>{events2[name]=fn;}};
   x.context.auth.configure(late,2);
