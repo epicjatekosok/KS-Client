@@ -46,11 +46,43 @@ internal sealed class ClientForm : Form
     private string? switchNonce;
     private readonly bool bridgeProbe;
     private System.Windows.Forms.Timer? bridgeProbeTimeout;
+    private int externalAuthPromptPending;
+    private long lastExternalAuthPrompt;
+    private void OfferSystemBrowserSignIn()
+    {
+        // CefSharp callbacks may arrive on Chromium's UI thread. The message
+        // box and external browser invocation must run on the WinForms UI thread.
+        if(IsDisposed || !IsHandleCreated)return;
+        if(Interlocked.Exchange(ref externalAuthPromptPending,1)!=0)return;
+        try{
+          BeginInvoke((Action)(()=>{
+            try {
+              if(IsDisposed)return;
+              var now=Environment.TickCount64;
+              if(now-Interlocked.Read(ref lastExternalAuthPrompt)<7000)return;
+              Interlocked.Exchange(ref lastExternalAuthPrompt,now);
+              var choice=MessageBox.Show(this,
+                "Google sign-in (including Gmail and YouTube accounts) is not supported inside CEF or other embedded browsers.\n\n"+
+                "Open Kirka.io in your Windows default browser to sign in securely?\n\n"+
+                "Important: a browser login does NOT automatically sign you in to KS Client. "+
+                "The Kirka developers would need to provide an official desktop callback for that. "+
+                "You can still try other sign-in providers within the client.",
+                "KS Client — Account Sign-in",
+                MessageBoxButtons.YesNo,MessageBoxIcon.Information,MessageBoxDefaultButton.Button2);
+              if(choice==DialogResult.Yes && !ClientCommunityLinks.OpenGameSignIn())
+                 MessageBox.Show(this,"Could not open your default browser.","KS Client — Account Sign-in",
+                    MessageBoxButtons.OK,MessageBoxIcon.Warning);
+            }finally{Interlocked.Exchange(ref externalAuthPromptPending,0);}
+          }));
+        }catch(InvalidOperationException){Interlocked.Exchange(ref externalAuthPromptPending,0);}
+          catch(ObjectDisposedException){Interlocked.Exchange(ref externalAuthPromptPending,0);}
+    }
+
 
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client Beta 1.0.4 – CEF";
+        Text="KS Client Beta 1.0.5 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -84,11 +116,11 @@ internal sealed class ClientForm : Form
         // capture/release and relative mouse deltas. The earlier native handler
         // could hide an arrow without providing an actual pointer lock.
         browser.RenderProcessMessageHandler = new KSEarlyIntegrationHandler(earlyGameJS);
-        browser.LifeSpanHandler = new ClientCommunityPopupHandler();
+        browser.LifeSpanHandler = new ClientCommunityPopupHandler(OfferSystemBrowserSignIn);
         if (!switchProbe && !bridgeProbe)
             browser.RequestHandler = new ClientRequestHandler(() => {
                 if(IsHandleCreated)BeginInvoke((Action)(() => SwitchToElectron()));
-            });
+            },OfferSystemBrowserSignIn);
         Controls.Add(browser);
         if(!switchProbe && !bridgeProbe) {
             loadingPanel=new KSLoadingPanel(Path.Combine(AppContext.BaseDirectory,"assets","ks-logo.png"));
@@ -440,7 +472,7 @@ internal sealed class ClientForm : Form
     {
         if(!Trust(source)||!Trust(browser.Address))return;
         string type=m.Type ?? "";
-        if(!Trust(source,true) && type is not("stats" or "clan" or "game" or "fullscreen" or "crash-status" or "diagnostics-poll" or "update-check" or "update-install" or "update-open-release" or "discord-community"))return;
+        if(!Trust(source,true) && type is not("stats" or "clan" or "game" or "fullscreen" or "crash-status" or "diagnostics-poll" or "update-check" or "update-install" or "update-open-release" or "discord-community" or "auth-open-browser"))return;
         switch(type)
         {
             case "game": Go(Game);break;
@@ -448,6 +480,7 @@ internal sealed class ClientForm : Form
                 try {Process.Start(new ProcessStartInfo {FileName="https://github.com/epicjatekosok/KS-Client-Updates/releases",UseShellExecute=true});}
                 catch(Exception ex){Program.Log("Releases page: "+ex.Message);}
                 break;
+            case "auth-open-browser":OfferSystemBrowserSignIn();break;
             case "discord-community":
                 Reply("setCommunityStatus",ClientCommunityLinks.OpenInvite()
                     ? "KS Discord invite handed to Windows default browser."
@@ -588,9 +621,13 @@ internal sealed class ClientMenuHandler : CefSharp.Handler.ContextMenuHandler
 internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
 {
     private readonly Action requestSwitchToElectron;
+    private readonly Action requestGoogleHelp;
     private bool authMainFrameNavigation;
-    internal ClientRequestHandler(Action requestSwitchToElectron)
-      => this.requestSwitchToElectron=requestSwitchToElectron;
+    internal ClientRequestHandler(Action requestSwitchToElectron,Action requestGoogleHelp)
+    {
+        this.requestSwitchToElectron=requestSwitchToElectron;
+        this.requestGoogleHelp=requestGoogleHelp;
+    }
     protected override IResourceRequestHandler GetResourceRequestHandler(
         IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame,IRequest request,
         bool isNavigation,bool isDownload,string requestInitiator,ref bool disableDefaultHandling)
@@ -603,7 +640,7 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
     private static string AuthNavigationLabel(string? address)
     {
         if(!Uri.TryCreate(address,UriKind.Absolute,out var uri))return "invalid URL";
-        return uri.Scheme=="https" ? uri.Host+uri.AbsolutePath[..Math.Min(uri.AbsolutePath.Length,90)] : "non-HTTPS";
+        return uri.Scheme=="https" ? uri.Host : "non-HTTPS";
     }
     protected override bool OnBeforeBrowse(IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame,IRequest request,bool userGesture,bool isRedirect)
     {
@@ -627,6 +664,15 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
                 ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true))
                 requestSwitchToElectron();
             return true; // Do not actually navigate the game to this internal path.
+        }
+        // A Google popup sometimes starts as about:blank, then redirects to
+        // accounts.google.com only after account selection. Block that late
+        // embedded navigation too and offer the supported OS-browser option.
+        if(ClientAuthentication.IsGoogleSignIn(request.Url) &&
+           (browser.IsPopup || ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true))){
+           Program.Log("CEF embedded Google auth navigation blocked (provider policy)");
+           requestGoogleHelp();
+           return true;
         }
         // A separate CEF popup keeps its own OAuth navigation chain and
         // the same persistent cookie profile as Kirka. Never block its

@@ -16,6 +16,8 @@ const reports=[];
 const context={
   URL,Set,WeakSet,
   log:line=>reports.push(line),
+  dialog:{showMessageBox:async()=>({response:1})},
+  shell:{openExternal:async()=>{}},
   validURL:(raw,onlyGame=false)=>{
     try {
       const u=new URL(raw);
@@ -29,8 +31,8 @@ vm.runInNewContext(src.slice(start,end)+
   ';globalThis.authTest={check:validAuthURL,configure:configureAuthPopup,storage:allowOAuthStoragePermission,label:authLocationLabel};',context);
 const {check,configure,storage,label}=context.authTest;
 const gameContent={getURL:()=> 'https://kirka.io/'};
-context.win={webContents:gameContent};
-const popupEvents={},popup={webContents:{
+context.win={webContents:gameContent,isDestroyed:()=>false};
+const popupEvents={},popup={on(){},webContents:{
   getURL:()=> 'https://accounts.google.com/signin/v2/identifier',
   setWindowOpenHandler(fn){this.handler=fn;},
   on(name,fn){popupEvents[name]=fn;}
@@ -38,11 +40,16 @@ const popupEvents={},popup={webContents:{
 configure(popup,1);
 assert.equal(typeof popup.webContents.handler,'function');
 assert.equal(typeof popupEvents['did-create-window'],'function');
-const options=popup.webContents.handler({
+const googleOption=popup.webContents.handler({
   url:'https://gsi.google.com/select?client_id=secret',
   referrer:{url:'https://accounts.google.com/'}
 });
-assert.equal(options.action,'allow');
+assert.equal(googleOption.action,'deny','Google must never be embedded in KS');
+const options=popup.webContents.handler({
+  url:'https://www.facebook.com/dialog/oauth',
+  referrer:{url:'https://kirka.io/'}
+});
+assert.equal(options.action,'allow','Non-Google provider native opener should survive');
 assert.equal(options.overrideBrowserWindowOptions.webPreferences.sandbox,true);
 assert.equal(options.overrideBrowserWindowOptions.webPreferences.nodeIntegration,false);
 assert.equal(options.overrideBrowserWindowOptions.webPreferences.webSecurity,true);
@@ -52,7 +59,7 @@ assert.equal(popup.webContents.handler({url:'https://accounts.google.com.evil.or
 assert.equal(popup.webContents.handler({url:'javascript:alert(1)'}).action,'deny');
 assert.equal(popup.webContents.handler({url:'file:///C:/private.txt'}).action,'deny');
 assert.equal(popup.webContents.handler({url:'about:blank'}).action,'allow');
-const nestedEvents={},nested={webContents:{
+const nestedEvents={},nested={on(){},webContents:{
   getURL:()=> 'https://gsi.google.com/select',
   setWindowOpenHandler(fn){this.handler=fn;},
   on(name,fn){nestedEvents[name]=fn;}
@@ -61,6 +68,9 @@ popupEvents['did-create-window'](nested);
 assert.equal(nested.webContents.handler({
   url:'https://project-name.firebaseapp.com/__/auth/handler?state=secret'
 }).action,'allow');
+assert.equal(nested.webContents.handler({
+  url:'https://accounts.google.com/o/oauth2/v2/auth'
+}).action,'deny','Google redirect from a blank popup must be recovered in system browser');
 let blocked=false;
 nestedEvents['will-redirect']({preventDefault(){blocked=true;}},
  'https://project-name.firebaseapp.com/__/auth/handler?state=private-token');
@@ -68,9 +78,21 @@ assert(!blocked,'Firebase callback navigation should complete');
 nestedEvents['will-navigate']({preventDefault(){blocked=true;}},
  'https://kirka.io/');
 assert(!blocked,'OAuth must be able to return to Kirka');
+nestedEvents['will-navigate']({preventDefault(){blocked=true;}},'about:blank');
+assert(!blocked,'Trusted non-Google OAuth popups may use about:blank transitions');
 nestedEvents['will-redirect']({preventDefault(){blocked=true;}},
  'http://unsafe.example.test/credentials');
 assert(blocked,'insecure redirect must remain blocked');
+blocked=false;
+const closePopup={closed:false,on(){},isDestroyed(){return this.closed;},close(){this.closed=true;}};
+const lateEvents={};
+closePopup.webContents={getURL:()=> 'about:blank',
+  setWindowOpenHandler(){},on(name,fn){lateEvents[name]=fn;}};
+closePopup.setMenu=()=>{};
+configure(closePopup,2);
+lateEvents['will-redirect']({preventDefault(){blocked=true;}},
+ 'https://accounts.google.com/o/oauth2/v2/auth?state=secret');
+assert(blocked && closePopup.closed,'Late Google redirect must be blocked and empty popup closed');
 assert(!label('https://accounts.google.com/signin?email=private@example.com&state=secret').includes('private@example.com'));
 assert(!reports.join(' ').includes('private-token'), 'Never log OAuth secret parameters');
 // Chromium Storage Access API is requested independently of permissionRequest.
@@ -94,4 +116,4 @@ assert(cefAuth.includes('gsi.google.com')&&cefAuth.includes('.web.app'));
 assert(cefPopup.includes('noJavascriptAccess=false'));
 assert(src.includes('session.defaultSession.setPermissionRequestHandler'));
 assert(src.includes('session.defaultSession.setPermissionCheckHandler'));
-console.log('PASS: Beta 1.0.2 Google account choice, nested OAuth handoff, Firebase callback, scoped storage and safe logs');
+console.log('PASS: Beta 1.0.5 safe external Google recovery, other provider popups, Firebase callback, scoped storage and sanitized logs');
