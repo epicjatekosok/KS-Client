@@ -32,7 +32,7 @@ vm.runInNewContext(src.slice(start,end)+
 const {check,configure,storage,label}=context.authTest;
 const gameContent={getURL:()=> 'https://kirka.io/'};
 context.win={webContents:gameContent,isDestroyed:()=>false};
-const popupEvents={},popup={webContents:{
+const popupEvents={},popup={on(){},webContents:{
   getURL:()=> 'https://accounts.google.com/signin/v2/identifier',
   setWindowOpenHandler(fn){this.handler=fn;},
   on(name,fn){popupEvents[name]=fn;}
@@ -59,7 +59,7 @@ assert.equal(popup.webContents.handler({url:'https://accounts.google.com.evil.or
 assert.equal(popup.webContents.handler({url:'javascript:alert(1)'}).action,'deny');
 assert.equal(popup.webContents.handler({url:'file:///C:/private.txt'}).action,'deny');
 assert.equal(popup.webContents.handler({url:'about:blank'}).action,'allow');
-const nestedEvents={},nested={webContents:{
+const nestedEvents={},nested={on(){},webContents:{
   getURL:()=> 'https://gsi.google.com/select',
   setWindowOpenHandler(fn){this.handler=fn;},
   on(name,fn){nestedEvents[name]=fn;}
@@ -78,11 +78,13 @@ assert(!blocked,'Firebase callback navigation should complete');
 nestedEvents['will-navigate']({preventDefault(){blocked=true;}},
  'https://kirka.io/');
 assert(!blocked,'OAuth must be able to return to Kirka');
+nestedEvents['will-navigate']({preventDefault(){blocked=true;}},'about:blank');
+assert(!blocked,'Trusted non-Google OAuth popups may use about:blank transitions');
 nestedEvents['will-redirect']({preventDefault(){blocked=true;}},
  'http://unsafe.example.test/credentials');
 assert(blocked,'insecure redirect must remain blocked');
 blocked=false;
-const closePopup={closed:false,isDestroyed(){return this.closed;},close(){this.closed=true;}};
+const closePopup={closed:false,on(){},isDestroyed(){return this.closed;},close(){this.closed=true;}};
 const lateEvents={};
 closePopup.webContents={getURL:()=> 'about:blank',
   setWindowOpenHandler(){},on(name,fn){lateEvents[name]=fn;}};
