@@ -449,7 +449,10 @@ func drawWindow(w *Window, h uintptr) {
 		brushFill(dc, panelRect, panel)
 		brushFill(dc,rect{panelRect.Left,panelRect.Top,panelRect.Right,panelRect.Top+unit(1)},border)
 		brushFill(dc,rect{panelRect.Left,panelRect.Top,panelRect.Left+unit(3),panelRect.Bottom},orangeDark)
-		label(dc, "INSTALLATION ACTIVITY", rect{left + unit(17), y + unit(12), right, y + unit(40)}, 11, orange, dtSingleLine, true)
+		activity:="INSTALLATION ACTIVITY"
+		if role=="UNINSTALL" {activity="REMOVAL ACTIVITY"}
+		if role=="UPDATE" {activity="UPDATE ACTIVITY"}
+		label(dc, activity, rect{left + unit(17), y + unit(12), right, y + unit(40)}, 11, orange, dtSingleLine, true)
 		maxLines := int((panelRect.Bottom - (y + unit(45))) / unit(23))
 		if maxLines < 0 {
 			maxLines = 0
