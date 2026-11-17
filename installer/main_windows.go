@@ -1,6 +1,6 @@
 //go:build windows
 
-// KS Client Beta 1.0.3 per-user installer.
+// KS Client installer: the displayed version comes from the embedded release payload.
 // Upgrades registered installations in-place, preserves Electron/CEF runtimes,
 // and uses English-labelled native UI buttons regardless of Windows locale.
 package main
@@ -9,6 +9,8 @@ import (
 	"archive/zip"
 	"bytes"
 	_ "embed"
+	"encoding/json"
+	"regexp"
 	"fmt"
 	"io"
 	"ksclient/ksui"
@@ -21,12 +23,40 @@ import (
 	"time"
 )
 
-const appVersion = "Beta 1.0.3"
+var installationVersion string // supplied by the embedded tested installer payload
 const uninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClientTwoEngine`
 const oldUninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClient`
 
-//go:embed KS-Client-beta-1.0.3-Portable.zip
+//go:embed KS-Client-beta-1.0.4-Portable.zip
 var archive []byte
+
+// Read the version actually present in the embedded, smoke-tested offline
+// package. Both engines must agree before setup touches an installation.
+var betaPackageVersion=regexp.MustCompile("^[0-9]+[.][0-9]+[.][0-9]+-beta$")
+func bundledVersionFromArchive(payload []byte)(string,error){
+    reader,err:=zip.NewReader(bytes.NewReader(payload),int64(len(payload)))
+    if err!=nil{return "",fmt.Errorf("unreadable offline package: %w",err)}
+    var packageVersion,cefVersion string
+    for _,file:=range reader.File{
+        if file.Name!="runtime/Electron/resources/app/package.json" &&
+           file.Name!="runtime/CEF/ks-smoke-pass.json"{continue}
+        source,err:=file.Open()
+        if err!=nil{return "",err}
+        blob,readErr:=io.ReadAll(io.LimitReader(source,4096))
+        closeErr:=source.Close()
+        if readErr!=nil{return "",readErr}
+        if closeErr!=nil{return "",closeErr}
+        var metadata struct{Version string `json:"version"`}
+        if err=json.Unmarshal(blob,&metadata);err!=nil{return "",fmt.Errorf("invalid embedded version metadata: %w",err)}
+        if file.Name=="runtime/Electron/resources/app/package.json"{packageVersion=metadata.Version
+        }else{cefVersion=metadata.Version}
+    }
+    if !betaPackageVersion.MatchString(packageVersion){return "",fmt.Errorf("invalid embedded Electron release version")}
+    numeric:=strings.TrimSuffix(packageVersion,"-beta")
+    if cefVersion!=numeric{return "",fmt.Errorf("Electron/CEF version mismatch inside installer")}
+    return numeric,nil
+}
+func bundledVersion()(string,error){return bundledVersionFromArchive(archive)}
 
 var progressSink func(string, string, float64)
 
@@ -332,7 +362,7 @@ func registerInstall(folder string) error {
 	exe := filepath.Join(folder, "KS-Client.exe")
 	uninstall := filepath.Join(folder, "Uninstall-KS-Client.exe")
 	fields := [][2]string{
-		{"DisplayName", "KS Client (Electron + CEF)"}, {"DisplayVersion", "1.0.3"},
+		{"DisplayName", "KS Client (Electron + CEF)"}, {"DisplayVersion", installationVersion},
 		{"Publisher", "KS Client"}, {"InstallLocation", folder}, {"DisplayIcon", exe + ",0"},
 		{"UninstallString", "\"" + uninstall + "\""},
 	}
@@ -367,7 +397,7 @@ func writeLog(s string) {
 	}
 	folder := filepath.Join(local, "KSClient")
 	_ = os.MkdirAll(folder, 0700)
-	f, err := os.OpenFile(filepath.Join(folder, "setup-1.0.3.log"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
+	f, err := os.OpenFile(filepath.Join(folder, "setup-"+installationVersion+".log"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		return
 	}
@@ -406,6 +436,11 @@ func makeShortcuts(folder string) string {
 	return strings.Join(warnings, "\n")
 }
 func main() {
+  // Never show a misleading version or modify files for a mismatched payload.
+  var versionError error
+  installationVersion,versionError=bundledVersion()
+  if versionError!=nil{message("KS Client Setup - Error","Cannot verify the installer version: "+versionError.Error(),0);return}
+  releaseLabel:="Beta "+installationVersion
  for _,arg:=range os.Args[1:] {
   if strings.HasPrefix(arg,"--ks-update-target=") {
    candidate:=strings.TrimPrefix(arg,"--ks-update-target=")
@@ -420,18 +455,19 @@ func main() {
 		return
 	}
 	folder := selected.folder
-	description := "Install KS Client Beta 1.0.3 to:\n" + folder + "\n\n"
+	description := "Install KS Client "+releaseLabel+" to:\n" + folder + "\n\n"
 	if selected.existing {
-		description = "Existing KS Client installation detected.\n\nUpgrade in place to Beta 1.0.3:\n" + folder + "\n\n"
+		description = "Existing KS Client installation detected.\n\nUpgrade in place to "+releaseLabel+":\n" + folder + "\n\n"
 		if selected.legacyWebView {
 			description += "The old WebView2 host will be replaced.\n\n"
 		}
 	}
 	description += "Existing browser profiles and settings will be preserved.\n\nBoth prebuilt browser engines are INCLUDED. No build tools or download are needed during setup.\n\nProceed?"
-	if askEnglish("KS Client Setup - Beta 1.0.3", description, dialogButton{"Yes", 6}, dialogButton{"No", 7}) != 6 {
+	if askEnglish("KS Client Setup - "+releaseLabel, description, dialogButton{"Yes", 6}, dialogButton{"No", 7}) != 6 {
 		return
 	}
-	w := ksui.New("KS Client • Setup 1.0.3", "Installing KS Client", "BETA 1.0.3 · Dark / Amber · both engines included")
+	w := ksui.New("KS Client • Setup "+installationVersion, "Installing KS Client", "Dark / Amber · both engines included")
+  w.Version=releaseLabel
 	w.SetButtons(ksui.Button{Label: "Close", ID: "close", Enabled: false})
 	w.OnButton = func(id string) {
 		if id == "close" {
