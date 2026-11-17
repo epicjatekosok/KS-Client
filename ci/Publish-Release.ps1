@@ -12,9 +12,14 @@ if(-not $env:GH_TOKEN){throw 'GITHUB_TOKEN is required to publish verified binar
 $repo=$env:GITHUB_REPOSITORY
 if(-not $repo){throw 'GitHub repository not provided'}
 $tag='v1.0.3-beta'
+# Make the user-requested SOURCE FILES available even while GitHub repository
+# visibility must be switched by its owner in Repository Settings.
+# Only current tracked contents are archived, never .git history or local secrets.
+& ./ci/Package-Source.ps1 -Version '1.0.3'
 $paths=@(
   'KS-Client-beta-1.0.3-Portable.zip',
   'KS-Client-beta-1.0.3-Setup.exe',
+  'KS-Client-beta-1.0.3-Source.zip','KS-Client-beta-1.0.3-Source.sha256.txt',
   'SHA256SUMS.txt','RELEASE-MANIFEST.json',
   'CI-TEST-RESULT.txt','SIGNING-STATUS.txt'
 )
@@ -31,7 +36,7 @@ if($LASTEXITCODE -eq 0){
 }
 Write-Host "Verified source release: https://github.com/$repo/releases/tag/$tag"
 
-# Optional public BINARY-ONLY update channel. Do not expose the source repository
+# Optional public update and source-snapshot channel. Do not expose the private repository's history
 # or embed a GitHub token in the Windows client. This requires the user to create
 # a separate PUBLIC epicjatekosok/KS-Client-Updates repository and configure a
 # fine-grained KS_PUBLIC_RELEASE_TOKEN with Contents read/write on that repo.
