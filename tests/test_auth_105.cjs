@@ -19,7 +19,7 @@ assert(start>=0&&end>start);
 function harness(response=1){
   const opened=[],reports=[],prompts=[];
   const context={
-    URL,Set,WeakSet,Date,
+    URL,Set,WeakSet,Date,GAME:'https://kirka.io/',
     win:{isDestroyed:()=>false,webContents:{getURL:()=> 'https://kirka.io/'}},
     log:v=>reports.push(v),
     dialog:{showMessageBox:async(_win,options)=>{prompts.push(options);return {response};}},
