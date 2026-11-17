@@ -164,7 +164,10 @@ function configureAuthPopup(child,depth=1){
       void offerSystemBrowserSignIn();
       return;
     }
-    if(!validAuthURL(url)) {
+    // Some Facebook / Firebase popup SDKs navigate to about:blank as a
+    // transitional page before completing their opener callback.
+    // It stays inside the trusted popup; main-frame checks remain stricter.
+    if(!validAuthURL(url,true)) {
       event.preventDefault();
       log('OAuth navigation blocked: '+authLocationLabel(url));
     }else{
@@ -173,6 +176,10 @@ function configureAuthPopup(child,depth=1){
   };
   content.on('will-navigate',validate);
   content.on('will-redirect',validate);
+  content.on('did-finish-load',()=>{
+    log('OAuth provider page loaded: '+authLocationLabel(content.getURL()));
+  });
+  child.on('closed',()=>log('OAuth popup closed (no login outcome inferred)'));
   content.on('did-fail-load',(_event,code,description,url,isMainFrame)=>{
     if(isMainFrame && code!==-3)
       log('OAuth load failed '+authLocationLabel(url)+': '+code+' '+String(description).slice(0,60));
