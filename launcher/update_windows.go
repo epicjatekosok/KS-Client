@@ -120,9 +120,12 @@ func chooseUpdate(releases []updateRelease,channel string)(updateChoice,bool){
  }
  return best,found
 }
+// Keep a bounded HTTP timeout, but do not let the UI's subprocess deadline
+// kill a still-working GitHub lookup. A normal update check makes at most
+// two short requests and never downloads release binaries.
 func updateHTTP() *http.Client{
  return &http.Client{
-  Timeout:12*time.Second,
+  Timeout:18*time.Second,
   CheckRedirect:func(req *http.Request,via []*http.Request)error{
    if len(via)>8||req.URL.Scheme!="https"{return errors.New("insecure release redirect")}
    host:=strings.ToLower(req.URL.Hostname())
@@ -134,22 +137,45 @@ func updateHTTP() *http.Client{
   },
  }
 }
-func getUpdates()(updateChoice,bool,error){
- client:=updateHTTP()
- endpoint:="https://api.github.com/repos/"+updateRepo+"/releases?per_page=40"
- request,e:=http.NewRequest("GET",endpoint,nil);if e!=nil{return updateChoice{},false,e}
+func releaseFeed(client *http.Client)([]updateRelease,error){
+ // This lists enough recent releases for all supported channels without
+ // fetching the large historical feed. GitHub API responses are untrusted:
+ // chooseUpdate/validUpdateAsset still enforce exact names, digests and URLs.
+ endpoint:="https://api.github.com/repos/"+updateRepo+"/releases?per_page=20"
+ request,e:=http.NewRequest("GET",endpoint,nil);if e!=nil{return nil,e}
  request.Header.Set("Accept","application/vnd.github+json")
  request.Header.Set("User-Agent","KS-Client-Updater/"+releaseTrack+"-"+version)
- response,e:=client.Do(request);if e!=nil{return updateChoice{},false,e}
+ request.Header.Set("X-GitHub-Api-Version","2022-11-28")
+ response,e:=client.Do(request);if e!=nil{return nil,e}
  defer response.Body.Close()
  if response.StatusCode!=200{
-  if response.StatusCode==404{return updateChoice{},false,errors.New("Automatic update downloads unavailable: epicjatekosok/KS-Client-Updates is not a public GitHub repository. Private KS-Client releases require authentication. Publisher setup: create the public binary-only repository and set KS_PUBLIC_RELEASE_TOKEN. Use Open GitHub Releases (manual) for now.")}
-  if response.StatusCode==403||response.StatusCode==429{return updateChoice{},false,errors.New("GitHub update lookup was rate limited. Try again later or use Open GitHub Releases.")}
-  return updateChoice{},false,fmt.Errorf("GitHub update lookup HTTP %d; use Open GitHub Releases if the public feed is unavailable",response.StatusCode)
+  if response.StatusCode==404{return nil,errors.New("The public KS-Client-Updates release feed was not found; open the Releases page to check manually.")}
+  if response.StatusCode==403||response.StatusCode==429{return nil,errors.New("GitHub limited update checks; use Open GitHub Releases or try again later.")}
+  return nil,fmt.Errorf("GitHub update lookup HTTP %d; use Open GitHub Releases if needed",response.StatusCode)
  }
- limited:=io.LimitReader(response.Body,2*1024*1024)
  var releases []updateRelease
- if e=json.NewDecoder(limited).Decode(&releases);e!=nil{return updateChoice{},false,e}
+ if e=json.NewDecoder(io.LimitReader(response.Body,3*1024*1024)).Decode(&releases);e!=nil{return nil,e}
+ return releases,nil
+}
+func getUpdates()(updateChoice,bool,error){
+ client:=updateHTTP()
+ releases,err:=releaseFeed(client)
+ if err!=nil{
+  // Retry only transient network errors, not 403/404 or a malformed feed.
+  // The entire retry is limited to less than the Electron caller's timeout.
+  var networkError interface{Timeout()bool}
+  if errors.As(err,&networkError)||errors.Is(err,io.EOF) {
+   time.Sleep(350*time.Millisecond)
+   releases,err=releaseFeed(client)
+  }
+ }
+ if err!=nil{
+  var networkError interface{Timeout()bool}
+  if errors.As(err,&networkError) {
+   return updateChoice{},false,errors.New("GitHub did not respond in time. Check your internet connection or use Open GitHub Releases. You can retry without restarting KS Client.")
+  }
+  return updateChoice{},false,err
+ }
  choice,found:=chooseUpdate(releases,updateChannel(updateMode))
  return choice,found,nil
 }

@@ -1,4 +1,4 @@
-/* KS Client Beta 1.0.2 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.3 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
@@ -47,6 +47,7 @@
     lowLatency: false,
     performancePreset: 'Balanced',
     themePreset: 'Amber', customAccent: '#f0aa35', customBackground: '#0d1015', customPanel: '#171c23', customText: '#edf0f6', customMuted: '#97a3b2', gameThemeEnabled: false,
+    themeSurface:'Solid',themeGlow:0,themeRadius:12,themePattern:'None',themeDensity:'Comfortable',
     fontFamily: 'Segoe UI', fontSize: 110, gameFontEnabled: false,
     menuImageEnabled: true, menuSelector: '', uiImageSelector: '', menuSoundEnabled: false,
     minimalHUD: false, minimalSelectors: '', customCrosshairPresets: [],
@@ -102,7 +103,23 @@
   let displayedGameFPS = 0;
   let displayedFrameMs = 0;
   let measuredLabel = 'Browser animation ticks (not game GPU FPS)';
-  const themeColors = Object.freeze({ Amber:'#f0aa35', Ember:'#ef7958', Ice:'#74cce8', Forest:'#78c99c', Violet:'#b7a0f2', Custom:null });
+  // Named presets are complete visual palettes; they never touch gameplay settings.
+  const themePalettes = Object.freeze({
+    Amber:{accent:'#f0aa35',bg:'#0d1015',panel:'#171c23',text:'#edf0f6',muted:'#97a3b2'},
+    Ember:{accent:'#ef7958',bg:'#151012',panel:'#251a20',text:'#fff0e9',muted:'#bea5a1'},
+    Ice:{accent:'#74cce8',bg:'#0b1620',panel:'#172a37',text:'#e9f8ff',muted:'#9cb9c7'},
+    Forest:{accent:'#78c99c',bg:'#0e1815',panel:'#1a2b23',text:'#e9f8ee',muted:'#a3c0b0'},
+    Violet:{accent:'#b7a0f2',bg:'#151221',panel:'#241d37',text:'#f2edff',muted:'#b4aac9'},
+    Midnight:{accent:'#738fff',bg:'#0a1021',panel:'#171f39',text:'#e9eeff',muted:'#a5b5d5'},
+    Ocean:{accent:'#39d0ce',bg:'#09191c',panel:'#142f33',text:'#e4ffff',muted:'#91bec2'},
+    Crimson:{accent:'#f36b8b',bg:'#1a1017',panel:'#321b2a',text:'#fff0f4',muted:'#cea4b2'},
+    Cyber:{accent:'#b9ff4b',bg:'#10150b',panel:'#222e18',text:'#f4ffe5',muted:'#b6cb9b'},
+    Rose:{accent:'#ff9fc7',bg:'#1b1420',panel:'#2e2036',text:'#fff0f8',muted:'#ccb1c7'},
+    Sand:{accent:'#efbf81',bg:'#1b1713',panel:'#2c251d',text:'#fff2db',muted:'#c6b29c'},
+    Monochrome:{accent:'#d9e2ed',bg:'#101214',panel:'#24282e',text:'#f5f7fa',muted:'#a9b4be'},
+    Copper:{accent:'#ef9d65',bg:'#17130e',panel:'#2b211a',text:'#f9f0e7',muted:'#c5aa96'}
+  });
+  const themeColors = Object.freeze({...Object.fromEntries(Object.entries(themePalettes).map(([k,v])=>[k,v.accent])),Custom:null});
   const assetKeys = ['menuBackground', 'uiImage', 'menuSound', 'localFont'];
   const assets = Object.create(null);
   const assetURLs = Object.create(null);
@@ -118,7 +135,7 @@
     'Game Integration':['gameKeystrokes','gameStats','gameKeysPosition','gameKeysScale','gameAutoMouseCapture','gameQuickJoin'],
     'Eye Comfort': ['eyeEnabled','eyePreset','eyeBrightness','eyeContrast','eyeSaturation','eyeWarmth','eyeSoftness','breakReminderMinutes'],
     Crosshair: [...crosshairFields,'previewBackground','customCrosshairPresets'],
-    Appearance: ['themePreset','customAccent','customBackground','customPanel','customText','customMuted','fontFamily','fontSize','uiAnimations'],
+    Appearance: ['themePreset','customAccent','customBackground','customPanel','customText','customMuted','themeSurface','themeGlow','themeRadius','themePattern','themeDensity','fontFamily','fontSize','uiAnimations'],
     Interface: ['showHUD','showBadge','reduceMotion','minimalHUD'],
     Resources: ['menuImageEnabled','menuSelector','uiImageSelector','menuSoundEnabled'],
     'CSS Editor': ['gameThemeEnabled','gameFontEnabled','menuSelector','uiImageSelector','minimalSelectors','customCSSEnabled','customCSS'],
@@ -1054,12 +1071,21 @@
     @media(max-width:900px) {#ks-panel .ks-tab[data-group="Workshop"] {gap:6px;}}
     @media(max-width:650px) {#ks-panel #ks-close {width:35px!important;min-width:35px;height:35px!important;min-height:35px;}}
     @media(prefers-reduced-motion:reduce){#ks-panel #ks-close,#ks-break-dismiss {transition:none!important;}}
+    #ks-panel .ks-palette-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(94px,1fr));gap:9px;margin:12px 0 16px;}
+    #ks-panel .ks-palette-tile{display:flex;flex-direction:column;gap:5px;align-items:stretch;cursor:pointer;
+      padding:7px;border:1px solid rgba(180,193,210,.19);background:rgba(0,0,0,.15);color:var(--ks-text);
+      font:600 11px 'Segoe UI',sans-serif;transition:border-color .18s,transform .18s;}
+    #ks-panel .ks-palette-tile:hover{transform:translateY(-2px);border-color:var(--ks-accent);}
+    #ks-panel .ks-palette-tile:focus-visible{outline:2px solid var(--ks-accent);outline-offset:2px;}
+    #ks-panel .ks-palette-preview{height:29px;display:flex;align-items:center;gap:5px;padding:5px;
+      border:1px solid;border-radius:5px;}
+    #ks-panel .ks-palette-preview i{display:block;height:13px;flex:1;border-radius:3px;}
   </style>
   <div id="ks-screen">
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge" aria-label="KS Client Beta 1.0.2">KS · 1.0.2</div>
+    <div id="ks-badge" aria-label="KS Client Beta 1.0.3">KS · 1.0.3</div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings" title="KS Client Settings"><span class="ks-gear-icon" aria-hidden="true">⚙</span></button>
       <button type="button" id="ks-discord-quick" class="ks-quick-btn" aria-label="Open KS Client Discord in default browser">KS Discord</button>
@@ -1108,7 +1134,7 @@
   let browserActive = { ...browserPrefs };
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
-  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.2',channel:'beta'};
+  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.3',channel:'beta'};
   let updateRequestId=0;
   function updateStateText(){
     if(updateStatus.state==='available')return 'New release available: '+String(updateStatus.version||'');
@@ -1187,6 +1213,20 @@
     "Graphics":"Grafika","Controls":"Vezérlés","Advanced":"Haladó","Workshop":"Műhely","Interface":"Felület",
     "Customize accent, surface, text and typography for the client interface.":"A kliens kiemelőszíneinek, hátterének, szövegének és betűtípusának testreszabása.",
     "Color palette":"Színpaletta","Accent color of active elements":"Az aktív elemek kiemelőszíne",
+    "Ready-made color palettes":"Előre összeállított színpaletták",
+    "Complete ready-made color palettes and optional visual-only effects. Your gameplay settings never change.":"Teljes színpaletták és különleges megjelenési effektek. A játékbeállítások nem változnak.",
+    "Apply a complete palette or keep custom colors":"Teljes színpaletta kiválasztása vagy egyéni színek megőrzése",
+    "Custom colors":"Egyéni színek","Extra visual effects":"Extra megjelenési effektek",
+    "Surface style":"Felület stílusa","Flat, frosted glass or subtle neon frame":"Sima, üveghatású vagy neonos megjelenés",
+    "Solid / Classic":"Egyszerű / klasszikus","Frosted Glass":"Matt üveghatás",
+    "Neon Edge":"Neonkeret","Background texture":"Háttérminta",
+    "Pattern inside KS Settings only":"Csak a KS Beállításokon belüli minta",
+    "None":"Nincs","Fine Grid":"Finom rács","Soft Dots":"Finom pontminta",
+    "Spacing density":"Menü elrendezésének sűrűsége",
+    "Only adjusts menu row spacing":"Csak a menü sorainak távolságát módosítja",
+    "Compact":"Kompakt","Comfortable":"Kényelmes","Spacious":"Tágas",
+    "Accent glow":"Kiemelés ragyogása","Corner rounding":"Sarkok lekerekítése",
+    "Visual-only effects: no changes to game rendering, mouse control, hit detection, network or performance presets.":"Csak a kinézetet módosítja: az egérkezelés, a játék, a hálózat és a teljesítményprofilok változatlanok.",
     "Background color":"Háttérszín","Panel color":"Panelek színe","Text color":"Szöveg színe","Muted text color":"Másodlagos szöveg színe",
     "Typography & motion":"Betűk és animációk","Colors update instantly. Settings are saved automatically on this device.":"A színek azonnal változnak. A beállításokat a kliens helyben automatikusan menti.",
   "General": "Általános",
@@ -1213,9 +1253,9 @@
   "Update status": "Frissítés állapota",
   "Open KS Client settings": "KS Client beállításainak megnyitása",
   "KS Client Settings": "KS Client beállítások",
-  "Custom Kirka.io Client · Beta 1.0.2": "Egyedi Kirka.io-kliens · Beta 1.0.2",
+  "Custom Kirka.io Client · Beta 1.0.3": "Egyedi Kirka.io-kliens · Beta 1.0.3",
   "F1 Settings · F10 Hide Client HUD · F11 Fullscreen": "F1 Beállítások · F10 Kliens-HUD elrejtése · F11 Teljes képernyő",
-  "Unofficial client inspired by your KirkaStats / clan tracker theme · Beta 1.0.2": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · Beta 1.0.2",
+  "Unofficial client inspired by your KirkaStats / clan tracker theme · Beta 1.0.3": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · Beta 1.0.3",
   "Close Settings": "Beállítások bezárása",
   "● ACTIVE": "● AKTÍV",
   "Client Overview": "A kliens áttekintése",
@@ -1226,7 +1266,7 @@
   "Toggle fullscreen · F11": "Teljes képernyő be/ki · F11",
   "Reset client settings": "Kliensbeállítások visszaállítása",
   "Reset all settings": "Összes beállítás visszaállítása",
-  "This build uses the visible label Beta 1.0.2. Game files and player data still come from Kirka.io.": "Ez a kiadás az Beta 1.0.2 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
+  "This build uses the visible label Beta 1.0.3. Game files and player data still come from Kirka.io.": "Ez a kiadás az Beta 1.0.3 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
   "Settings Backup & Language": "Beállításmentés és nyelv",
   "Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.": "Mentsd el és oszd meg a KS Client beállításait. Csak JSON-fájl használható; ismeretlen személy mentését ne importáld.",
   "Language": "Nyelv",
@@ -1653,6 +1693,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.3',en:['Improved GitHub update checks: reduced API payload, safer retry and corrected updater-process timeout.','13 complete ready-made visual themes plus advanced appearance-only patterns, corners, surface materials and glow.','Redesigned Electron/CEF splash screens and native Windows Setup/Uninstall windows to match the modern charcoal-amber Settings UI.'],hu:['Javított GitHub-frissítéskeresés kisebb lekérdezéssel, biztonságos újrapróbálkozással és hosszabb időkerettel.','13 teljes színpaletta és extra megjelenési beállítások: minták, lekerekítés, felületek és ragyogás.','Az Electron/CEF betöltőképernyő és a Windows telepítő/eltávolító megjelenése illeszkedik a sötét-narancssárga Beállításokhoz.']},
     {v:'Beta 1.0.2',en:['Fixed account selection completing in Google but not returning the sign-in to Kirka: trusted nested OAuth popup handling and scoped browser storage permissions.','Expanded Google/Firebase callback routing in both Electron and CEF without changing cross-origin security.','Added privacy-safe OAuth redirect diagnostics and dedicated regression tests.'],hu:['Javítva a Google-fiók kiválasztása utáni elakadás: hitelesítési ablakok továbbnyitása és célzott tárolóhozzáférési engedélyek.','Bővített Google/Firebase visszairányítás Electronban és CEF-ben a biztonsági korlátozások megtartásával.','Adatvédelmi szempontból biztonságos OAuth-naplózás és célzott tesztek.']},
     {v:'Beta 1.0.1',en:['Restored trusted Kirka OAuth popups and provider redirects in Electron and CEF while retaining security restrictions.','Enabled custom accent, surface and text colors across the refreshed HUD and Settings interface.','Improved live color selection, text contrast and font customization; existing profiles remain intact.'],hu:['Javított Kirka bejelentkezési ablakok és átirányítások Electronban és CEF-ben, a biztonsági korlátozások megtartásával.','Egyéni akcentus-, háttér-, panel- és szövegszínek a HUD-on és a Beállításokban.','Javított színválasztás, szövegkontraszt és betűtípusok, a meglévő profilok megtartásával.']},
     {v:'Beta 1.0.0',en:['Promoted KS Client to Beta with matching black/orange FPS, keystrokes, game statistics and break reminder widgets.','Matched the Settings X button to the KS gear and Discord shortcuts and marked the Workshop Experimental.','Added real verified public GitHub beta update checks, optional automatic download and manual installation with explicit approval.'],hu:['KS Client Beta: egységes fekete–narancssárga FPS-, billentyű-, játékstatisztika- és emlékeztető kijelzők.','Egységes X, fogaskerék és Discord gomb, Workshop Experimental jelölés.','Valódi, ellenőrzött nyilvános GitHub Beta frissítéskeresés, automatikus letöltés és kézi telepítés jóváhagyással.']},
@@ -1676,8 +1717,8 @@
     {v:'1.1.2',en:['Fixed existing-installation detection for upgrades, including previous WebView2 releases.','Reworked setup file replacement with rollback and Retry / Cancel recovery.','English-labelled native setup and uninstaller buttons, independent of Windows display language.'],hu:['Javított telepítési hely felismerés és verziófrissítés, régebbi WebView2 kiadásokról is.','Biztonságosabb fájlcsere visszaállítással és Újra / Mégse választással.','Saját angol feliratú telepítő- és eltávolító gombok a Windows nyelvétől függetlenül.']},
     {v:'1.1.1',en:['English-only Windows installer, engine selector, engine setup and maintenance messages.','Added Windows Installed apps registration and an English uninstaller with optional settings and profile removal.','Electron and CEF options and existing in-game settings are preserved.'],hu:['Angol nyelvű Windows-telepítő, motorválasztó és motortelepítő.','Windowsos eltávolító beállításmegtartással és opcionális profiltörléssel.','Az Electron/CEF motorok és korábbi beállítások megmaradtak.']},
     {v:'1.1.0',en:['Switched to selectable Electron and CEF engines.','Migrated the KS Client overlay and browser settings bridge.','The WebView2 host is no longer used.'],hu:['Választható Electron és CEF motorokra váltottunk.','Átkerült a KS Client menüje és a böngészőbeállítások kezelése.','A WebView2 motort az új kiadás már nem használja.']},
-    {v:'1.0.21', en:['Removed nonfunctional Hitmarker, update downloader and Discord detection menu.','Moved version history to Client Overview.','Preserved Unlimited FPS, Eye Comfort and other gameplay settings.'], hu:['Eltávolítottuk a nem működő találatjelzőt, frissítésletöltőt és Discord-felismerés menüpontot.','A verziótörténet az Általános menübe került.','Megmaradt a korlátlan FPS, a Szemkomfort és a többi játékbeállítás.']},
-    {v:'1.0.20',en:['Opt-in experimental Chromium FPS unlock with restart and recovery.','Restart clears stale Chromium launch flags when disabling the unlock.','Optional Kirka.io FPS reader for visible HTML HUD elements only.'],hu:['Külön kapcsolható kísérleti Chromium FPS-feloldás újraindítással és biztonságos visszaállítással.','Kikapcsoláskor az újraindítás eltávolítja a korábbi FPS-feloldó kapcsolókat.','Opcionális Kirka.io FPS-kiolvasás a látható HTML HUD-elemekből.']},
+    {v:'1.0.31', en:['Removed nonfunctional Hitmarker, update downloader and Discord detection menu.','Moved version history to Client Overview.','Preserved Unlimited FPS, Eye Comfort and other gameplay settings.'], hu:['Eltávolítottuk a nem működő találatjelzőt, frissítésletöltőt és Discord-felismerés menüpontot.','A verziótörténet az Általános menübe került.','Megmaradt a korlátlan FPS, a Szemkomfort és a többi játékbeállítás.']},
+    {v:'1.0.30',en:['Opt-in experimental Chromium FPS unlock with restart and recovery.','Restart clears stale Chromium launch flags when disabling the unlock.','Optional Kirka.io FPS reader for visible HTML HUD elements only.'],hu:['Külön kapcsolható kísérleti Chromium FPS-feloldás újraindítással és biztonságos visszaállítással.','Kikapcsoláskor az újraindítás eltávolítja a korábbi FPS-feloldó kapcsolókat.','Opcionális Kirka.io FPS-kiolvasás a látható HTML HUD-elemekből.']},
     {v:'1.0.9', en:['Reset default menu size to 100% and defer resizing until slider release to reduce redraw stutter.','Added Eye Comfort canvas color/softness filters, presets and optional break reminders.','Added Frame Stability diagnostics, measured WebGL antialiasing status and Pixel Perfect native-scaling action.','Added browser callback smoothness profiles and Adaptive Sync / camera comfort guidance.'], hu:['A menü alapmérete újra 100%, a méretezés csak a csúszka elengedésekor történik a szaggatás csökkentéséhez.','Szemkomfort-szín- és lágyítószűrők, profilok és opcionális szünetemlékeztetők.','Képkockastabilitás-diagnosztika, WebGL-élsimítás állapotának kijelzése és natív Pixel Perfect mód.','Böngészős képkockaütemezési profilok és útmutató az adaptív szinkronhoz és kamerakényelemhez.']},
     {v:'1.0.8',en:['Dedicated Electron/CEF browser graphics, controls and GPU diagnostics menus.','GPU acceleration and ANGLE backend settings with persistent per-user preferences.','Clearly differentiated browser rAF FPS and Kirka.io own in-game FPS.'],hu:['Külön Electron/CEF grafikai, böngészőfunkciós és GPU-diagnosztikai menük.','GPU-gyorsítás és ANGLE-választó felhasználónként mentve.','Böngészős rAF FPS és Kirka.io játékbeli FPS egyértelmű elkülönítése.']},
     {v:'1.0.7', en:['Added menu sound playback testing and local resource verification.','Fixed retry downloads and added a release-manifest generator for publishers.','Added Windows uninstaller support and improved crash-log handling.','Made theme colors more consistent and clarified browser callback FPS labels.'], hu:['Menühang-lejátszás tesztelése és helyi erőforrások ellenőrzése.','Ismételt frissítésletöltés javítása, valamint verziófájl-készítő segédeszköz a kiadónak.','Windowsos eltávolítóprogram és továbbfejlesztett hibanaplózás.','Egységesebb témaszínek és pontosabb böngészős FPS-feliratok.']},
@@ -1685,8 +1726,8 @@
     {v:'1.0.5', en:['Renamed the Windows window and application identity to KS Client for clearer Discord detection.','Added automatic monitor matching and 720p presets for both display modes.','Removed the unused browser-engine switch from the menu.'], hu:['Az ablak neve és a Windows-alkalmazásazonosító KS Client lett a Discord jobb felismeréséhez.','Automatikus monitorhoz igazítás és 720p a menü- és játékfelbontáshoz.','Eltávolítottuk a nem működő motorválasztó menüpontot.']},
     {v:'1.0.4', en:['Reorganized Settings into five main categories with related submenus.','Replaced native option popups with a custom dark selection menu.','Unified narrow scrollbars; moved the expandable release history into Updates.'], hu:['A beállítások öt áttekinthető főkategóriába és kapcsolódó almenükbe kerültek.','A natív választólistákat egyedi, sötét lenyíló menük váltották fel.','Egységes, keskeny görgetősávok; a lenyitható verziótörténet a Frissítések fülre került.']},
     {v:'1.0.3', en:['Refreshed dark interface and extended custom theme colors.','Added a built-in change summary and improved the EXE replacement workflow.'], hu:['Frissített sötét felület és több testreszabható témaszín.','Újdonságösszegzés és továbbfejlesztett EXE-csere a frissítőben.']},
-    {v:'1.0.2', en:['Added the embedded orange K application icon and desktop shortcut installer.','Expanded Hungarian language support and simplified the Discord section.'], hu:['Beépített narancssárga K-ikon és asztali parancsikont készítő telepítő.','Bővített magyar nyelv és egyszerűsített Discord-rész.']},
-    {v:'1.0.2', en:['Removed the native top menu and status bar from the game view.','Moved display settings first and updated the original selector styling.'], hu:['Eltűnt a natív felső menü- és állapotsor a játékablakból.','Előre kerültek a kijelzőbeállítások, és javult a választók megjelenése.']},
+    {v:'1.0.3', en:['Added the embedded orange K application icon and desktop shortcut installer.','Expanded Hungarian language support and simplified the Discord section.'], hu:['Beépített narancssárga K-ikon és asztali parancsikont készítő telepítő.','Bővített magyar nyelv és egyszerűsített Discord-rész.']},
+    {v:'1.0.3', en:['Removed the native top menu and status bar from the game view.','Moved display settings first and updated the original selector styling.'], hu:['Eltűnt a natív felső menü- és állapotsor a játékablakból.','Előre kerültek a kijelzőbeállítások, és javult a választók megjelenése.']},
     {v:'1.0.0', en:['Introduced the Beta 1.0.0 branded KS Client build with the K logo.'], hu:['Megjelent az Beta 1.0.0 feliratú KS Client kiadás a K-logóval.']}
   ];
   function historyHTML() {
@@ -1715,6 +1756,18 @@
   const selectRow = (label, desc, key, options) => `<div class="ks-row"><div><div class="ks-label">${label}</div><div class="ks-desc">${desc}</div></div><select class="ks-input" data-setting="${key}">${options.map(o => `<option value="${o.value}" ${String(state[key]) === String(o.value) ? 'selected' : ''}>${o.label}</option>`).join('')}</select></div>`;
   const title = (t, s) => `<h2 class="ks-title">${t}</h2><p class="ks-sub">${s}</p>`;
 
+  function paletteTiles() {
+    return '<div class="ks-palette-grid" role="group" aria-label="Color palette presets">'+
+      Object.entries(themePalettes).map(([name,c])=>
+        `<button type="button" class="ks-palette-tile ${state.themePreset===name?'selected':''}"
+          data-palette="${esc(name)}" aria-pressed="${state.themePreset===name}">
+          <span class="ks-palette-preview" style="background:${c.bg};border-color:${c.accent}">
+            <i style="background:${c.accent}"></i><i style="background:${c.panel}"></i>
+            <i style="background:${c.text}"></i>
+          </span><span>${esc(name)}</span>
+        </button>`).join('')+
+      '</div>';
+  }
   function currentAccent() {
     const candidate = themeColors[state.themePreset] || state.customAccent;
     return /^#[0-9a-f]{6}$/i.test(String(candidate)) ? candidate : '#f0aa35';
@@ -1741,7 +1794,7 @@
       case 'Updates':
         return title('Software Updates','Update through GitHub Releases without losing your existing KS Client settings.')+
           '<div class="ks-card">'+
-          '<div class="ks-row"><div><div class="ks-label">Current version</div><div class="ks-desc">KS Client Beta 1.0.2</div></div><span class="ks-pill">● INSTALLED</span></div>'+
+          '<div class="ks-row"><div><div class="ks-label">Current version</div><div class="ks-desc">KS Client Beta 1.0.3</div></div><span class="ks-pill">● INSTALLED</span></div>'+
           toggleRow('Automatically check for updates','Check once per day when the client opens. Never automatically install.','autoCheckUpdates')+
           toggleRow('Download updates automatically','Download verified packages quietly when available. Installation always asks permission.','autoDownloadUpdates')+
           selectRow('Update channel','Beta is recommended. Beta includes Beta and Stable releases; Alpha also includes older experimental builds.','updateChannel',[
@@ -1761,7 +1814,7 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', 'KS Client Beta 1.0.2 starts in Electron by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client Beta 1.0.3 starts in Electron by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ. Native shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
@@ -1963,15 +2016,23 @@
           `<p class="ks-hint">Preview uses the same vector drawing as the in-game overlay. Center dot and outlines are independent.</p>` +
           `</div></aside></div>`;
       case 'Appearance':
-        return title('Appearance & Themes','Customize accent, surface, text and typography for the client interface.') +
-          `<div class="ks-grid"><div class="ks-card"><h3 class="ks-section-heading">Color palette</h3>`+
-          selectRow('Client theme','Accent color of active elements','themePreset',[{value:'Amber',label:'Amber / Gold'},{value:'Ember',label:'Ember'},{value:'Ice',label:'Ice Blue'},{value:'Forest',label:'Forest Green'},{value:'Violet',label:'Violet'},{value:'Custom',label:'Custom'}]) +
+        return title('Appearance & Themes','Complete ready-made color palettes and optional visual-only effects. Your gameplay settings never change.') +
+          `<div class="ks-grid"><div class="ks-card"><h3 class="ks-section-heading">Ready-made color palettes</h3>`+
+          paletteTiles() +
+          selectRow('Client theme','Apply a complete palette or keep custom colors','themePreset',Object.keys(themePalettes).map(name=>({value:name,label:name})).concat([{value:'Custom',label:'Custom colors'}])) +
           `<div class="ks-row"><div class="ks-label">Custom accent color</div><input data-setting="customAccent" type="color" value="${esc(state.customAccent)}"></div>` +
           `<div class="ks-row"><div class="ks-label">Background color</div><input data-setting="customBackground" type="color" value="${esc(state.customBackground)}"></div>` +
           `<div class="ks-row"><div class="ks-label">Panel color</div><input data-setting="customPanel" type="color" value="${esc(state.customPanel)}"></div>` +
           `<div class="ks-row"><div class="ks-label">Text color</div><input data-setting="customText" type="color" value="${esc(state.customText)}"></div>` +
           `<div class="ks-row"><div class="ks-label">Muted text color</div><input data-setting="customMuted" type="color" value="${esc(state.customMuted)}"></div>` +
-          `</div><div class="ks-card"><h3 class="ks-section-heading">Typography & motion</h3>`+
+          `</div><div class="ks-card"><h3 class="ks-section-heading">Extra visual effects</h3>`+
+          selectRow('Surface style','Flat, frosted glass or subtle neon frame','themeSurface',[{value:'Solid',label:'Solid / Classic'},{value:'Frosted',label:'Frosted Glass'},{value:'Neon',label:'Neon Edge'}]) +
+          selectRow('Background texture','Pattern inside KS Settings only','themePattern',[{value:'None',label:'None'},{value:'Grid',label:'Fine Grid'},{value:'Dots',label:'Soft Dots'}]) +
+          selectRow('Spacing density','Only adjusts menu row spacing','themeDensity',[{value:'Compact',label:'Compact'},{value:'Comfortable',label:'Comfortable'},{value:'Spacious',label:'Spacious'}]) +
+          rangeRow('Accent glow','themeGlow',0,100,'%') +
+          rangeRow('Corner rounding','themeRadius',6,24,'px') +
+          `<p class="ks-hint">Visual-only effects: no changes to game rendering, mouse control, hit detection, network or performance presets.</p></div>` +
+          `<div class="ks-card"><h3 class="ks-section-heading">Typography & motion</h3>`+
           selectRow('Font family','Fonts already available in Windows / Electron/CEF','fontFamily',[{value:'Segoe UI',label:'Segoe UI'},{value:'Arial',label:'Arial'},{value:'Verdana',label:'Verdana'},{value:'Tahoma',label:'Tahoma'},{value:'Consolas',label:'Consolas'},{value:'KS Custom Font',label:'Uploaded font (Resources)'}]) +
           rangeRow('Client font size','fontSize',90,150,'%') +
           toggleRow('Menu animations','Enable client transitions and blur effects.','uiAnimations') +
@@ -2355,7 +2416,7 @@
       `<div id="ks-search-results" role="group" hidden></div>`+
       `<div id="ks-sidebar-groups">`+
       groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon" aria-hidden="true">${groupIcon(g.key)}</span><span>${translateTab(g.key)}</span>${g.key==='Workshop'?'<span class="ks-experimental-badge">EXPERIMENTAL</span>':''}</button>`).join('')+
-      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.2</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
+      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.3</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
@@ -2621,6 +2682,54 @@
         control.style.removeProperty('border-color');
       }
     }
+    // Scoped to KS Settings; do not inject styling into Kirka's gameplay DOM.
+    const visualExtras=$('ks-visual-extras')||document.createElement('style');
+    visualExtras.id='ks-visual-extras';
+    const radius=Math.max(6,Math.min(24,Number(state.themeRadius)||12));
+    const glow=Math.max(0,Math.min(100,Number(state.themeGlow)||0))/100;
+    const surface=['Solid','Frosted','Neon'].includes(state.themeSurface)?state.themeSurface:'Solid';
+    const pattern=['None','Grid','Dots'].includes(state.themePattern)?state.themePattern:'None';
+    const density=['Compact','Comfortable','Spacious'].includes(state.themeDensity)?state.themeDensity:'Comfortable';
+    const glowBlur=Math.round(glow*36);
+    const glowAlpha=(glow*.32).toFixed(3);
+    const lineAlpha=(.13+glow*.27).toFixed(3);
+    const rowPad=density==='Compact'?7:density==='Spacious'?16:11;
+    const backdrop=surface==='Frosted'?18:0;
+    const patternImage=pattern==='Grid'
+      ?'linear-gradient(to right, color-mix(in srgb,var(--ks-accent) 9%,transparent) 1px, transparent 1px),linear-gradient(to bottom,color-mix(in srgb,var(--ks-accent) 9%,transparent) 1px,transparent 1px)'
+      :pattern==='Dots'?'radial-gradient(color-mix(in srgb,var(--ks-accent) 20%,transparent) 1px,transparent 1px)':'none';
+    visualExtras.textContent=`
+      #ks-screen #ks-panel {
+        border-radius:${radius+6}px!important;
+        box-shadow:0 22px 76px rgba(0,0,0,.50),0 0 ${glowBlur}px rgba(0,0,0,.16)!important;
+        backdrop-filter:blur(${backdrop}px);
+      }
+      #ks-screen #ks-panel #ks-body {
+        background-image:${patternImage}!important;
+        background-size:${pattern==='Grid'?'24px 24px':pattern==='Dots'?'18px 18px':'auto'}!important;
+      }
+      #ks-screen #ks-panel :is(.ks-card,.ks-note,.ks-hint-box) {
+        border-radius:${radius}px!important;
+        border-color:color-mix(in srgb,var(--ks-accent) ${Math.round(13+glow*27)}%,transparent)!important;
+        box-shadow:0 0 ${glowBlur}px color-mix(in srgb,var(--ks-accent) ${Math.round(glow*22)}%,transparent)!important;
+        ${surface==='Frosted'?'backdrop-filter:blur(12px)!important;':''}
+      }
+      #ks-screen #ks-panel :is(.ks-input,.ks-select-trigger,.ks-btn,.ks-palette-tile) {
+        border-radius:${Math.max(5,radius-3)}px!important;
+      }
+      #ks-screen #ks-panel .ks-row {
+        padding-top:${rowPad}px!important;padding-bottom:${rowPad}px!important;
+      }
+      #ks-screen #ks-panel .ks-section-heading {
+        text-shadow:0 0 ${glowBlur}px color-mix(in srgb,var(--ks-accent) ${Math.round(glow*35)}%,transparent);
+      }
+      #ks-screen #ks-panel .ks-palette-tile.selected{
+        box-shadow:0 0 ${glowBlur}px color-mix(in srgb,var(--ks-accent) ${Math.round(glow*35)}%,transparent)!important;
+        border-color:var(--ks-accent)!important;
+      }
+      ${surface==='Neon'? '#ks-screen #ks-panel .ks-card{border-color:var(--ks-accent)!important;}':''}
+    `;
+    if(!visualExtras.isConnected)shadow.appendChild(visualExtras);
     const panel = $('ks-panel');
     panel.style.background = state.menuImageEnabled && assetURLs.menuBackground
       ? `linear-gradient(rgba(8,12,16,.88),rgba(8,12,16,.94)), url("${assetURLs.menuBackground}") center/cover no-repeat`
@@ -2751,11 +2860,24 @@
     if (k === 'smoothPreset') { applySmoothPreset(String(value));return; }
     if (k === 'eyePreset') { applyEyePreset(String(value));return; }
     if (['menuSelector','uiImageSelector','minimalSelectors'].includes(k)) value = String(value).slice(0,120);
-    if (k === 'themePreset' && !(value in themeColors)) return;
+    if (k === 'themePreset' && !Object.hasOwn(themeColors,value)) return;
+    if(k==='themePreset' && value!=='Custom'){
+      const palette=themePalettes[value];
+      if(palette)Object.assign(state,{customAccent:palette.accent,customBackground:palette.bg,
+        customPanel:palette.panel,customText:palette.text,customMuted:palette.muted});
+    }
+    if(k==='themeSurface' && !['Solid','Frosted','Neon'].includes(value))return;
+    if(k==='themePattern' && !['None','Grid','Dots'].includes(value))return;
+    if(k==='themeDensity' && !['Compact','Comfortable','Spacious'].includes(value))return;
+    if(k==='themeGlow')value=Math.max(0,Math.min(100,Math.round(Number(value)||0)));
+    if(k==='themeRadius')value=Math.max(6,Math.min(24,Math.round(Number(value)||12)));
     if (k === 'fontFamily' && !['Segoe UI','Arial','Verdana','Tahoma','Consolas','KS Custom Font'].includes(value)) return;
     if (['customAccent','customBackground','customPanel','customText','customMuted'].includes(k) &&
         !/^#[a-f0-9]{6}$/i.test(value)) return;
-    if (k === 'customAccent') state.themePreset='Custom';
+    // Once any swatch is edited, show Custom rather than falsely implying
+    // the exact named palette is still active.
+    if (['customAccent','customBackground','customPanel','customText','customMuted'].includes(k))
+      state.themePreset='Custom';
     if(k==='fpsLimit') { value=Number(value); if (![0,60,120,144,165,180].includes(value))return; }
     if(k==='uiScale') {
       value=Math.max(100,Math.min(160,Math.round(Number(value)||100)));
@@ -2800,10 +2922,10 @@
     // Export only supported settings; local assets live in IndexedDB.
     const safe = Object.fromEntries(Object.keys(defaults)
       .map(k=>[k,state[k]]));
-    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client Beta 1.0.2',exportedAt:new Date().toISOString(),settings:safe};
+    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client Beta 1.0.3',exportedAt:new Date().toISOString(),settings:safe};
     const blob = new Blob([JSON.stringify(doc,null,2)],{type:'application/json'});
     const objectURL = URL.createObjectURL(blob);
-    const link=document.createElement('a');link.href=objectURL;link.download='KS-Client-Beta-1.0.2-settings.json';
+    const link=document.createElement('a');link.href=objectURL;link.download='KS-Client-Beta-1.0.3-settings.json';
     document.body.appendChild(link);link.click();link.remove();
     setTimeout(()=>URL.revokeObjectURL(objectURL),30000);
     sharingStatus='Settings JSON exported. No account token or local image/audio/font was included.';
@@ -2941,6 +3063,11 @@
     // The import can re-render the panel; never dereference a detached event target.
     if(fileInput.isConnected) fileInput.value='';
   });
+  $('ks-body').addEventListener('click',e=>{
+    const tile=e.target.closest('button[data-palette]');
+    if(!tile)return;
+    setSetting('themePreset',tile.dataset.palette);
+  });
   $('ks-body').addEventListener('click', async e => {
     const button = e.target.closest('[data-clear-asset]');
     if (!button) return;
@@ -2981,7 +3108,7 @@
     setSetting(k, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
     // Refresh the theme dropdown after the native color chooser closes,
     // not during every input frame (which would close the chooser).
-    if(k==='customAccent' && e.target.type==='color')renderTab();
+    if(['customAccent','customBackground','customPanel','customText','customMuted'].includes(k) && e.target.type==='color')renderTab();
   });
 
   $('ks-body').addEventListener('click', e => {
@@ -3227,7 +3354,7 @@
       const allowed=['idle','checking','available','current','unavailable','error','downloading'];
       updateStatus={
         state:allowed.includes(status.state)?status.state:'error',
-        current:String(status.current||'Beta 1.0.2').slice(0,40),
+        current:String(status.current||'Beta 1.0.3').slice(0,40),
         version:String(status.version||'').slice(0,40),
         channel:String(status.channel||state.updateChannel).slice(0,12),
         message:String(status.message||'').slice(0,380),
