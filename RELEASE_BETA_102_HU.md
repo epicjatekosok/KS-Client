@@ -10,7 +10,7 @@ A Beta 1.0.2 célzottan javítja a böngészőn belüli OAuth-adatátadást:
 - **Google/Firebase átirányítások**: a megszokott Google-hitelesítési és Firebase callback domainek engedélyezettek. A Kirka saját `*.kirka.io` aldomainjeire történő hitelesítési visszalépés is kezelhető.
 - **Tárolóhoz való hozzáférés**: az Electron a hitelesítési folyamat szükséges `storage-access` / `top-level-storage-access` kéréseit csak a Kirka vagy jóváhagyott bejelentkezési ablak és az ellenőrzött HTTPS-eredet esetén engedélyezi.
 - **CEF**: a provider popup kezdeti `about:blank` navigációja és a Google/Firebase visszairányítások célzott kezelést kapnak.
-- **Diagnosztika**: az elutasított vagy hibás OAuth-navigációk címtartományát és útvonalát rögzíthetjük, de nem írjuk naplóba a hitelesítési URL query paramétereit, tokeneket vagy email-címeket.
+- **Diagnosztika**: az elutasított vagy hibás OAuth-navigációk kizárólag a szolgáltató tartománynevét rögzíthetjük, de nem írjuk naplóba a hitelesítési URL query paramétereit, tokeneket vagy email-címeket.
 
 ## Biztonság
 
