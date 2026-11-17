@@ -1,4 +1,4 @@
-/* KS Client Beta 1.0.4 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.5 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
@@ -1085,7 +1085,7 @@
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge" aria-label="KS Client Beta 1.0.4">KS · 1.0.4</div>
+    <div id="ks-badge" aria-label="KS Client Beta 1.0.5">KS · 1.0.5</div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings" title="KS Client Settings"><span class="ks-gear-icon" aria-hidden="true">⚙</span></button>
       <button type="button" id="ks-discord-quick" class="ks-quick-btn" aria-label="Open KS Client Discord in default browser">KS Discord</button>
@@ -1134,7 +1134,7 @@
   let browserActive = { ...browserPrefs };
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
-  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.4',channel:'beta'};
+  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.5',channel:'beta'};
   let updateRequestId=0;
   function updateStateText(){
     if(updateStatus.state==='available')return 'New release available: '+String(updateStatus.version||'');
@@ -1253,9 +1253,9 @@
   "Update status": "Frissítés állapota",
   "Open KS Client settings": "KS Client beállításainak megnyitása",
   "KS Client Settings": "KS Client beállítások",
-  "Custom Kirka.io Client · Beta 1.0.4": "Egyedi Kirka.io-kliens · Beta 1.0.4",
+  "Custom Kirka.io Client · Beta 1.0.5": "Egyedi Kirka.io-kliens · Beta 1.0.5",
   "F1 Settings · F10 Hide Client HUD · F11 Fullscreen": "F1 Beállítások · F10 Kliens-HUD elrejtése · F11 Teljes képernyő",
-  "Unofficial client inspired by your KirkaStats / clan tracker theme · Beta 1.0.4": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · Beta 1.0.4",
+  "Unofficial client inspired by your KirkaStats / clan tracker theme · Beta 1.0.5": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · Beta 1.0.5",
   "Close Settings": "Beállítások bezárása",
   "● ACTIVE": "● AKTÍV",
   "Client Overview": "A kliens áttekintése",
@@ -1266,7 +1266,7 @@
   "Toggle fullscreen · F11": "Teljes képernyő be/ki · F11",
   "Reset client settings": "Kliensbeállítások visszaállítása",
   "Reset all settings": "Összes beállítás visszaállítása",
-  "This build uses the visible label Beta 1.0.4. Game files and player data still come from Kirka.io.": "Ez a kiadás az Beta 1.0.4 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
+  "This build uses the visible label Beta 1.0.5. Game files and player data still come from Kirka.io.": "Ez a kiadás az Beta 1.0.5 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
   "Settings Backup & Language": "Beállításmentés és nyelv",
   "Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.": "Mentsd el és oszd meg a KS Client beállításait. Csak JSON-fájl használható; ismeretlen személy mentését ne importáld.",
   "Language": "Nyelv",
@@ -1693,6 +1693,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.5',en:['Researched Google embedded OAuth restrictions affecting Gmail/YouTube account login. Google does not support login inside CEF or Electron embedded windows.','Added explicit secure Windows browser sign-in assistance; never copy account credentials, OAuth codes or cookies back to KS Client.','Preserved native non-Google sign-in popups and added safer Google redirect handling, sanitized diagnostics and regression tests. Full in-client Google login needs official Kirka OAuth callback support.']},
     {v:'Beta 1.0.4',en:['All new GitHub release notes, in-client update descriptions and version-history patch notes are in English.','Adjusted Electron and CEF loading screens with English text and complete, unclipped layouts.','Setup now reads the version from the actual bundled Electron/CEF release metadata; Windows install and uninstall dialogs no longer show a hard-coded version.']},
     {v:'Beta 1.0.3',en:['Improved GitHub update checks: reduced API payload, safer retry and corrected updater-process timeout.','13 complete ready-made visual themes plus advanced appearance-only patterns, corners, surface materials and glow.','Redesigned Electron/CEF splash screens and native Windows Setup/Uninstall windows to match the modern charcoal-amber Settings UI.'],hu:['Javított GitHub-frissítéskeresés kisebb lekérdezéssel, biztonságos újrapróbálkozással és hosszabb időkerettel.','13 teljes színpaletta és extra megjelenési beállítások: minták, lekerekítés, felületek és ragyogás.','Az Electron/CEF betöltőképernyő és a Windows telepítő/eltávolító megjelenése illeszkedik a sötét-narancssárga Beállításokhoz.']},
     {v:'Beta 1.0.2',en:['Fixed account selection completing in Google but not returning the sign-in to Kirka: trusted nested OAuth popup handling and scoped browser storage permissions.','Expanded Google/Firebase callback routing in both Electron and CEF without changing cross-origin security.','Added privacy-safe OAuth redirect diagnostics and dedicated regression tests.'],hu:['Javítva a Google-fiók kiválasztása utáni elakadás: hitelesítési ablakok továbbnyitása és célzott tárolóhozzáférési engedélyek.','Bővített Google/Firebase visszairányítás Electronban és CEF-ben a biztonsági korlátozások megtartásával.','Adatvédelmi szempontból biztonságos OAuth-naplózás és célzott tesztek.']},
@@ -1795,7 +1796,7 @@
       case 'Updates':
         return title('Software Updates','Update through GitHub Releases without losing your existing KS Client settings.')+
           '<div class="ks-card">'+
-          '<div class="ks-row"><div><div class="ks-label">Current version</div><div class="ks-desc">KS Client Beta 1.0.4</div></div><span class="ks-pill">● INSTALLED</span></div>'+
+          '<div class="ks-row"><div><div class="ks-label">Current version</div><div class="ks-desc">KS Client Beta 1.0.5</div></div><span class="ks-pill">● INSTALLED</span></div>'+
           toggleRow('Automatically check for updates','Check once per day when the client opens. Never automatically install.','autoCheckUpdates')+
           toggleRow('Download updates automatically','Download verified packages quietly when available. Installation always asks permission.','autoDownloadUpdates')+
           selectRow('Update channel','Beta is recommended. Beta includes Beta and Stable releases; Alpha also includes older experimental builds.','updateChannel',[
@@ -1815,10 +1816,11 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', 'KS Client Beta 1.0.4 starts in Electron by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client Beta 1.0.5 starts in Electron by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ. Native shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Account sign-in assistance</div><div class="ks-desc">Google, Gmail and YouTube accounts cannot sign in through embedded Chromium under Google's security policy. Open Kirka.io in your default browser instead. This does not automatically transfer that browser login to KS Client without an official Kirka callback. Other supported providers can still use in-client popups.</div></div><button class="ks-btn" data-action="auth-open-browser">Open secure browser sign-in</button></div>` +
           (engineSwitchStatus ? `<p class="ks-hint" id="ks-engine-switch-status">${esc(engineSwitchStatus)}</p>` : '') +
           `<div class="ks-row"><div class="ks-label">Borderless fullscreen</div><button class="ks-btn" data-action="fullscreen">Toggle fullscreen · F11</button></div>` +
           `<div class="ks-row"><div class="ks-label">Reset client settings</div><button class="ks-btn danger" data-action="reset">Reset all settings</button></div>` +
@@ -2417,7 +2419,7 @@
       `<div id="ks-search-results" role="group" hidden></div>`+
       `<div id="ks-sidebar-groups">`+
       groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon" aria-hidden="true">${groupIcon(g.key)}</span><span>${translateTab(g.key)}</span>${g.key==='Workshop'?'<span class="ks-experimental-badge">EXPERIMENTAL</span>':''}</button>`).join('')+
-      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.4</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
+      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.5</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
@@ -2923,10 +2925,10 @@
     // Export only supported settings; local assets live in IndexedDB.
     const safe = Object.fromEntries(Object.keys(defaults)
       .map(k=>[k,state[k]]));
-    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client Beta 1.0.4',exportedAt:new Date().toISOString(),settings:safe};
+    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client Beta 1.0.5',exportedAt:new Date().toISOString(),settings:safe};
     const blob = new Blob([JSON.stringify(doc,null,2)],{type:'application/json'});
     const objectURL = URL.createObjectURL(blob);
-    const link=document.createElement('a');link.href=objectURL;link.download='KS-Client-Beta-1.0.4-settings.json';
+    const link=document.createElement('a');link.href=objectURL;link.download='KS-Client-Beta-1.0.5-settings.json';
     document.body.appendChild(link);link.click();link.remove();
     setTimeout(()=>URL.revokeObjectURL(objectURL),30000);
     sharingStatus='Settings JSON exported. No account token or local image/audio/font was included.';
@@ -3212,6 +3214,9 @@
       }catch(e){sharingStatus='Quick join: '+String(e.message||e);}
       const el=$('ks-extra-status');if(el)el.textContent=sharingStatus;
     }
+    if (a === 'auth-open-browser') {
+      if(!notify('auth-open-browser'))alert('The native sign-in assistant is unavailable. Open https://kirka.io/ in your default browser.');
+    }
     if (a === 'game-screenshot') notify('game-screenshot');
     if (a === 'fullscreen') notify('fullscreen');
     if (a === 'check-gpu') checkGPU();
@@ -3355,7 +3360,7 @@
       const allowed=['idle','checking','available','current','unavailable','error','downloading'];
       updateStatus={
         state:allowed.includes(status.state)?status.state:'error',
-        current:String(status.current||'Beta 1.0.4').slice(0,40),
+        current:String(status.current||'Beta 1.0.5').slice(0,40),
         version:String(status.version||'').slice(0,40),
         channel:String(status.channel||state.updateChannel).slice(0,12),
         message:String(status.message||'').slice(0,380),

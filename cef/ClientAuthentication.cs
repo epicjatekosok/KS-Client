@@ -25,6 +25,23 @@ internal static class ClientAuthentication
         ".firebaseapp.com", ".web.app", ".auth0.com", ".supabase.co", ".web3auth.io", ".kirka.io"
     };
 
+    // Google (including Gmail/YouTube accounts) explicitly disallows
+    // sign-in through CEF and other embedded OAuth user agents.
+    // The system browser must handle that step without UA spoofing or
+    // copying session cookies / tokens back to the client.
+    private static readonly HashSet<string> GoogleHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "accounts.google.com","consent.google.com","gsi.google.com",
+        "myaccount.google.com","oauth2.googleapis.com","accounts.youtube.com"
+    };
+    internal static bool IsGoogleSignIn(string? target)
+    {
+        if(!Uri.TryCreate(target,UriKind.Absolute,out var uri) ||
+           uri.Scheme!=Uri.UriSchemeHttps || uri.Port!=443 ||
+           uri.UserInfo.Length!=0)return false;
+        return GoogleHosts.Contains(uri.IdnHost);
+    }
+
     internal static bool IsAllowed(string? target, bool allowBlank = false)
     {
         if(allowBlank && (string.IsNullOrWhiteSpace(target) ||
