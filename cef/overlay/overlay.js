@@ -2874,7 +2874,10 @@
     if (k === 'fontFamily' && !['Segoe UI','Arial','Verdana','Tahoma','Consolas','KS Custom Font'].includes(value)) return;
     if (['customAccent','customBackground','customPanel','customText','customMuted'].includes(k) &&
         !/^#[a-f0-9]{6}$/i.test(value)) return;
-    if (k === 'customAccent') state.themePreset='Custom';
+    // Once any swatch is edited, show Custom rather than falsely implying
+    // the exact named palette is still active.
+    if (['customAccent','customBackground','customPanel','customText','customMuted'].includes(k))
+      state.themePreset='Custom';
     if(k==='fpsLimit') { value=Number(value); if (![0,60,120,144,165,180].includes(value))return; }
     if(k==='uiScale') {
       value=Math.max(100,Math.min(160,Math.round(Number(value)||100)));
@@ -3105,7 +3108,7 @@
     setSetting(k, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
     // Refresh the theme dropdown after the native color chooser closes,
     // not during every input frame (which would close the chooser).
-    if(k==='customAccent' && e.target.type==='color')renderTab();
+    if(['customAccent','customBackground','customPanel','customText','customMuted'].includes(k) && e.target.type==='color')renderTab();
   });
 
   $('ks-body').addEventListener('click', e => {
