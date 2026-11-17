@@ -1,4 +1,4 @@
-/* KS Client Beta 1.0.3 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.4 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
@@ -1085,7 +1085,7 @@
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge" aria-label="KS Client Beta 1.0.3">KS · 1.0.3</div>
+    <div id="ks-badge" aria-label="KS Client Beta 1.0.4">KS · 1.0.4</div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings" title="KS Client Settings"><span class="ks-gear-icon" aria-hidden="true">⚙</span></button>
       <button type="button" id="ks-discord-quick" class="ks-quick-btn" aria-label="Open KS Client Discord in default browser">KS Discord</button>
@@ -1134,7 +1134,7 @@
   let browserActive = { ...browserPrefs };
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
-  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.3',channel:'beta'};
+  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.4',channel:'beta'};
   let updateRequestId=0;
   function updateStateText(){
     if(updateStatus.state==='available')return 'New release available: '+String(updateStatus.version||'');
@@ -1253,9 +1253,9 @@
   "Update status": "Frissítés állapota",
   "Open KS Client settings": "KS Client beállításainak megnyitása",
   "KS Client Settings": "KS Client beállítások",
-  "Custom Kirka.io Client · Beta 1.0.3": "Egyedi Kirka.io-kliens · Beta 1.0.3",
+  "Custom Kirka.io Client · Beta 1.0.4": "Egyedi Kirka.io-kliens · Beta 1.0.4",
   "F1 Settings · F10 Hide Client HUD · F11 Fullscreen": "F1 Beállítások · F10 Kliens-HUD elrejtése · F11 Teljes képernyő",
-  "Unofficial client inspired by your KirkaStats / clan tracker theme · Beta 1.0.3": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · Beta 1.0.3",
+  "Unofficial client inspired by your KirkaStats / clan tracker theme · Beta 1.0.4": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · Beta 1.0.4",
   "Close Settings": "Beállítások bezárása",
   "● ACTIVE": "● AKTÍV",
   "Client Overview": "A kliens áttekintése",
@@ -1266,7 +1266,7 @@
   "Toggle fullscreen · F11": "Teljes képernyő be/ki · F11",
   "Reset client settings": "Kliensbeállítások visszaállítása",
   "Reset all settings": "Összes beállítás visszaállítása",
-  "This build uses the visible label Beta 1.0.3. Game files and player data still come from Kirka.io.": "Ez a kiadás az Beta 1.0.3 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
+  "This build uses the visible label Beta 1.0.4. Game files and player data still come from Kirka.io.": "Ez a kiadás az Beta 1.0.4 verziójelzést használja. A játékfájlok és a játékosadatok továbbra is a Kirka.io-ról érkeznek.",
   "Settings Backup & Language": "Beállításmentés és nyelv",
   "Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.": "Mentsd el és oszd meg a KS Client beállításait. Csak JSON-fájl használható; ismeretlen személy mentését ne importáld.",
   "Language": "Nyelv",
@@ -1693,6 +1693,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.4',en:['All new GitHub release notes, in-client update descriptions and version-history patch notes are in English.','Adjusted Electron and CEF loading screens with English text and complete, unclipped layouts.','Setup now reads the version from the actual bundled Electron/CEF release metadata; Windows install and uninstall dialogs no longer show a hard-coded version.']},
     {v:'Beta 1.0.3',en:['Improved GitHub update checks: reduced API payload, safer retry and corrected updater-process timeout.','13 complete ready-made visual themes plus advanced appearance-only patterns, corners, surface materials and glow.','Redesigned Electron/CEF splash screens and native Windows Setup/Uninstall windows to match the modern charcoal-amber Settings UI.'],hu:['Javított GitHub-frissítéskeresés kisebb lekérdezéssel, biztonságos újrapróbálkozással és hosszabb időkerettel.','13 teljes színpaletta és extra megjelenési beállítások: minták, lekerekítés, felületek és ragyogás.','Az Electron/CEF betöltőképernyő és a Windows telepítő/eltávolító megjelenése illeszkedik a sötét-narancssárga Beállításokhoz.']},
     {v:'Beta 1.0.2',en:['Fixed account selection completing in Google but not returning the sign-in to Kirka: trusted nested OAuth popup handling and scoped browser storage permissions.','Expanded Google/Firebase callback routing in both Electron and CEF without changing cross-origin security.','Added privacy-safe OAuth redirect diagnostics and dedicated regression tests.'],hu:['Javítva a Google-fiók kiválasztása utáni elakadás: hitelesítési ablakok továbbnyitása és célzott tárolóhozzáférési engedélyek.','Bővített Google/Firebase visszairányítás Electronban és CEF-ben a biztonsági korlátozások megtartásával.','Adatvédelmi szempontból biztonságos OAuth-naplózás és célzott tesztek.']},
     {v:'Beta 1.0.1',en:['Restored trusted Kirka OAuth popups and provider redirects in Electron and CEF while retaining security restrictions.','Enabled custom accent, surface and text colors across the refreshed HUD and Settings interface.','Improved live color selection, text contrast and font customization; existing profiles remain intact.'],hu:['Javított Kirka bejelentkezési ablakok és átirányítások Electronban és CEF-ben, a biztonsági korlátozások megtartásával.','Egyéni akcentus-, háttér-, panel- és szövegszínek a HUD-on és a Beállításokban.','Javított színválasztás, szövegkontraszt és betűtípusok, a meglévő profilok megtartásával.']},
@@ -1717,8 +1718,8 @@
     {v:'1.1.2',en:['Fixed existing-installation detection for upgrades, including previous WebView2 releases.','Reworked setup file replacement with rollback and Retry / Cancel recovery.','English-labelled native setup and uninstaller buttons, independent of Windows display language.'],hu:['Javított telepítési hely felismerés és verziófrissítés, régebbi WebView2 kiadásokról is.','Biztonságosabb fájlcsere visszaállítással és Újra / Mégse választással.','Saját angol feliratú telepítő- és eltávolító gombok a Windows nyelvétől függetlenül.']},
     {v:'1.1.1',en:['English-only Windows installer, engine selector, engine setup and maintenance messages.','Added Windows Installed apps registration and an English uninstaller with optional settings and profile removal.','Electron and CEF options and existing in-game settings are preserved.'],hu:['Angol nyelvű Windows-telepítő, motorválasztó és motortelepítő.','Windowsos eltávolító beállításmegtartással és opcionális profiltörléssel.','Az Electron/CEF motorok és korábbi beállítások megmaradtak.']},
     {v:'1.1.0',en:['Switched to selectable Electron and CEF engines.','Migrated the KS Client overlay and browser settings bridge.','The WebView2 host is no longer used.'],hu:['Választható Electron és CEF motorokra váltottunk.','Átkerült a KS Client menüje és a böngészőbeállítások kezelése.','A WebView2 motort az új kiadás már nem használja.']},
-    {v:'1.0.31', en:['Removed nonfunctional Hitmarker, update downloader and Discord detection menu.','Moved version history to Client Overview.','Preserved Unlimited FPS, Eye Comfort and other gameplay settings.'], hu:['Eltávolítottuk a nem működő találatjelzőt, frissítésletöltőt és Discord-felismerés menüpontot.','A verziótörténet az Általános menübe került.','Megmaradt a korlátlan FPS, a Szemkomfort és a többi játékbeállítás.']},
-    {v:'1.0.30',en:['Opt-in experimental Chromium FPS unlock with restart and recovery.','Restart clears stale Chromium launch flags when disabling the unlock.','Optional Kirka.io FPS reader for visible HTML HUD elements only.'],hu:['Külön kapcsolható kísérleti Chromium FPS-feloldás újraindítással és biztonságos visszaállítással.','Kikapcsoláskor az újraindítás eltávolítja a korábbi FPS-feloldó kapcsolókat.','Opcionális Kirka.io FPS-kiolvasás a látható HTML HUD-elemekből.']},
+    {v:'1.0.41', en:['Removed nonfunctional Hitmarker, update downloader and Discord detection menu.','Moved version history to Client Overview.','Preserved Unlimited FPS, Eye Comfort and other gameplay settings.'], hu:['Eltávolítottuk a nem működő találatjelzőt, frissítésletöltőt és Discord-felismerés menüpontot.','A verziótörténet az Általános menübe került.','Megmaradt a korlátlan FPS, a Szemkomfort és a többi játékbeállítás.']},
+    {v:'1.0.40',en:['Opt-in experimental Chromium FPS unlock with restart and recovery.','Restart clears stale Chromium launch flags when disabling the unlock.','Optional Kirka.io FPS reader for visible HTML HUD elements only.'],hu:['Külön kapcsolható kísérleti Chromium FPS-feloldás újraindítással és biztonságos visszaállítással.','Kikapcsoláskor az újraindítás eltávolítja a korábbi FPS-feloldó kapcsolókat.','Opcionális Kirka.io FPS-kiolvasás a látható HTML HUD-elemekből.']},
     {v:'1.0.9', en:['Reset default menu size to 100% and defer resizing until slider release to reduce redraw stutter.','Added Eye Comfort canvas color/softness filters, presets and optional break reminders.','Added Frame Stability diagnostics, measured WebGL antialiasing status and Pixel Perfect native-scaling action.','Added browser callback smoothness profiles and Adaptive Sync / camera comfort guidance.'], hu:['A menü alapmérete újra 100%, a méretezés csak a csúszka elengedésekor történik a szaggatás csökkentéséhez.','Szemkomfort-szín- és lágyítószűrők, profilok és opcionális szünetemlékeztetők.','Képkockastabilitás-diagnosztika, WebGL-élsimítás állapotának kijelzése és natív Pixel Perfect mód.','Böngészős képkockaütemezési profilok és útmutató az adaptív szinkronhoz és kamerakényelemhez.']},
     {v:'1.0.8',en:['Dedicated Electron/CEF browser graphics, controls and GPU diagnostics menus.','GPU acceleration and ANGLE backend settings with persistent per-user preferences.','Clearly differentiated browser rAF FPS and Kirka.io own in-game FPS.'],hu:['Külön Electron/CEF grafikai, böngészőfunkciós és GPU-diagnosztikai menük.','GPU-gyorsítás és ANGLE-választó felhasználónként mentve.','Böngészős rAF FPS és Kirka.io játékbeli FPS egyértelmű elkülönítése.']},
     {v:'1.0.7', en:['Added menu sound playback testing and local resource verification.','Fixed retry downloads and added a release-manifest generator for publishers.','Added Windows uninstaller support and improved crash-log handling.','Made theme colors more consistent and clarified browser callback FPS labels.'], hu:['Menühang-lejátszás tesztelése és helyi erőforrások ellenőrzése.','Ismételt frissítésletöltés javítása, valamint verziófájl-készítő segédeszköz a kiadónak.','Windowsos eltávolítóprogram és továbbfejlesztett hibanaplózás.','Egységesebb témaszínek és pontosabb böngészős FPS-feliratok.']},
@@ -1731,9 +1732,9 @@
     {v:'1.0.0', en:['Introduced the Beta 1.0.0 branded KS Client build with the K logo.'], hu:['Megjelent az Beta 1.0.0 feliratú KS Client kiadás a K-logóval.']}
   ];
   function historyHTML() {
-    return `<section class="ks-history" aria-label="Release history"><div class="ks-history-heading">${state.language==='hu'?'Verziótörténet – kattints egy verzióra':'Version history – click a version'}</div>`+
+    return `<section class="ks-history" aria-label="Release history"><div class="ks-history-heading">Version history – click a version</div>`+
       releaseHistory.map(r=>`<details class="ks-release"><summary>${r.v.startsWith("Beta ")?"KS Client ":"KS Client alpha "}${esc(r.v)}</summary><div class="ks-release-body"><ul>`+
-        (state.language==='hu'?r.hu:r.en).map(item=>`<li>${esc(item)}</li>`).join('')+
+        r.en.map(item=>`<li>${esc(item)}</li>`).join('')+
       `</ul></div></details>`).join('')+`</section>`;
   }
 
@@ -1794,7 +1795,7 @@
       case 'Updates':
         return title('Software Updates','Update through GitHub Releases without losing your existing KS Client settings.')+
           '<div class="ks-card">'+
-          '<div class="ks-row"><div><div class="ks-label">Current version</div><div class="ks-desc">KS Client Beta 1.0.3</div></div><span class="ks-pill">● INSTALLED</span></div>'+
+          '<div class="ks-row"><div><div class="ks-label">Current version</div><div class="ks-desc">KS Client Beta 1.0.4</div></div><span class="ks-pill">● INSTALLED</span></div>'+
           toggleRow('Automatically check for updates','Check once per day when the client opens. Never automatically install.','autoCheckUpdates')+
           toggleRow('Download updates automatically','Download verified packages quietly when available. Installation always asks permission.','autoDownloadUpdates')+
           selectRow('Update channel','Beta is recommended. Beta includes Beta and Stable releases; Alpha also includes older experimental builds.','updateChannel',[
@@ -1814,7 +1815,7 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', 'KS Client Beta 1.0.3 starts in Electron by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client Beta 1.0.4 starts in Electron by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ. Native shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
@@ -2416,7 +2417,7 @@
       `<div id="ks-search-results" role="group" hidden></div>`+
       `<div id="ks-sidebar-groups">`+
       groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon" aria-hidden="true">${groupIcon(g.key)}</span><span>${translateTab(g.key)}</span>${g.key==='Workshop'?'<span class="ks-experimental-badge">EXPERIMENTAL</span>':''}</button>`).join('')+
-      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.3</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
+      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.4</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
@@ -2922,10 +2923,10 @@
     // Export only supported settings; local assets live in IndexedDB.
     const safe = Object.fromEntries(Object.keys(defaults)
       .map(k=>[k,state[k]]));
-    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client Beta 1.0.3',exportedAt:new Date().toISOString(),settings:safe};
+    const doc = {format:backupFormat,schemaVersion:1,client:'KS Client Beta 1.0.4',exportedAt:new Date().toISOString(),settings:safe};
     const blob = new Blob([JSON.stringify(doc,null,2)],{type:'application/json'});
     const objectURL = URL.createObjectURL(blob);
-    const link=document.createElement('a');link.href=objectURL;link.download='KS-Client-Beta-1.0.3-settings.json';
+    const link=document.createElement('a');link.href=objectURL;link.download='KS-Client-Beta-1.0.4-settings.json';
     document.body.appendChild(link);link.click();link.remove();
     setTimeout(()=>URL.revokeObjectURL(objectURL),30000);
     sharingStatus='Settings JSON exported. No account token or local image/audio/font was included.';
@@ -3354,7 +3355,7 @@
       const allowed=['idle','checking','available','current','unavailable','error','downloading'];
       updateStatus={
         state:allowed.includes(status.state)?status.state:'error',
-        current:String(status.current||'Beta 1.0.3').slice(0,40),
+        current:String(status.current||'Beta 1.0.4').slice(0,40),
         version:String(status.version||'').slice(0,40),
         channel:String(status.channel||state.updateChannel).slice(0,12),
         message:String(status.message||'').slice(0,380),
