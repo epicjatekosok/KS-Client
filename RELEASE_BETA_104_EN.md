@@ -28,6 +28,6 @@
 - The Beta 1.0.3 and earlier releases remain available separately.
 
 ## Downloads
-Download the Setup EXE or Portable ZIP from the public [KS Client Releases](https://github.com/epicjatekosok/KS-Client-Updates/releases/tag/v1.0.4-beta) page. A source ZIP and SHA-256 checksums are published alongside them.
+Download the Setup EXE or Portable ZIP from the public [KS Client Releases](https://github.com/epicjatekosok/KS-Client-Updates/releases/tag/v1.0.4-beta) page. A public source-code snapshot, `KS-Client-beta-1.0.4-Source.zip`, and its SHA-256 checksum are published alongside them. The snapshot contains tracked source files without Git history.
 
 **Note:** This is an unofficial Kirka.io third-party client. Windows executables may be unsigned, and Microsoft SmartScreen or browser download protections may display warnings. Real Kirka account sign-in and gameplay require separate user testing.
