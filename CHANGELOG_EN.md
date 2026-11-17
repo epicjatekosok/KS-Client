@@ -1,3 +1,15 @@
+# KS Client Beta 1.0.0
+
+- Promote product from Alpha 1.1.23 to Beta 1.0.0, with consistent Windows launcher, Electron and CEF version metadata.
+- Unify the FPS HUD, Keystrokes, game stats, break reminder and Settings X button with the existing black/amber game controls.
+- Label Workshop features Experimental, including an in-section caution note.
+- Enable real public GitHub Beta release checks, verified automatic pre-download, manual install/restart and public manual download page.
+- Preserve previous user preferences and profiles, including the legacy local settings key.
+- Publish SHA256-verified Beta binaries publicly and include a one-time Alpha 1.1.23 compatibility bridge for the existing old updater.
+- Keep all prior feature modules, Electron, CEF and native Windows installer/uninstaller.
+
+---
+
 # KS Client alpha 1.1.23
 
 - Fix Electron main-process ReferenceError in the fixed KS Discord link handler; guard IPC messages from uncaught exceptions and report failures.

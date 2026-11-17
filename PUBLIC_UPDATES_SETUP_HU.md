@@ -1,3 +1,11 @@
+# Frissítési tárhely állapota – KS Client Beta 1.0.0
+
+**A nyilvános frissítési tárhely már működik.** A `https://github.com/epicjatekosok/KS-Client-Updates` repository publikus, és az Alpha 1.1.23 ellenőrzött ZIP/EXE kiadása bejelentkezés nélkül elérhető. A privát `KS-Client` repositoryban beállított `KS_PUBLIC_RELEASE_TOKEN` titokkal a GitHub Actions sikeresen publikálta a nyilvános kiadást. A Beta 1.0.0 kiadásnál ugyanezt az eljárást használjuk, és az Alpha-klienssel kompatibilis egyszeri frissítési hidat is ellenőrizzük.
+
+**A lenti pontok ezentúl új tárhely létrehozásához vagy a lejáró token cseréjéhez szükséges útmutatóként szolgálnak.** Nem kell újra létrehozni a működő repositoryt.
+
+---
+
 # KS Client – nyilvános automatikus frissítés beállítása
 
 **Miért nem működik a jelenlegi Check for updates?** A kliens a `https://api.github.com/repos/epicjatekosok/KS-Client-Updates/releases` nyilvános API-t olvassa. A `epicjatekosok/KS-Client-Updates` tároló jelenleg 404-et ad, vagy nem nyilvános. Eközben a valódi binárisok a **privát** `epicjatekosok/KS-Client` GitHub Releases felületén vannak. A GitHub nem engedi azonosítás nélkül letölteni a privát kiadási fájlokat, a kliensbe pedig **nem biztonságos privát hozzáférési tokent építeni**.

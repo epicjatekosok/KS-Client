@@ -1,4 +1,4 @@
-"""KS alpha 1.1.23 release regression: Discord IPC scope, visual controls and honest updater."""
+"""KS alpha 1.0.0 release regression: Discord IPC scope, visual controls and honest updater."""
 from pathlib import Path
 r=Path(__file__).resolve().parents[1]
 e=(r/'electron-app/main.cjs').read_text()
@@ -19,12 +19,12 @@ assert '#ks-quick #ks-gear,#ks-quick #ks-discord-quick' in ui
 for key in ('ks123-panel-in','ks123-content-in','ks123-pop-in','ks123-glow-in','@media(prefers-reduced-motion:reduce)','#ks-screen.no-motion'):
  assert key in ui,key
 assert "Automatic downloads require" not in ui[ui.index("case 'Updates':"):ui.index("case 'General':")]
-assert 'Public binary release feed' in ui and 'KS_PUBLIC_RELEASE_TOKEN' in ui
+assert 'Public binary release feed' in ui and 'public KS-Client-Updates repository now contains verified ZIP and EXE releases' in ui
 assert "Public auto-update" in up or "Automatic update downloads unavailable" in up
 assert 'epicjatekosok/KS-Client-Updates' in up
 assert 'if response.StatusCode==404' in up
 assert 'digestPattern' in up and 'validUpdateAsset' in up
 assert 'KS_PUBLIC_RELEASE_TOKEN' in pub
-assert 'RELEASE_123_HU.md' in pub and "v1.1.23-alpha" in pub
+assert 'RELEASE_BETA_100_HU.md' in pub and "v1.0.0-beta" in pub
 assert 'PUBLIC_UPDATES_SETUP_HU.md' in (r/'START_HERE_HU.md').read_text()
-print('PASS: 1.1.23 scope-safe native Discord, consistent controls, accessible animations and honest updater')
+print('PASS: 1.0.0 scope-safe native Discord, consistent controls, accessible animations and honest updater')
