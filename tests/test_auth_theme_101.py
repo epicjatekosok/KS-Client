@@ -59,6 +59,9 @@ with sync_playwright() as p:
           const root=document.querySelector('#ks-client-root').shadowRoot;
           const rgb=el=>getComputedStyle(root.querySelector(el));
           return {
+            gearInline:root.querySelector('#ks-gear').getAttribute('style'),
+            closeInline:root.querySelector('#ks-close').getAttribute('style'),
+            cssOverrides:root.getElementById('ks-theme-overrides')?.textContent.length||0,
             accent:rgb('#ks-gear').borderColor,
             close:rgb('#ks-close').borderColor,
             fps:rgb('#ks-fps').borderColor,
