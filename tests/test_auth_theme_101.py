@@ -55,6 +55,14 @@ with sync_playwright() as p:
           size.dispatchEvent(new Event('input',{bubbles:true}));
           size.dispatchEvent(new Event('change',{bubbles:true}));
         }""")
+        # Color borders transition for 180ms; inspect the settled CSS, not
+        # the first animation frame after choosing the new palette.
+        page.wait_for_function("""() => {
+          const root=document.querySelector('#ks-client-root').shadowRoot;
+          const color='rgb(34, 119, 204)';
+          return getComputedStyle(root.querySelector('#ks-gear')).borderColor===color &&
+            getComputedStyle(root.querySelector('#ks-close')).borderColor===color;
+        }""",timeout=4000)
         result=page.evaluate("""() => {
           const root=document.querySelector('#ks-client-root').shadowRoot;
           const rgb=el=>getComputedStyle(root.querySelector(el));
