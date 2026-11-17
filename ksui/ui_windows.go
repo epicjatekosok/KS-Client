@@ -20,7 +20,7 @@ type Button struct {
 type Window struct {
 	mu                                            sync.Mutex
 	Hwnd                                          uintptr
-	Title, Heading, Subtitle, Body, Stage, Status string
+	Title, Heading, Subtitle, Body, Stage, Status, Role string
 	Progress                                      float64 // 0..1, or -1 for indeterminate
 	Log                                           []string
 	Buttons                                       []Button
@@ -128,18 +128,23 @@ func utf(s string) uintptr        { return uintptr(unsafe.Pointer(syscall.String
 func color(r, g, b uint8) uintptr { return uintptr(uint32(r) | uint32(g)<<8 | uint32(b)<<16) }
 
 var (
-	bg         = color(16, 18, 24)
-	panel      = color(25, 28, 37)
-	border     = color(47, 50, 60)
-	bright     = color(240, 242, 246)
-	muted      = color(166, 173, 185)
-	orange     = color(255, 132, 64)
-	orangeDark = color(71, 45, 37)
-	green      = color(77, 210, 145)
+	bg         = color(14, 13, 13)
+	panel      = color(27, 23, 21)
+	border     = color(69, 50, 37)
+	bright     = color(246, 242, 237)
+	muted      = color(171, 160, 151)
+	orange     = color(255, 157, 24)
+	orangeDark = color(72, 46, 23)
+	green      = color(88, 214, 155)
 )
 
 func New(title, heading, subtitle string) *Window {
-	return &Window{Title: title, Heading: heading, Subtitle: subtitle, Stage: "READY", Status: "", Progress: 0, ShowProgress: true, ShowLog: true}
+  // Visual identity only. Setup, uninstall and updater retain all existing
+  // buttons, confirmation flows, progress events and file handling behavior.
+  role:="SETUP"
+  lower:=strings.ToLower(title)
+  if strings.Contains(lower,"uninstall"){role="UNINSTALL"} else if strings.Contains(lower,"update"){role="UPDATE"}
+  return &Window{Title:title,Heading:heading,Subtitle:subtitle,Role:role,Stage:"READY",Status:"",Progress:0,ShowProgress:true,ShowLog:true}
 }
 func (w *Window) Update(stage, status string, progress float64) {
 	w.mu.Lock()
@@ -380,18 +385,27 @@ func drawWindow(w *Window, h uintptr) {
 	showProg, showLog, tick := w.ShowProgress, w.ShowLog, w.tick
 	w.mu.Unlock()
 	brushFill(dc, rc, bg)
-	// Brand header with orange monogram, primary title, secondary caption.
+	// Beta 1.0.3 visual language: near-black canvas, amber active marks,
+	// restrained glass-like panels, consistent with the main Settings UI.
 	top := unit(28)
 	left := unit(36)
 	right := width - unit(36)
-	brand := rect{left, top, left + unit(52), top + unit(52)}
+	brushFill(dc, rect{0,0,width,unit(4)}, orange)
+	brushFill(dc, rect{left,top,right,top+unit(68)},panel)
+	brushFill(dc, rect{left,top,left+unit(3),top+unit(68)},orange)
+	brand := rect{left+unit(15),top+unit(12),left+unit(59),top+unit(56)}
 	brushFill(dc, brand, orange)
-	label(dc, "K", brand, 31, bg, dtCenter|dtVCenter|dtSingleLine, true)
-	label(dc, "KS  CLIENT", rect{left + unit(69), top, left + unit(330), top + unit(29)}, 19, bright, dtLeft|dtVCenter|dtSingleLine, true)
-	label(dc, "ALPHA 1.1.6  •  WINDOWS", rect{left + unit(70), top + unit(29), right, top + unit(55)}, 11, muted, dtSingleLine, false)
-	bar := rect{left, top + unit(67), right, top + unit(69)}
-	brushFill(dc, bar, border)
-	y := top + unit(88)
+	label(dc, "KS", brand, 20, bg, dtCenter|dtVCenter|dtSingleLine, true)
+	label(dc,"KS CLIENT",rect{left+unit(73),top+unit(9),left+unit(343),top+unit(36)},20,bright,dtLeft|dtVCenter|dtSingleLine,true)
+	label(dc,"BETA 1.0.3  •  WINDOWS",rect{left+unit(74),top+unit(37),left+unit(343),top+unit(57)},10,muted,dtLeft|dtVCenter|dtSingleLine,false)
+	role := w.Role
+	if role=="" {role="SETUP"}
+	chip:=rect{right-unit(151),top+unit(17),right-unit(14),top+unit(51)}
+	brushFill(dc,chip,orangeDark)
+	label(dc,role,chip,11,orange,dtCenter|dtVCenter|dtSingleLine,true)
+	bar := rect{left,top+unit(80),right,top+unit(82)}
+	brushFill(dc,bar,border)
+	y := top + unit(102)
 	label(dc, heading, rect{left, y, right, y + unit(40)}, 25, bright, dtLeft|dtSingleLine, true)
 	y += unit(43)
 	label(dc, subtitle, rect{left, y, right, y + unit(50)}, 13, muted, dtWordBreak, false)
@@ -402,7 +416,8 @@ func drawWindow(w *Window, h uintptr) {
 		label(dc, status, rect{left, y, right, y + unit(40)}, 13, bright, dtWordBreak, false)
 		y += unit(45)
 		pr := rect{left, y, right, y + unit(16)}
-		brushFill(dc, pr, border)
+		brushFill(dc, pr, orangeDark)
+		brushFill(dc, rect{pr.Left,pr.Top,pr.Right,pr.Top+unit(1)},border)
 		p := progress
 		if p >= 0 {
 			if p > 1 {
@@ -432,7 +447,9 @@ func drawWindow(w *Window, h uintptr) {
 	if showLog {
 		panelRect := rect{left, y, right, bottomButtons - unit(13)}
 		brushFill(dc, panelRect, panel)
-		label(dc, "ACTIVITY", rect{left + unit(17), y + unit(12), right, y + unit(40)}, 11, orange, dtSingleLine, true)
+		brushFill(dc,rect{panelRect.Left,panelRect.Top,panelRect.Right,panelRect.Top+unit(1)},border)
+		brushFill(dc,rect{panelRect.Left,panelRect.Top,panelRect.Left+unit(3),panelRect.Bottom},orangeDark)
+		label(dc, "INSTALLATION ACTIVITY", rect{left + unit(17), y + unit(12), right, y + unit(40)}, 11, orange, dtSingleLine, true)
 		maxLines := int((panelRect.Bottom - (y + unit(45))) / unit(23))
 		if maxLines < 0 {
 			maxLines = 0
@@ -453,6 +470,8 @@ func drawWindow(w *Window, h uintptr) {
 	}
 	// bottom action bar
 	brushFill(dc, rect{0, height - unit(82), width, height}, panel)
+	brushFill(dc, rect{0,height-unit(82),width,height-unit(81)},border)
+	label(dc,"KS CLIENT  •  BETA 1.0.3",rect{left,height-unit(68),left+unit(270),height-unit(30)},11,muted,dtLeft|dtVCenter|dtSingleLine,false)
 	w.mu.Lock()
 	w.buttonRects = w.buttonRects[:0]
 	bw := unit(196)
@@ -470,8 +489,10 @@ func drawWindow(w *Window, h uintptr) {
 			c = orange
 			t = bg
 		}
-		brushFill(dc, r, c)
-		label(dc, b.Label, r, 13, t, dtCenter|dtVCenter|dtSingleLine, true)
+		brushFill(dc,r,border)
+		inner:=rect{r.Left+unit(1),r.Top+unit(1),r.Right-unit(1),r.Bottom-unit(1)}
+		brushFill(dc,inner,c)
+		label(dc,b.Label,r,13,t,dtCenter|dtVCenter|dtSingleLine,true)
 		w.buttonRects = append(w.buttonRects, r)
 		x += bw + gap
 	}
