@@ -37,20 +37,33 @@ internal sealed class KSLoadingPanel : Panel
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
         var w = Math.Max(1,Width);
         var h = Math.Max(1,Height);
-        g.Clear(Color.FromArgb(13,16,21));
+        g.Clear(Color.FromArgb(14,13,13));
         using (var background = new LinearGradientBrush(ClientRectangle,
-            Color.FromArgb(24,31,44),Color.FromArgb(13,16,21),LinearGradientMode.Vertical))
+            Color.FromArgb(27,22,18),Color.FromArgb(14,13,13),LinearGradientMode.Vertical))
             g.FillRectangle(background,ClientRectangle);
-        var amber = Color.FromArgb(240,170,53);
+        var amber = Color.FromArgb(255,157,24);
         using (var top = new Pen(amber,3))
             g.DrawLine(top,0,1,w,1);
 
         // Place the entire mark in the center; resize to match any CEF window.
         var centerX = w/2f;
         var centerY = h/2f - 45f;
+        // Native CEF loading panel and Electron splash share the same
+        // dark charcoal, copper border and warm amber layout as Settings.
+        var cardWidth=Math.Max(180f,Math.Min(430f,w-34f));
+        var cardHeight=Math.Min(330f,Math.Max(205f,h-34f));
+        var card=new RectangleF(centerX-cardWidth/2,centerY-113,cardWidth,cardHeight);
+        using(var cardBg=new LinearGradientBrush(card,Color.FromArgb(35,27,21),
+            Color.FromArgb(21,19,18),LinearGradientMode.Vertical))g.FillRectangle(cardBg,card);
+        using(var cardBorder=new Pen(Color.FromArgb(78,56,38),1.5f))g.DrawRectangle(cardBorder,card.X,card.Y,card.Width,card.Height);
+        using(var cardAccent=new SolidBrush(amber))g.FillRectangle(cardAccent,card.X,card.Y+15,3,card.Height-30);
+        using(var eyebrow = new Font("Segoe UI",10,FontStyle.Bold,GraphicsUnit.Pixel))
+        using(var eyebrowBrush=new SolidBrush(amber))
+        using(var centered=new StringFormat{Alignment=StringAlignment.Center})
+            g.DrawString("KS CLIENT  •  BETA",eyebrow,eyebrowBrush,new PointF(centerX,centerY-97),centered);
         float phase = (tick * 5f) % 360f;
         var ring = new RectangleF(centerX-52,centerY-52,104,104);
-        using (var inactive = new Pen(Color.FromArgb(40,240,170,53),3))
+        using (var inactive = new Pen(Color.FromArgb(40,255,157,24),3))
             g.DrawArc(inactive,ring,0,360);
         using (var active = new Pen(amber,3) { StartCap=LineCap.Round,EndCap=LineCap.Round })
             g.DrawArc(active,ring,phase,90);
@@ -64,22 +77,22 @@ internal sealed class KSLoadingPanel : Panel
         using var sub = new Font("Segoe UI",11,FontStyle.Bold,GraphicsUnit.Pixel);
         using var status = new Font("Segoe UI",12,FontStyle.Regular,GraphicsUnit.Pixel);
         using var amberBrush = new SolidBrush(amber);
-        using var white = new SolidBrush(Color.FromArgb(232,234,240));
-        using var soft = new SolidBrush(Color.FromArgb(169,177,194));
+        using var white = new SolidBrush(Color.FromArgb(246,242,237));
+        using var soft = new SolidBrush(Color.FromArgb(171,160,151));
         var textCenter = new StringFormat { Alignment=StringAlignment.Center };
         g.DrawString("KS CLIENT",heading,white,new PointF(centerX,centerY+66),textCenter);
         g.DrawString("KIRKA.IO GAME INTEGRATION",sub,amberBrush,new PointF(centerX,centerY+100),textCenter);
 
         var barWidth = Math.Min(300f,w*0.55f);
         var bar = new RectangleF(centerX-barWidth/2,centerY+140,barWidth,5);
-        using(var track = new SolidBrush(Color.FromArgb(48,55,66)))g.FillRectangle(track,bar);
+        using(var track = new SolidBrush(Color.FromArgb(66,46,34)))g.FillRectangle(track,bar);
         var progressWidth = barWidth*.3f;
         var offset = ((tick%80)/80f)*(barWidth+progressWidth)-progressWidth;
         g.SetClip(bar);
         g.FillRectangle(amberBrush,bar.X+offset,bar.Y,progressWidth,bar.Height);
         g.ResetClip();
         g.DrawString(message,status,soft,new PointF(centerX,centerY+156),textCenter);
-        g.DrawString("BETA 1.0.2",sub,soft,new PointF(w-73,h-25),textCenter);
+        g.DrawString("BETA 1.0.3",sub,soft,new PointF(w-73,h-25),textCenter);
         textCenter.Dispose();
     }
 

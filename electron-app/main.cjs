@@ -1,5 +1,5 @@
 'use strict';
-// KS Client Beta 1.0.2: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.3: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'Beta 1.0.2';
+const APP_VERSION = 'Beta 1.0.3';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.2.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.3.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -99,7 +99,7 @@ function configureAuthPopup(child,depth=1){
   authContents.add(content);
   child.setMenu(null);
   // Some identity providers open a second named popup after account selection.
-  // Beta 1.0.2 blocked these indiscriminately; keep native opener references
+  // Beta 1.0.3 blocked these indiscriminately; keep native opener references
   // while allowing only game / known HTTPS identity-provider destinations.
   content.setWindowOpenHandler(({url,referrer})=>{
     const source=content.getURL();
@@ -185,7 +185,7 @@ function updaterPath(){
 function emitUpdateStatus(payload){
   if(payload && typeof payload==='object' && !Array.isArray(payload))
     jsCall('setUpdateStatus',{state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.2').slice(0,40),
+      current:String(payload.current||'1.0.3').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||'beta').slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -196,8 +196,18 @@ function emitUpdateStatus(payload){
 function execUpdater(args,callback){
   const file=updaterPath();
   if(!fs.existsSync(file)){callback(new Error('KS Client launcher is missing'),null);return;}
-  execFile(file,args,{cwd:path.dirname(file),windowsHide:true,timeout:20000,maxBuffer:65536},(error,stdout)=>{
-    if(error){callback(error,null);return;}
+  // A GitHub API timeout and a bounded retry may require up to 37 seconds.
+  // The old 20s process deadline killed the updater before it could report
+  // its own result, leaving Settings stuck on a generic timeout message.
+  const lookup=args.includes('--ks-update-check');
+  execFile(file,args,{cwd:path.dirname(file),windowsHide:true,
+    timeout:lookup?48000:20000,maxBuffer:65536},(error,stdout)=>{
+    if(error){
+      if(error.killed || error.code==='ETIMEDOUT') {
+        callback(new Error('GitHub update lookup took too long. Try again or use Open GitHub Releases.'),null);return;
+      }
+      callback(error,null);return;
+    }
     try{const value=JSON.parse(stdout);callback(null,value)}
     catch(e){callback(new Error('Updater returned invalid JSON: '+e.message),null)}
   });
@@ -386,7 +396,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.21 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.31 settings UI.
     try{
       await win.webContents.executeJavaScript(frameJS,true);
       // Late fallback if early main-world evaluation was blocked or missed.
