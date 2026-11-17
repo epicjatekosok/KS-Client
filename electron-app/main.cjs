@@ -82,7 +82,9 @@ const authContents=new WeakSet();
 function authLocationLabel(raw){
   try {
     const u=new URL(raw);
-    return u.protocol==='https:' ? u.hostname+u.pathname.slice(0,90) : 'non-HTTPS';
+    // A provider may place one-time tokens in URL paths as well as queries.
+    // Log a hostname only; never store an OAuth code, state, or identity.
+    return u.protocol==='https:' ? u.hostname : 'non-HTTPS';
   }catch(_){return 'unparseable';}
 }
 function authPopupOptions(parent){
