@@ -15,7 +15,7 @@ assert "setWindowOpenHandler(({url,referrer})" in el and "will-navigate" in el
 cef=(r/'cef/ClientForm.cs').read_text()
 early=(r/'cef/EarlyIntegrationHandler.cs').read_text()
 helper=(r/'cef/ClientCommunityLinks.cs').read_text()
-assert 'browser.LifeSpanHandler = new ClientCommunityPopupHandler()' in cef
+assert 'browser.LifeSpanHandler = new ClientCommunityPopupHandler(OfferSystemBrowserSignIn)' in cef
 assert 'ClientCommunityLinks.IsDiscordTarget(request.Url)' in cef
 assert 'var sourceUrl=e.Frame.Url;' in cef
 assert 'Receive(msg, sourceUrl)' in cef
