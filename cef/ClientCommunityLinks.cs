@@ -50,12 +50,15 @@ internal sealed class ClientCommunityPopupHandler : CefSharp.Handler.LifeSpanHan
         }
         // Kirka's OAuth providers need a real popup with window.opener intact.
         // Non-HTTPS/unrecognized destinations stay blocked.
+        // A provider may create a temporary about:blank document and navigate
+        // it only after the user selects an account. Popups are created solely
+        // from the trusted Kirka browser by this lifetime handler.
         bool trustedOpener=ClientForm.Trust(frame.Url,gameOnly:true) ||
-            (browser.IsPopup && ClientAuthentication.IsAllowed(frame.Url));
+            (browser.IsPopup && (ClientAuthentication.IsAllowed(frame.Url,allowBlank:true)));
         if(trustedOpener && ClientAuthentication.IsAllowed(targetUrl,allowBlank:userGesture))
         {
             noJavascriptAccess=false; // Required for OAuth popup result -> opener.
-            Program.Log("CEF allowed OAuth sign-in popup");
+            Program.Log("CEF allowed trusted OAuth popup");
             return false;
         }
         Program.Log("CEF blocked non-authentication popup");

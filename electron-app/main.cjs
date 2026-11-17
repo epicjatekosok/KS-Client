@@ -1,5 +1,5 @@
 'use strict';
-// KS Client Beta 1.0.1: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.2: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'Beta 1.0.1';
+const APP_VERSION = 'Beta 1.0.2';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.1.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.2.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -57,6 +57,7 @@ function isGameDiscordTarget(raw) {
 // relationship intact. No blanket popups, Node.js, or file:// navigation.
 const AUTH_HOSTS=new Set([
   'accounts.google.com','consent.google.com','myaccount.google.com',
+  'gsi.google.com','oauth2.googleapis.com','accounts.youtube.com',
   'facebook.com','www.facebook.com','m.facebook.com','web.facebook.com',
   'appleid.apple.com','idmsa.apple.com',
   'login.microsoftonline.com','login.live.com','account.live.com',
@@ -65,7 +66,7 @@ const AUTH_HOSTS=new Set([
   'id.twitch.tv','www.twitch.tv','steamcommunity.com','store.steampowered.com',
   'auth.kirka.io','accounts.kirka.io'
 ]);
-const AUTH_SUFFIXES=['.firebaseapp.com','.auth0.com','.supabase.co','.web3auth.io'];
+const AUTH_SUFFIXES=['.firebaseapp.com','.web.app','.auth0.com','.supabase.co','.web3auth.io','.kirka.io'];
 function validAuthURL(raw,allowBlank=false){
   if(allowBlank && (raw==='' || raw==='about:blank'))return true;
   try{
@@ -75,21 +76,72 @@ function validAuthURL(raw,allowBlank=false){
        AUTH_SUFFIXES.some(suffix=>u.hostname.endsWith(suffix)));
   }catch(_){return false;}
 }
-function configureAuthPopup(child){
+// Track only browser windows created by the game or its trusted OAuth flow.
+// Never expose the OAuth result or provider cookies to the native process.
+const authContents=new WeakSet();
+function authLocationLabel(raw){
+  try {
+    const u=new URL(raw);
+    // A provider may place one-time tokens in URL paths as well as queries.
+    // Log a hostname only; never store an OAuth code, state, or identity.
+    return u.protocol==='https:' ? u.hostname : 'non-HTTPS';
+  }catch(_){return 'unparseable';}
+}
+function authPopupOptions(parent){
+  // Inherit the SAME defaultSession as the game. Different partitions would
+  // allow Google login but strand the final Kirka account callback.
+  return {title:'KS Client - Account sign-in',width:540,height:720,minWidth:420,minHeight:520,
+    parent,autoHideMenuBar:true,backgroundColor:'#0d1015',
+    webPreferences:{sandbox:true,nodeIntegration:false,contextIsolation:true,webSecurity:true}};
+}
+function configureAuthPopup(child,depth=1){
   const content=child.webContents;
+  authContents.add(content);
   child.setMenu(null);
-  content.setWindowOpenHandler(()=>({action:'deny'}));
+  // Some identity providers open a second named popup after account selection.
+  // Beta 1.0.2 blocked these indiscriminately; keep native opener references
+  // while allowing only game / known HTTPS identity-provider destinations.
+  content.setWindowOpenHandler(({url,referrer})=>{
+    const source=content.getURL();
+    const initiator=referrer?.url||'';
+    if(depth>=3 || !validAuthURL(source,true) || !validAuthURL(url,true) ||
+       (initiator && !validAuthURL(initiator,true))){
+      log('OAuth nested popup blocked: '+authLocationLabel(url));
+      return {action:'deny'};
+    }
+    log('OAuth nested popup allowed: '+authLocationLabel(url));
+    return {action:'allow',overrideBrowserWindowOptions:authPopupOptions(child)};
+  });
+  content.on('did-create-window',nested=>configureAuthPopup(nested,depth+1));
   const validate=(event,url)=>{
     if(!validAuthURL(url)) {
       event.preventDefault();
-      log('Blocked unsafe OAuth popup navigation');
+      log('OAuth navigation blocked: '+authLocationLabel(url));
+    }else{
+      log('OAuth navigation allowed: '+authLocationLabel(url));
     }
   };
   content.on('will-navigate',validate);
   content.on('will-redirect',validate);
-  content.on('did-fail-load',(_event,code,description,_url,isMainFrame)=>{
-    if(isMainFrame && code!==-3)log('OAuth window failed to load: '+code+' '+String(description).slice(0,90));
+  content.on('did-fail-load',(_event,code,description,url,isMainFrame)=>{
+    if(isMainFrame && code!==-3)
+      log('OAuth load failed '+authLocationLabel(url)+': '+code+' '+String(description).slice(0,60));
   });
+  content.on('render-process-gone',(_event,details)=>{
+    log('OAuth renderer exited: '+String(details.reason).slice(0,70));
+  });
+}
+function allowOAuthStoragePermission(contents,permission,requestingUrl){
+  if(permission!=='storage-access' && permission!=='top-level-storage-access')return false;
+  const isKirka=Boolean(win && contents===win.webContents &&
+    validURL(win.webContents.getURL(),true));
+  const isAuthPopup=Boolean(contents && authContents.has(contents));
+  if(!isKirka && !isAuthPopup)return false;
+  // Do not grant unrelated camera, microphone, geolocation or device access.
+  if(permission==='storage-access')
+    return validAuthURL(requestingUrl) && !validURL(requestingUrl,true);
+  return (isKirka && validURL(requestingUrl,true)) ||
+    (isAuthPopup && validAuthURL(requestingUrl));
 }
 function openKSDiscord(){
   // Constant URL: Kirka JavaScript is never permitted to pass its own URL
@@ -133,7 +185,7 @@ function updaterPath(){
 function emitUpdateStatus(payload){
   if(payload && typeof payload==='object' && !Array.isArray(payload))
     jsCall('setUpdateStatus',{state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.1').slice(0,40),
+      current:String(payload.current||'1.0.2').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||'beta').slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -316,11 +368,7 @@ function createWindow(){
       return {action:'deny'};
     }
     log('Allowed Kirka OAuth popup');
-    return {action:'allow',overrideBrowserWindowOptions:{
-      title:'KS Client - Account sign-in',width:540,height:720,minWidth:420,minHeight:520,
-      parent:win,autoHideMenuBar:true,backgroundColor:'#0d1015',
-      webPreferences:{sandbox:true,nodeIntegration:false,contextIsolation:true,webSecurity:true}
-    }};
+    return {action:'allow',overrideBrowserWindowOptions:authPopupOptions(win)};
   });
   win.webContents.on('did-create-window',child=>configureAuthPopup(child));
   const guardMainNavigation=(event,target)=>{
@@ -338,7 +386,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.11 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.21 settings UI.
     try{
       await win.webContents.executeJavaScript(frameJS,true);
       // Late fallback if early main-world evaluation was blocked or missed.
@@ -591,7 +639,8 @@ app.whenReady().then(()=>{
   // Use the browser permissions necessary for an FPS game, deny unrelated access.
   const allowGamePermission=(wc,permission,origin)=>{
     const isGame=validURL(origin||wc?.getURL?.()||'',true);
-    return isGame && (permission==='pointerLock'||permission==='fullscreen');
+    return (isGame && (permission==='pointerLock'||permission==='fullscreen')) ||
+      allowOAuthStoragePermission(wc,permission,origin);
   };
   session.defaultSession.setPermissionRequestHandler((contents,permission,callback,details)=>{
     const origin=details?.requestingUrl||contents?.getURL()||'';
