@@ -1717,6 +1717,16 @@
     const candidate = themeColors[state.themePreset] || state.customAccent;
     return /^#[0-9a-f]{6}$/i.test(String(candidate)) ? candidate : '#f0aa35';
   }
+  const themeColor = (color,fallback) => /^#[0-9a-f]{6}$/i.test(String(color)) ? String(color) : fallback;
+  function themeContrast(hex) {
+    const rgb=[1,3,5].map(offset=>parseInt(hex.slice(offset,offset+2),16)/255)
+      .map(value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4);
+    return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722 > .19 ? '#101115' : '#ffffff';
+  }
+  function customPaletteEnabled() {
+    return state.themePreset !== 'Amber' ||
+      ['customBackground','customPanel','customText','customMuted'].some(k=>state[k]!==defaults[k]);
+  }
   const savedPresets = () => Array.isArray(state.customCrosshairPresets) ? state.customCrosshairPresets : [];
   const assetLabel = key => assetMeta[key] || 'No local file selected';
   const uploadRow = (titleText, description, key, accept) => `<div class="ks-row"><div><div class="ks-label">${titleText}</div><div class="ks-desc">${description}</div><div class="ks-asset-summary" data-asset-summary="${key}">${esc(assetLabel(key))}</div></div><div class="ks-stack"><label class="ks-btn" style="cursor:pointer">Browse<input type="file" data-asset="${key}" accept="${accept}" hidden></label><button class="ks-btn" data-clear-asset="${key}">Remove</button></div></div>`;
@@ -2527,11 +2537,12 @@
 
     const accent = currentAccent();
     $('ks-screen').style.setProperty('--ks-accent', accent);
-    $('ks-screen').style.setProperty('--ks-bg', state.customBackground || '#0d1015');
-    $('ks-screen').style.setProperty('--ks-panel', state.customPanel || '#171c23');
-    $('ks-screen').style.setProperty('--ks-text', state.customText || '#edf0f6');
-    $('ks-screen').style.setProperty('--ks-muted', state.customMuted || '#97a3b2');
-    $('ks-screen').style.setProperty('--ks-soft', state.customBackground || '#0d1015');
+    $('ks-screen').style.setProperty('--ks-bg', themeColor(state.customBackground,defaults.customBackground));
+    $('ks-screen').style.setProperty('--ks-panel', themeColor(state.customPanel,defaults.customPanel));
+    $('ks-screen').style.setProperty('--ks-text', themeColor(state.customText,defaults.customText));
+    $('ks-screen').style.setProperty('--ks-muted', themeColor(state.customMuted,defaults.customMuted));
+    $('ks-screen').style.setProperty('--ks-soft', themeColor(state.customBackground,defaults.customBackground));
+    $('ks-screen').style.setProperty('--ks-accent-contrast', themeContrast(accent));
     $('ks-screen').style.setProperty('--ks-font-scale', String(state.fontSize / 100));
     const family = state.fontFamily === 'KS Custom Font' && assetURLs.localFont ? 'KS Custom Font' : state.fontFamily;
     $('ks-screen').style.setProperty('--ks-font-family', (family === 'KS Custom Font' ? '"KS Custom Font"' : `'${family.replace(/'/g,'')}'`) + ', sans-serif');
@@ -2539,6 +2550,65 @@
     fontStyle.id = 'ks-local-font-style';
     fontStyle.textContent = assetURLs.localFont ? `@font-face{font-family:"KS Custom Font";src:url("${assetURLs.localFont}");font-display:swap;}` : '';
     if (!fontStyle.isConnected) shadow.appendChild(fontStyle);
+    // Beta 1.0.1: the 1.0.0 visual polish used hard-coded orange/white
+    // !important rules. Override ONLY when a custom palette is selected.
+    // Keep the original dark-orange Beta design for unchanged profiles.
+    const themeStyle=$('ks-theme-overrides') || document.createElement('style');
+    themeStyle.id='ks-theme-overrides';
+    const typographyRules=`
+      #ks-screen #ks-panel {font-family:var(--ks-font-family)!important;}
+      #ks-screen #ks-panel :is(button,input,select,textarea,.ks-label,.ks-tab,.ks-subtab,.ks-hint,.ks-desc,.ks-field,.ks-status,.ks-pill) {
+        font-family:var(--ks-font-family)!important;
+      }
+      #ks-screen #ks-panel :is(.ks-label,.ks-tab,.ks-subtab,.ks-btn,.ks-input,.ks-select-trigger,.ks-field) {
+        font-size:calc(12px * var(--ks-font-scale))!important;
+      }
+      #ks-screen #ks-panel :is(.ks-desc,.ks-hint,.ks-status,.ks-sidebar-foot,.ks-release-body,.ks-note) {
+        font-size:calc(11px * var(--ks-font-scale))!important;
+      }
+    `;
+    const paletteRules=`
+      #ks-screen #ks-panel{background-color:var(--ks-bg)!important;color:var(--ks-text)!important;}
+      #ks-screen #ks-panel :is(#ks-top,#ks-nav,#ks-foot){background:var(--ks-bg)!important;color:var(--ks-text)!important;}
+      #ks-screen #ks-panel :is(.ks-card,.ks-note,.ks-section-reset,.ks-release,.ks-history,.ks-hint-box) {
+        background-color:var(--ks-panel)!important;color:var(--ks-text)!important;
+      }
+      #ks-screen #ks-panel :is(.ks-title,.ks-label,.ks-graphic-presets-label,#ks-brand-main,.ks-metric-value,.ks-history-heading) {
+        color:var(--ks-text)!important;
+      }
+      #ks-screen #ks-panel :is(.ks-desc,.ks-hint,.ks-sub,.ks-sidebar-caption,.ks-sidebar-foot,#ks-brand-sub,#ks-autosave-status) {
+        color:var(--ks-muted)!important;
+      }
+      #ks-screen #ks-panel :is(.ks-section-heading,.ks-code,.ks-tab-icon,.ks-select-chevron,.ks-experimental-badge) {
+        color:var(--ks-accent)!important;
+      }
+      #ks-screen #ks-panel :is(.ks-tab.active,.ks-subtab.active,.ks-select-popup button[aria-selected="true"]) {
+        border-color:var(--ks-accent)!important;color:var(--ks-text)!important;
+        background-color:color-mix(in srgb,var(--ks-accent) 15%,var(--ks-panel))!important;
+      }
+      #ks-screen #ks-panel :is(.ks-input,.ks-select-trigger,.ks-btn:not(.primary):not(.danger)) {
+        background-color:var(--ks-bg)!important;color:var(--ks-text)!important;
+        border-color:color-mix(in srgb,var(--ks-accent) 38%,transparent)!important;
+      }
+      #ks-screen #ks-panel :is(.ks-btn.primary,#ks-apply) {
+        background:var(--ks-accent)!important;color:var(--ks-accent-contrast)!important;
+        border-color:var(--ks-accent)!important;
+      }
+      #ks-screen #ks-panel :is(#ks-close,#ks-discord-menu,.ks-top-discord),#ks-screen #ks-quick :is(#ks-gear,#ks-discord-quick) {
+        border-color:var(--ks-accent)!important;background:var(--ks-panel)!important;color:var(--ks-text)!important;
+      }
+      #ks-screen #ks-panel :is(#ks-close,#ks-discord-menu,.ks-top-discord):hover,
+      #ks-screen #ks-quick :is(#ks-gear,#ks-discord-quick):hover {
+        background:var(--ks-accent)!important;color:var(--ks-accent-contrast)!important;
+      }
+      #ks-screen :is(#ks-fps,#ks-break-reminder,#ks-badge,#ks-community-status) {
+        border-color:var(--ks-accent)!important;background:var(--ks-panel)!important;color:var(--ks-text)!important;
+      }
+      #ks-screen #ks-fps{border-left-color:var(--ks-accent)!important;}
+      #ks-screen #ks-panel :is(button,input,select,textarea):focus-visible {outline-color:var(--ks-accent)!important;}
+    `;
+    themeStyle.textContent=typographyRules+(customPaletteEnabled()?paletteRules:'');
+    if(!themeStyle.isConnected)shadow.appendChild(themeStyle);
     const panel = $('ks-panel');
     panel.style.background = state.menuImageEnabled && assetURLs.menuBackground
       ? `linear-gradient(rgba(8,12,16,.88),rgba(8,12,16,.94)), url("${assetURLs.menuBackground}") center/cover no-repeat`
@@ -2671,7 +2741,9 @@
     if (['menuSelector','uiImageSelector','minimalSelectors'].includes(k)) value = String(value).slice(0,120);
     if (k === 'themePreset' && !(value in themeColors)) return;
     if (k === 'fontFamily' && !['Segoe UI','Arial','Verdana','Tahoma','Consolas','KS Custom Font'].includes(value)) return;
-    if (k === 'customAccent' && !/^#[a-f0-9]{6}$/i.test(value)) return;
+    if (['customAccent','customBackground','customPanel','customText','customMuted'].includes(k) &&
+        !/^#[a-f0-9]{6}$/i.test(value)) return;
+    if (k === 'customAccent') state.themePreset='Custom';
     if(k==='fpsLimit') { value=Number(value); if (![0,60,120,144,165,180].includes(value))return; }
     if(k==='uiScale') {
       value=Math.max(100,Math.min(160,Math.round(Number(value)||100)));
@@ -2895,6 +2967,9 @@
     const k = e.target.dataset.setting;
     if (!k) return;
     setSetting(k, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
+    // Refresh the theme dropdown after the native color chooser closes,
+    // not during every input frame (which would close the chooser).
+    if(k==='customAccent' && e.target.type==='color')renderTab();
   });
 
   $('ks-body').addEventListener('click', e => {
