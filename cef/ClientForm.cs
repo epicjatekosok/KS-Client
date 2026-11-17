@@ -50,7 +50,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client Beta 1.0.1 – CEF";
+        Text="KS Client Beta 1.0.2 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -599,6 +599,12 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
         var file=KSResourceSwap.Match(request.Url,requestInitiator);
         return file is null ? null! : new KSResourceRequestHandler(file);
     }
+    // Never write OAuth queries, auth codes, email or access tokens to disk.
+    private static string AuthNavigationLabel(string? address)
+    {
+        if(!Uri.TryCreate(address,UriKind.Absolute,out var uri))return "invalid URL";
+        return uri.Scheme=="https" ? uri.Host+uri.AbsolutePath[..Math.Min(uri.AbsolutePath.Length,90)] : "non-HTTPS";
+    }
     protected override bool OnBeforeBrowse(IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame,IRequest request,bool userGesture,bool isRedirect)
     {
         // Native fallback for Kirka's Discord anchor, even when overlay click
@@ -625,7 +631,14 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
         // A separate CEF popup keeps its own OAuth navigation chain and
         // the same persistent cookie profile as Kirka. Never block its
         // whitelisted login-provider redirects using the game's main-frame rule.
-        if(browser.IsPopup)return !ClientAuthentication.IsAllowed(request.Url);
+        if(browser.IsPopup)
+        {
+            // Firebase/Google may navigate an initially blank provider popup
+            // after account selection. Keep its opener and Chromium cookies.
+            bool accepted=ClientAuthentication.IsAllowed(request.Url,allowBlank:true);
+            if(!accepted)Program.Log("CEF blocked OAuth redirect to "+AuthNavigationLabel(request.Url));
+            return !accepted;
+        }
         if(!frame.IsMain)return false;
         if(ClientForm.Trust(request.Url)){
             authMainFrameNavigation=false;
