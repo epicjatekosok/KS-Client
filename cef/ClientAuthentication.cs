@@ -10,6 +10,7 @@ internal static class ClientAuthentication
     private static readonly HashSet<string> Hosts = new(StringComparer.OrdinalIgnoreCase)
     {
         "accounts.google.com", "consent.google.com", "myaccount.google.com",
+        "gsi.google.com", "oauth2.googleapis.com", "accounts.youtube.com",
         "facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com",
         "appleid.apple.com", "idmsa.apple.com",
         "login.microsoftonline.com", "login.live.com", "account.live.com",
@@ -21,7 +22,7 @@ internal static class ClientAuthentication
     };
     private static readonly string[] Suffixes =
     {
-        ".firebaseapp.com", ".auth0.com", ".supabase.co", ".web3auth.io"
+        ".firebaseapp.com", ".web.app", ".auth0.com", ".supabase.co", ".web3auth.io", ".kirka.io"
     };
 
     internal static bool IsAllowed(string? target, bool allowBlank = false)
