@@ -12,7 +12,7 @@ internal sealed class KSLoadingPanel : Panel
     private readonly System.Windows.Forms.Timer animation = new() { Interval = 35 };
     private Image? logo;
     private int tick;
-    private string message = "KLIENS BETÖLTÉSE";
+    private string message = "LOADING KS CLIENT";
     internal KSLoadingPanel(string logoFile)
     {
         DoubleBuffered = true;
@@ -91,8 +91,14 @@ internal sealed class KSLoadingPanel : Panel
         g.SetClip(bar);
         g.FillRectangle(amberBrush,bar.X+offset,bar.Y,progressWidth,bar.Height);
         g.ResetClip();
-        g.DrawString(message,status,soft,new PointF(centerX,centerY+156),textCenter);
-        g.DrawString("BETA 1.0.3",sub,soft,new PointF(w-73,h-25),textCenter);
+        // Constrain status to the actual splash card so translated text cannot
+        // render outside its panel on narrow / scaled Windows displays.
+        var statusBounds=new RectangleF(card.Left+18f,centerY+152f,
+            Math.Max(1f,card.Width-36f),Math.Min(30f,Math.Max(1f,card.Bottom-centerY-154f)));
+        using(var fittedStatus=new StringFormat{Alignment=StringAlignment.Center,
+            LineAlignment=StringAlignment.Center,Trimming=StringTrimming.EllipsisCharacter})
+            g.DrawString(message,status,soft,statusBounds,fittedStatus);
+        g.DrawString("BETA 1.0.4",sub,soft,new PointF(w-73,h-25),textCenter);
         textCenter.Dispose();
     }
 

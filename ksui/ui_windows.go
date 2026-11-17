@@ -20,7 +20,7 @@ type Button struct {
 type Window struct {
 	mu                                            sync.Mutex
 	Hwnd                                          uintptr
-	Title, Heading, Subtitle, Body, Stage, Status, Role string
+	Title, Heading, Subtitle, Body, Stage, Status, Role, Version string
 	Progress                                      float64 // 0..1, or -1 for indeterminate
 	Log                                           []string
 	Buttons                                       []Button
@@ -380,6 +380,7 @@ func drawWindow(w *Window, h uintptr) {
 	width, height := rc.Right, rc.Bottom
 	w.mu.Lock()
 	heading, subtitle, body, stage, status, progress := w.Heading, w.Subtitle, w.Body, w.Stage, w.Status, w.Progress
+	versionLabel := strings.TrimSpace(w.Version)
 	lines := append([]string{}, w.Log...)
 	buttons := append([]Button{}, w.Buttons...)
 	showProg, showLog, tick := w.ShowProgress, w.ShowLog, w.tick
@@ -397,7 +398,8 @@ func drawWindow(w *Window, h uintptr) {
 	brushFill(dc, brand, orange)
 	label(dc, "KS", brand, 20, bg, dtCenter|dtVCenter|dtSingleLine, true)
 	label(dc,"KS CLIENT",rect{left+unit(73),top+unit(9),left+unit(343),top+unit(36)},20,bright,dtLeft|dtVCenter|dtSingleLine,true)
-	label(dc,"BETA 1.0.3  •  WINDOWS",rect{left+unit(74),top+unit(37),left+unit(343),top+unit(57)},10,muted,dtLeft|dtVCenter|dtSingleLine,false)
+	if versionLabel=="" {versionLabel="WINDOWS"}
+	label(dc,strings.ToUpper(versionLabel)+"  •  WINDOWS",rect{left+unit(74),top+unit(37),left+unit(343),top+unit(57)},10,muted,dtLeft|dtVCenter|dtSingleLine,false)
 	role := w.Role
 	if role=="" {role="SETUP"}
 	chip:=rect{right-unit(151),top+unit(17),right-unit(14),top+unit(51)}
@@ -474,7 +476,7 @@ func drawWindow(w *Window, h uintptr) {
 	// bottom action bar
 	brushFill(dc, rect{0, height - unit(82), width, height}, panel)
 	brushFill(dc, rect{0,height-unit(82),width,height-unit(81)},border)
-	label(dc,"KS CLIENT  •  BETA 1.0.3",rect{left,height-unit(68),left+unit(270),height-unit(30)},11,muted,dtLeft|dtVCenter|dtSingleLine,false)
+	label(dc,"KS CLIENT  •  "+strings.ToUpper(versionLabel),rect{left,height-unit(68),left+unit(350),height-unit(30)},11,muted,dtLeft|dtVCenter|dtSingleLine,false)
 	w.mu.Lock()
 	w.buttonRects = w.buttonRects[:0]
 	bw := unit(196)

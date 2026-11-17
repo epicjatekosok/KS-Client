@@ -1,11 +1,13 @@
 //go:build windows
 
-// KS Client Beta 1.0.3 English per-user uninstaller.
+// KS Client English per-user uninstaller; its version follows the installed runtime.
 // English button captions are drawn by our own Win32 dialog, independent of OS language.
 package main
 
 import (
 	"fmt"
+	"encoding/json"
+	"regexp"
 	"ksclient/ksui"
 	"os"
 	"os/exec"
@@ -27,6 +29,20 @@ func status(stage, detail string, progress float64) {
 const oldUninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClient`
 
 func message(title, body string, _ uintptr) uintptr { ksui.Alert(title, body); return 1 }
+func installedReleaseLabel(folder string)string{
+  // The uninstaller may be running from a temporary copy. Read the version of
+  // the actual installation rather than the uninstaller executable's build.
+  blob,err:=os.ReadFile(filepath.Join(folder,"runtime","Electron","resources","app","package.json"))
+  if err==nil{
+    var pkg struct{Version string `json:"version"`}
+    if json.Unmarshal(blob,&pkg)==nil &&
+        regexp.MustCompile("^[0-9]+[.][0-9]+[.][0-9]+-beta$").MatchString(pkg.Version){
+      return "Beta "+strings.TrimSuffix(pkg.Version,"-beta")
+    }
+  }
+  return "Installed version"
+}
+
 func isExpectedFolder(dir string) bool {
 	local := os.Getenv("LOCALAPPDATA")
 	if local == "" {
@@ -141,9 +157,9 @@ func cleanup(folder string, deleteData bool) error {
 	}
 	for _, name := range []string{
 		"browser-settings.json", "selected-engine.txt",
-		"electron-1.1.0.log", "electron-1.1.1.log", "electron-1.1.2.log", "electron-1.1.3.log", "electron-1.1.4.log", "electron-1.1.12.log", "electron-1.1.13.log", "electron-1.1.14.log", "electron-1.1.15.log", "electron-1.1.16.log", "electron-1.1.17.log", "electron-1.1.18.log", "electron-1.1.19.log", "electron-1.1.20.log", "electron-1.1.21.log", "electron-1.1.22.log", "electron-1.1.23.log", "electron-1.0.0.log", "electron-1.0.1.log", "electron-1.0.2.log", "electron-1.0.3.log",
-		"cef-1.1.0.log", "cef-1.1.1.log", "cef-1.1.2.log", "cef-1.1.3.log", "cef-1.1.4.log", "cef-1.1.12.log", "cef-1.1.13.log", "cef-1.1.14.log", "cef-1.1.15.log", "cef-1.1.16.log", "cef-1.1.17.log", "cef-1.1.18.log", "cef-1.1.19.log", "cef-1.1.20.log", "cef-1.1.21.log", "cef-1.1.22.log", "cef-1.1.23.log", "cef-1.0.0.log", "cef-1.0.1.log", "cef-1.0.2.log", "cef-1.0.3.log",
-		"engine-install-1.1.3.log", "engine-install-1.1.4.log", "engine-install-1.1.17.log", "engine-install-1.1.18.log", "engine-install-1.1.19.log", "engine-install-1.1.20.log", "engine-install-1.1.21.log", "engine-install-1.1.22.log", "engine-install-1.1.23.log", "engine-install-1.0.0.log", "setup-1.1.3.log", "setup-1.1.4.log", "setup-1.1.12.log", "setup-1.1.13.log", "setup-1.1.14.log", "setup-1.1.15.log", "setup-1.1.16.log", "setup-1.1.17.log", "setup-1.1.18.log", "setup-1.1.19.log", "setup-1.1.20.log", "setup-1.1.21.log", "setup-1.1.22.log", "setup-1.1.23.log", "setup-1.0.0.log", "setup-1.0.1.log", "setup-1.0.2.log", "setup-1.0.3.log",
+		"electron-1.1.0.log", "electron-1.1.1.log", "electron-1.1.2.log", "electron-1.1.3.log", "electron-1.1.4.log", "electron-1.1.12.log", "electron-1.1.13.log", "electron-1.1.14.log", "electron-1.1.15.log", "electron-1.1.16.log", "electron-1.1.17.log", "electron-1.1.18.log", "electron-1.1.19.log", "electron-1.1.20.log", "electron-1.1.21.log", "electron-1.1.22.log", "electron-1.1.23.log", "electron-1.0.0.log", "electron-1.0.1.log", "electron-1.0.2.log", "electron-1.0.3.log", "electron-1.0.4.log",
+		"cef-1.1.0.log", "cef-1.1.1.log", "cef-1.1.2.log", "cef-1.1.3.log", "cef-1.1.4.log", "cef-1.1.12.log", "cef-1.1.13.log", "cef-1.1.14.log", "cef-1.1.15.log", "cef-1.1.16.log", "cef-1.1.17.log", "cef-1.1.18.log", "cef-1.1.19.log", "cef-1.1.20.log", "cef-1.1.21.log", "cef-1.1.22.log", "cef-1.1.23.log", "cef-1.0.0.log", "cef-1.0.1.log", "cef-1.0.2.log", "cef-1.0.3.log", "cef-1.0.4.log",
+		"engine-install-1.1.3.log", "engine-install-1.1.4.log", "engine-install-1.1.17.log", "engine-install-1.1.18.log", "engine-install-1.1.19.log", "engine-install-1.1.20.log", "engine-install-1.1.21.log", "engine-install-1.1.22.log", "engine-install-1.1.23.log", "engine-install-1.0.0.log", "setup-1.1.3.log", "setup-1.1.4.log", "setup-1.1.12.log", "setup-1.1.13.log", "setup-1.1.14.log", "setup-1.1.15.log", "setup-1.1.16.log", "setup-1.1.17.log", "setup-1.1.18.log", "setup-1.1.19.log", "setup-1.1.20.log", "setup-1.1.21.log", "setup-1.1.22.log", "setup-1.1.23.log", "setup-1.0.0.log", "setup-1.0.1.log", "setup-1.0.2.log", "setup-1.0.3.log", "setup-1.0.4.log",
 	} {
 		if err := os.Remove(filepath.Join(data, name)); err != nil && !os.IsNotExist(err) {
 			return err
@@ -161,7 +177,8 @@ func main() {
 			os.Exit(1)
 		}
 		deleteData := os.Args[3] == "--delete-data"
-		w := ksui.New("KS Client • Uninstall 1.0.3", "Removing KS Client", "BETA 1.0.3 · DARK / AMBER · protected cleanup")
+		w := ksui.New("KS Client • Uninstall", "Removing KS Client", "Dark / Amber · protected cleanup")
+        w.Version=installedReleaseLabel(folder)
 		w.SetButtons(ksui.Button{Label: "Close", ID: "close", Enabled: false})
 		w.OnButton = func(id string) {
 			if id == "close" {
@@ -193,7 +210,7 @@ func main() {
 		message("KS Client Uninstaller - Error", "Run this uninstaller from the KS Client installation directory.", 0x10)
 		os.Exit(1)
 	}
-	if askEnglish("KS Client Uninstaller - Beta 1.0.3",
+	if askEnglish("KS Client Uninstaller - "+installedReleaseLabel(dir),
 		"Remove KS Client from this Windows account?\n\n"+
 			"Application files, Electron and CEF runtime files, and shortcuts will be removed.\n"+
 			"You can choose whether to keep your saved settings and browser profiles.\n\n"+
