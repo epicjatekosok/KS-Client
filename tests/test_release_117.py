@@ -1,4 +1,4 @@
-"""KS 1.0.3: release, brand, mouse and signing contract checks."""
+"""KS 1.0.4: release, brand, mouse and signing contract checks."""
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 cef=(root/'cef/ClientForm.cs').read_text(encoding='utf8')
@@ -10,8 +10,8 @@ registry=(root/'electron-app/overlay/integration_bootstrap.js').read_text(encodi
 installer=(root/'installer/main_windows.go').read_text(encoding='utf8')
 workflow=(root/'.github/workflows/windows-build.yml').read_text(encoding='utf8')
 package=(root/'ci/package_offline.py').read_text(encoding='utf8')
-assert '1.0.3' in electron and '1.0.3' in cef
-assert '1.0.3' in (root/'ci/Build-Setup.ps1').read_text(encoding='utf8')
+assert '1.0.4' in electron and '1.0.4' in cef
+assert '1.0.4' in (root/'ci/Build-Setup.ps1').read_text(encoding='utf8')
 assert 'Publish verified ZIP and EXE directly to GitHub Releases' in workflow
 assert 'new KSLoadingPanel' in cef and 'ActivateBrowserOnCreation=true' in cef
 assert 'startSplash()' in electron and 'assets' in electron and 'loading.html' in electron
@@ -31,7 +31,7 @@ assert 'SIGNING-STATUS.txt' in workflow
 assert "Get-AuthenticodeSignature" in (root/'ci/Verify-Signing.ps1').read_text(encoding='utf8')
 assert 'runtime/Electron/resources/app/assets/loading.html' in package
 assert 'runtime/CEF/assets/ks-logo.png' in package
-print('PASS: KS 1.0.3 brand assets, real capture wiring, signing gate and release names')
+print('PASS: KS 1.0.4 brand assets, real capture wiring, signing gate and release names')
 
 assert (root/'electron-app/overlay/game_runtime.js').is_file()
 assert (root/'electron-app/overlay/render_telemetry.js').is_file()
@@ -43,13 +43,13 @@ workflow=(root/'.github/workflows/windows-build.yml').read_text()
 assert 'ci/Publish-Release.ps1' in workflow and 'ci/make_release_manifest.py' in workflow
 assert "contents: write" in workflow
 assert 'SHA256SUMS.txt' in workflow and 'RELEASE-MANIFEST.json' in workflow
-print("PASS: Beta 1.0.3 release provenance, game runtime and direct assets")
+print("PASS: Beta 1.0.4 release provenance, game runtime and direct assets")
 
 assert 'CefRuntimeStyle.Chrome' in (root/'cef/Program.cs').read_text(encoding='utf8')
 assert 'cef_input_probe.js' in (root/'cef/ClientForm.cs').read_text(encoding='utf8')
 assert "runtime/CEF/overlay/cef_input_probe.js" in package
 assert 'test_cef_input_117.py' in workflow
-print('PASS: CEF 1.0.3 pointer-lock ownership and compatibility test gates')
+print('PASS: CEF 1.0.4 pointer-lock ownership and compatibility test gates')
 
-# The standalone GitHub Release must use its own 1.0.3 QA documentation.
-assert "RELEASE_BETA_103_HU.md" in (root/'ci/Publish-Release.ps1').read_text(encoding='utf8')
+# The standalone GitHub Release must use its own 1.0.4 QA documentation.
+assert "RELEASE_BETA_104_EN.md" in (root/'ci/Publish-Release.ps1').read_text(encoding='utf8')
