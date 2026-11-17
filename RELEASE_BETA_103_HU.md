@@ -23,7 +23,9 @@ Amber, Ember, Ice, Forest, Violet, Midnight, Ocean, Crimson, Cyber, Rose, Sand, 
 
 ## Nyilvános forráskód
 
-A bináris frissítéseket tartalmazó `KS-Client-Updates` nyilvános. A `KS-Client` forráskódtár láthatósága GitHub repository adminisztrációs művelet; a kiadási workflow nem kapcsolhatja át a jogosultságokat. A GitHub tulajdonosa a tároló **Settings → General → Danger Zone → Change repository visibility → Make public** menüben állíthatja át, miután a repository teljes commit-történetéből eltávolított minden véletlenül bekerült kulcsot vagy személyes adatot. A kiadásokban nem lehet titkos hitelesítési kulcs.
+A bináris frissítéseket tartalmazó `KS-Client-Updates` nyilvános. A Beta 1.0.3 kiadásban a `KS-Client-beta-1.0.3-Source.zip` **nyilvános forráskód-pillanatképet** is tartalmaz: az aktuális commit fájljait, Git-előzmények, privát kulcsformátumok és helyi felhasználói profilok nélkül. Ehhez külön SHA-256 ellenőrzőfájl tartozik. Az archívum nem biztosít GitHub issue/PR vagy teljes történet hozzáférést.
+
+A `KS-Client` forráskódtár láthatósága GitHub repository adminisztrációs művelet; a kiadási workflow nem kapcsolhatja át a jogosultságokat. A GitHub tulajdonosa a tároló **Settings → General → Danger Zone → Change repository visibility → Make public** menüben állíthatja át, miután a repository teljes commit-történetéből eltávolított minden véletlenül bekerült kulcsot vagy személyes adatot. A kiadásokban nem lehet titkos hitelesítési kulcs.
 
 ## Tesztelés
 
