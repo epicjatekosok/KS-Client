@@ -14,7 +14,7 @@ assert "KS-Client-beta-1.0.4-Source.zip" in release
 assert "KS-Client-beta-1.0.4-Source.sha256.txt" in release
 assert 'Package-Source.ps1' in release
 assert 'source-snapshot' in release
-assert 'nyilvános forráskód-pillanatképet' in notes
+assert 'public source-code snapshot' in notes
 assert 'KS-Client-beta-1.0.4-Source.zip' in notes
 assert 'KS-Client-Updates' in release
 print('PASS: Beta 1.0.4 source archive, Git-history exclusion, secret gates and public release integration')
