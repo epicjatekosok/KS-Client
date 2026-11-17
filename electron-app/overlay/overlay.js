@@ -1689,7 +1689,7 @@
   ];
   function historyHTML() {
     return `<section class="ks-history" aria-label="Release history"><div class="ks-history-heading">${state.language==='hu'?'Verziótörténet – kattints egy verzióra':'Version history – click a version'}</div>`+
-      releaseHistory.map(r=>`<details class="ks-release"><summary>KS Client alpha ${esc(r.v)}</summary><div class="ks-release-body"><ul>`+
+      releaseHistory.map(r=>`<details class="ks-release"><summary>${r.v.startsWith("Beta ")?"KS Client ":"KS Client alpha "}${esc(r.v)}</summary><div class="ks-release-body"><ul>`+
         (state.language==='hu'?r.hu:r.en).map(item=>`<li>${esc(item)}</li>`).join('')+
       `</ul></div></details>`).join('')+`</section>`;
   }
