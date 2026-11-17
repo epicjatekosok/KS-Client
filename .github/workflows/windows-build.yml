@@ -46,7 +46,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
-      - name: Cross-compile 1.0.1 Windows launcher and updater
+      - name: Cross-compile 1.0.2 Windows launcher and updater
         shell: bash
         run: |
           cd launcher
@@ -107,6 +107,7 @@ jobs:
           python tests/test_auth_theme_101.py
           node tests/test_discord_123.cjs
           node tests/test_auth_101.cjs
+          node tests/test_oauth_102.cjs
 
   offline-installer:
     if: github.event_name != 'pull_request'
