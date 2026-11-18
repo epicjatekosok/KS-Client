@@ -13,7 +13,7 @@ publish=(root/'ci/Publish-Release.ps1').read_text(encoding='utf-8')
 notes=(root/'RELEASE_BETA_105_EN.md').read_text(encoding='utf-8')
 overlay=(root/'electron-app/overlay/overlay.js').read_text(encoding='utf-8')
 
-assert "RELEASE_BETA_105_EN.md" in publish
+assert "RELEASE_BETA_106_EN.md" in publish
 assert "RELEASE_BETA_103_HU.md" not in publish
 assert "v1.0.6-beta" in publish
 assert "Account sign-in: security and recovery" in notes and "Google" in notes
