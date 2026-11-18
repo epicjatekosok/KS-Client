@@ -310,7 +310,7 @@ internal sealed class ClientForm : Form
                 RedirectStandardOutput=true,WorkingDirectory=Path.GetDirectoryName(exe)!
                 ,ArgumentList={"--ks-update-check","--channel="+channel}
             }) ?? throw new InvalidOperationException("Updater could not start.");
-            using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(18));
+            using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(48));
             string raw=await process.StandardOutput.ReadToEndAsync(timeout.Token);
             await process.WaitForExitAsync(timeout.Token);
             if(raw.Length>65536 || process.ExitCode!=0)throw new InvalidOperationException("Update response failed.");
