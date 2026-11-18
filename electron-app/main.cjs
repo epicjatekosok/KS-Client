@@ -1,5 +1,5 @@
 'use strict';
-// KS Client Beta 1.0.6: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.7: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'Beta 1.0.6';
+const APP_VERSION = 'Beta 1.0.7';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,8 @@ const GAME_HOSTS = new Set(['kirka.io','www.kirka.io']);
 const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'), 'KSClient');
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.6.log');
+const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.7.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -136,7 +137,7 @@ function configureAuthPopup(child,depth=1){
   authContents.add(content);
   child.setMenu(null);
   // Some identity providers open a second named popup after account selection.
-  // Beta 1.0.6 blocked these indiscriminately; keep native opener references
+  // Beta 1.0.7 blocked these indiscriminately; keep native opener references
   // while allowing only game / known HTTPS identity-provider destinations.
   content.setWindowOpenHandler(({url,referrer})=>{
     const source=content.getURL();
@@ -234,21 +235,47 @@ const tokenArg = process.argv.find(a=>a.startsWith('--ks-switch-token='));
 const tokenValue = tokenArg ? tokenArg.slice('--ks-switch-token='.length) : '';
 const switchToken = /^[a-f0-9]{32}$/i.test(tokenValue) ? tokenValue : '';
 const switchProbe = process.argv.includes('--ks-switch-probe') && Boolean(switchToken);
+function readUpdatePreferences(){
+  try{
+    const raw=JSON.parse(fs.readFileSync(UPDATE_PREFS_FILE,'utf8'));
+    if(!raw || typeof raw!=='object')throw Error('Invalid updater preferences');
+    return {automatic:raw.automatic!==false,autoDownload:raw.autoDownload!==false,
+      channel:['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta'};
+  }catch(_){return {automatic:true,autoDownload:true,channel:'beta'};}
+}
+let nativeUpdatePreferences=readUpdatePreferences();
+function saveUpdatePreferences(raw){
+  nativeUpdatePreferences={automatic:raw.automatic===true,autoDownload:raw.autoDownload===true,
+    channel:['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta'};
+  try{fs.writeFileSync(UPDATE_PREFS_FILE,JSON.stringify(nativeUpdatePreferences),{encoding:'utf8',mode:0o600});}
+  catch(e){log('Updater preference save failed: '+String(e.message||e).slice(0,80))}
+}
+let lastNativeUpdateStatus=null;
 let lastAutoUpdateCheck=0;
 let updateCheckInProgress=false;
 function updaterPath(){
   return path.resolve(__dirname,'..','..','..','..','KS-Client.exe');
 }
+function updateSplashStatus(status){
+  if(!splash||splash.isDestroyed())return;
+  const label=status.state==='checking'?'CHECKING UPDATES…':
+    status.state==='available'?'UPDATE '+String(status.version||'')+' AVAILABLE':
+    status.state==='current'?'CLIENT UP TO DATE':'LOADING KS CLIENT';
+  splash.webContents.executeJavaScript(`document.getElementById('startup-update-status')?.replaceChildren(document.createTextNode(${JSON.stringify(label)}));`,true).catch(()=>{});
+}
 function emitUpdateStatus(payload){
-  if(payload && typeof payload==='object' && !Array.isArray(payload))
-    jsCall('setUpdateStatus',{state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.6').slice(0,40),
+  if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
+  const safe={state:String(payload.state||'error').slice(0,40),
+      current:String(payload.current||'1.0.7').slice(0,40),
       version:String(payload.version||'').slice(0,40),
-      channel:String(payload.channel||'beta').slice(0,12),
+      channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
       notes:String(payload.notes||'').slice(0,1800),
       cached:payload.cached===true,
-      bytes:Number(payload.bytes)||0});
+      bytes:Number(payload.bytes)||0};
+  lastNativeUpdateStatus=safe;
+  updateSplashStatus(safe);
+  jsCall('setUpdateStatus',safe);
 }
 function execUpdater(args,callback){
   const file=updaterPath();
@@ -279,7 +306,7 @@ function checkKSUpdate(channel,automatic,autoDownload){
     updateCheckInProgress=false;
     if(err){emitUpdateStatus({state:'error',message:err.message});return;}
     emitUpdateStatus(result);
-    if(automatic&&autoDownload&&result.state==='available')
+    if(automatic&&autoDownload&&nativeUpdatePreferences.automatic&&nativeUpdatePreferences.autoDownload&&result.state==='available')
       execUpdater(['--ks-update-prefetch','--channel='+channel],(ignored,response)=>{
         if(!ignored&&response?.state==='started')emitUpdateStatus({...result,message:'Update download started in background.'});
       });
@@ -355,6 +382,7 @@ function startSplash(){
   splash.setMenu(null);
   splash.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   splash.loadFile(path.join(__dirname,'assets','loading.html')).catch(e=>log('Splash asset: '+e.message));
+  splash.webContents.once('did-finish-load',()=>{if(lastNativeUpdateStatus)updateSplashStatus(lastNativeUpdateStatus);});
   const positionSplash=()=>{
     if(!splash||splash.isDestroyed()||!win||win.isDestroyed())return;
     const bounds=win.getBounds(),s=splash.getBounds();
@@ -464,7 +492,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.61 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.7 settings UI.
     try{
       await win.webContents.executeJavaScript(frameJS,true);
       // Late fallback if early main-world evaluation was blocked or missed.
@@ -492,7 +520,13 @@ function createWindow(){
   installShortcuts();
   // The logo-based startup animation is a separate sandboxed local window.
   // It closes at DOM readiness and never overlays an active match.
-  if(!switchProbe)startSplash();
+  if(!switchProbe){
+    startSplash();
+    // Start the native lookup now: do not wait for Kirka's page/overlay to load.
+    // A slow/offline GitHub never blocks gameplay or the engine-switch handshake.
+    if(nativeUpdatePreferences.automatic)
+      checkKSUpdate(nativeUpdatePreferences.channel,true,nativeUpdatePreferences.autoDownload);
+  }
   // A completed BrowserWindow creation is a native engine startup, even if
   // Kirka.io is offline. The old engine closes only after the launcher confirms.
   if(switchProbe){
@@ -575,6 +609,13 @@ function receiveMessage(event, raw){
     case 'engine-info':jsCall('setEngineInfo','Electron');break;
     case 'engine-switch':{
       if(raw.engine==='cef')switchEngine('cef');
+      break;
+    }
+    case 'update-config': {
+      saveUpdatePreferences(raw);
+      if(lastNativeUpdateStatus)emitUpdateStatus(lastNativeUpdateStatus);
+      else if(!updateCheckInProgress && nativeUpdatePreferences.automatic && lastAutoUpdateCheck===0)
+        checkKSUpdate(nativeUpdatePreferences.channel,true,nativeUpdatePreferences.autoDownload);
       break;
     }
     case 'update-check':checkKSUpdate(['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta',raw.automatic===true,raw.autoDownload===true);break;

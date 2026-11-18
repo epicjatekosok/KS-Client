@@ -1,4 +1,4 @@
-"""Beta 1.0.6: timeout and release-verification regression (source/offline)."""
+"""Beta 1.0.7: timeout and release-verification regression (source/offline)."""
 from pathlib import Path
 import re
 
@@ -13,6 +13,10 @@ assert "lookup=args.includes('--ks-update-check')" in electron
 assert "error.code==='ETIMEDOUT'" in electron
 assert "GitHub update lookup took too long" in electron
 assert "Timeout:18*time.Second" in native
+cef=(root/'cef/ClientForm.cs').read_text(encoding='utf8')
+for overlay in ('electron-app/overlay/overlay.js', 'cef/overlay/overlay.js'):
+ assert '},55000);' in (root/overlay).read_text(encoding='utf8'), 'UI must outlive a bounded native retry'
+assert 'CancellationTokenSource(TimeSpan.FromSeconds(48))' in cef, 'CEF check must outlive 36-second native retry'
 assert "releases?per_page=20" in native, 'Do not fetch huge release history for one check'
 assert "time.Sleep(350*time.Millisecond)" in native
 assert "io.LimitReader(response.Body,3*1024*1024)" in native
@@ -22,7 +26,7 @@ for safety in ['validUpdateAsset','digestPattern','expectedURL','https://github.
                'sha256.New()','updateMaxBytes','compareVersion(v,current)<=0',
                'CheckRedirect']:
  assert safety in native, safety
-assert 'v1.0.6-beta' in tests and 'v1.0.7-beta' in tests
-assert "v1.0.6-beta" in publish and "RELEASE_BETA_106_EN.md" in publish
+assert 'v1.0.7-beta' in tests and 'v1.0.8-beta' in tests
+assert "v1.0.7-beta" in publish and "RELEASE_BETA_107_EN.md" in publish
 assert "epicjatekosok/KS-Client-Updates" in native
-print('PASS: Beta 1.0.6 bounded retry, longer UI deadline, exact SHA-256-pinned release selection')
+print('PASS: Beta 1.0.7 bounded retry, longer UI deadline, exact SHA-256-pinned release selection')
