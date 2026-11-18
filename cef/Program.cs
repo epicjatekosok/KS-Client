@@ -101,7 +101,16 @@ internal static class Program
             if (!global::CefSharp.Cef.Initialize(settings)) throw new InvalidOperationException("CEF initialization returned false.");
             if (selfTest)
             {
-                Log("CEF runtime initialization self-test: PASS");
+                // Initialize Chromium's native subprocesses fully before shutdown.
+                // Immediate Cef.Initialize -> Cef.Shutdown can race on Windows CI
+                // and occasionally end in a 0xC0000005 native access violation.
+                // This keeps the real native initialization AND shutdown gates.
+                using var smokeContext=new ApplicationContext();
+                using var smokeTimer=new System.Windows.Forms.Timer {Interval=1200};
+                smokeTimer.Tick+=(_,_)=>{smokeTimer.Stop();smokeContext.ExitThread();};
+                smokeTimer.Start();
+                Application.Run(smokeContext);
+                Log("CEF runtime initialization with message pump self-test: PASS");
                 return;
             }
             Application.Run(new ClientForm(SwitchProbe,bridgeProbe));
