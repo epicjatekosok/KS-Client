@@ -16,5 +16,9 @@ assert '$publicPaths=' in release
 assert 'gh release create $tag @publicPaths --repo $publicRepo' in release
 assert 'foreach($required in $publicPaths)' in release
 assert "Public release contains forbidden source archive" in release
+assert release.count('gh release create $tag @publicPaths --repo $publicRepo')==1
+assert release.count('gh release create $tag @paths --repo $publicRepo')==0
+assert release.count('$publicPaths=@')==1
+assert release.count('} finally {')==1
 assert 'KS-Client-Updates' in release
 print('PASS: private source package retained, public release excludes source, hash gates preserved')
