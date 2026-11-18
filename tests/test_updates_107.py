@@ -14,6 +14,10 @@ assert "const version = \"1.0.7\"" in (root/'launcher/main_windows.go').read_tex
 assert '"version": "1.0.7-beta"' in (root/'electron-app/package.json').read_text()
 assert 'BETA 1.0.7' in loader and 'BETA 1.0.7' in cef_loader
 assert '1.0.7' in (root/'cef/Program.cs').read_text()
+assert '<Version>1.0.7</Version>' in (root/'cef/KS.Cef.Client.csproj').read_text()
+smoke=(root/'ci/Test-Engines.ps1').read_text()
+assert "$releaseVersion = '1.0.7'" in smoke and 'cef-1.0.7.log' in smoke
+assert 'Application.Run(smokeContext)' in (root/'cef/Program.cs').read_text(), 'Real CEF startup must use a native WinForms message pump'
 assert 'KS · 1.0.7' in overlay and "v:'Beta 1.0.7'" in overlay
 assert "v:'Beta 1.0.6'" in overlay, 'All older release history must remain'
 assert 'ks-workshop-experimental' in overlay and 'auth-import-session' in overlay
