@@ -56,12 +56,12 @@ func TestUpdateChannels(t *testing.T){
  if _,ok=chooseUpdate(releases[:1],"beta");ok{t.Fatal("beta channel accepted legacy alpha bridge")}
 }
 func TestNoCurrentVersionOffered(t *testing.T){
- current:=makeAsset("v1.0.5-beta")
- if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.0.5-beta",Prerelease:true,Assets:[]updateAsset{current}}},"beta");ok{
+ current:=makeAsset("v1.0.6-beta")
+ if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.0.6-beta",Prerelease:true,Assets:[]updateAsset{current}}},"beta");ok{
   t.Fatal("updater must not offer the already installed beta")
  }
 }
 func TestNoUnverifiedDownloads(t *testing.T){
- a:=makeAsset("v1.0.6-beta");a.State="not_uploaded"
- if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.0.6-beta",Prerelease:true,Assets:[]updateAsset{a}}},"beta");ok {t.Fatal("unverified asset offered")}
+ a:=makeAsset("v1.0.7-beta");a.State="not_uploaded"
+ if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.0.7-beta",Prerelease:true,Assets:[]updateAsset{a}}},"beta");ok {t.Fatal("unverified asset offered")}
 }

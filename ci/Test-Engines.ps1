@@ -3,7 +3,7 @@
 param([ValidateSet('Electron','CEF','Both')][string]$Engine='Both')
 $ErrorActionPreference='Stop'
 $repo = Split-Path -Parent $PSScriptRoot
-$releaseVersion = '1.0.5'
+$releaseVersion = '1.0.6'
 function Test-Executable([string]$exe,[string]$working,[string]$name,[hashtable]$variables) {
   Write-Host "Starting $name self-test on this Windows runner: $exe"
   if (-not (Test-Path $exe)) { throw "$name EXE not found: $exe" }
