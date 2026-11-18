@@ -13,6 +13,10 @@ assert "lookup=args.includes('--ks-update-check')" in electron
 assert "error.code==='ETIMEDOUT'" in electron
 assert "GitHub update lookup took too long" in electron
 assert "Timeout:18*time.Second" in native
+cef=(root/'cef/ClientForm.cs').read_text(encoding='utf8')
+for overlay in ('electron-app/overlay/overlay.js', 'cef/overlay/overlay.js'):
+ assert '},55000);' in (root/overlay).read_text(encoding='utf8'), 'UI must outlive a bounded native retry'
+assert 'CancellationTokenSource(TimeSpan.FromSeconds(48))' in cef, 'CEF check must outlive 36-second native retry'
 assert "releases?per_page=20" in native, 'Do not fetch huge release history for one check'
 assert "time.Sleep(350*time.Millisecond)" in native
 assert "io.LimitReader(response.Body,3*1024*1024)" in native
