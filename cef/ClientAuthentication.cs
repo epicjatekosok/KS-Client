@@ -25,10 +25,9 @@ internal static class ClientAuthentication
         ".firebaseapp.com", ".web.app", ".auth0.com", ".supabase.co", ".web3auth.io", ".kirka.io"
     };
 
-    // Google (including Gmail/YouTube accounts) explicitly disallows
-    // sign-in through CEF and other embedded OAuth user agents.
-    // The system browser must handle that step without UA spoofing or
-    // copying session cookies / tokens back to the client.
+    // Google (including Gmail/YouTube accounts) can reject embedded OAuth
+    // user agents even when Kirka creates a native popup. Do not spoof the
+    // user-agent or export provider cookies/tokens; leave provider policy intact.
     private static readonly HashSet<string> GoogleHosts = new(StringComparer.OrdinalIgnoreCase)
     {
         "accounts.google.com","consent.google.com","gsi.google.com",
