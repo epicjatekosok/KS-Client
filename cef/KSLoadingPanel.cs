@@ -98,7 +98,7 @@ internal sealed class KSLoadingPanel : Panel
         using(var fittedStatus=new StringFormat{Alignment=StringAlignment.Center,
             LineAlignment=StringAlignment.Center,Trimming=StringTrimming.EllipsisCharacter})
             g.DrawString(message,status,soft,statusBounds,fittedStatus);
-        g.DrawString("BETA 1.0.5",sub,soft,new PointF(w-73,h-25),textCenter);
+        g.DrawString("BETA 1.0.6",sub,soft,new PointF(w-73,h-25),textCenter);
         textCenter.Dispose();
     }
 

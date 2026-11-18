@@ -1,4 +1,4 @@
-/* KS Client Beta 1.0.5 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.6 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
@@ -166,6 +166,44 @@
       if(window.CefSharp?.PostMessage){window.CefSharp.PostMessage(JSON.stringify(data));return true;}
     } catch (_) {}
     return false;
+  }
+
+  // Beta 1.0.6: voluntary transfer of an existing Kirka session.
+  // Never send the bearer token to native IPC, logs, our settings or any server.
+  function importKirkaSession() {
+    const input=$('ks-account-session-token');
+    const consent=$('ks-account-session-consent');
+    const status=$('ks-account-session-status');
+    if(!input||!consent||!status)return false;
+    const token=String(input.value||'').trim();
+    input.value='';
+    const report=message=>{status.textContent=L(message);};
+    if(!isGamePage || location.protocol!=='https:' ||
+       !['kirka.io','www.kirka.io'].includes(location.hostname)){
+      report('Only the Kirka.io game page can import its own session.');
+      return false;
+    }
+    if(!consent.checked){report('Confirm the security warning first.');return false;}
+    if(token.length<12 || token.length>8192 || /\s/.test(token) ||
+       /^(?:Bearer\s|https?:\/\/)/i.test(token)){
+      report('Invalid session format. Nothing was changed.');
+      return false;
+    }
+    try {
+      const previous=localStorage.getItem('token');
+      if(previous && !confirm(L('Replace the current Kirka.io session on this engine?'))){
+        report('Cancelled. Current session preserved.');
+        return false;
+      }
+      localStorage.setItem('token',token);
+      if(localStorage.getItem('token')!==token)throw new Error('Local storage rejected the session');
+      report('Session stored locally. Reloading so Kirka can validate it.');
+      location.reload();
+      return true;
+    }catch(_){
+      report('Local import failed. No credentials were transmitted.');
+      return false;
+    }
   }
 
   const host = document.createElement('div');
@@ -1085,7 +1123,7 @@
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge" aria-label="KS Client Beta 1.0.5">KS · 1.0.5</div>
+    <div id="ks-badge" aria-label="KS Client Beta 1.0.6">KS · 1.0.6</div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings" title="KS Client Settings"><span class="ks-gear-icon" aria-hidden="true">⚙</span></button>
       <button type="button" id="ks-discord-quick" class="ks-quick-btn" aria-label="Open KS Client Discord in default browser">KS Discord</button>
@@ -1134,7 +1172,7 @@
   let browserActive = { ...browserPrefs };
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
-  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.5',channel:'beta'};
+  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.6',channel:'beta'};
   let updateRequestId=0;
   function updateStateText(){
     if(updateStatus.state==='available')return 'New release available: '+String(updateStatus.version||'');
@@ -1253,9 +1291,9 @@
   "Update status": "Frissítés állapota",
   "Open KS Client settings": "KS Client beállításainak megnyitása",
   "KS Client Settings": "KS Client beállítások",
-  "Custom Kirka.io Client · Beta 1.0.5": "Egyedi Kirka.io-kliens · Beta 1.0.5",
+  "Custom Kirka.io Client · Beta 1.0.6": "Egyedi Kirka.io-kliens · Beta 1.0.6",
   "F1 Settings · F10 Hide Client HUD · F11 Fullscreen": "F1 Beállítások · F10 Kliens-HUD elrejtése · F11 Teljes képernyő",
-  "Unofficial client inspired by your KirkaStats / clan tracker theme · Beta 1.0.5": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · Beta 1.0.5",
+  "Unofficial client inspired by your KirkaStats / clan tracker theme · Beta 1.0.6": "Nem hivatalos kliens a KirkaStats / klánkövető stílusában · Beta 1.0.6",
   "Close Settings": "Beállítások bezárása",
   "● ACTIVE": "● AKTÍV",
   "Client Overview": "A kliens áttekintése",
@@ -1656,6 +1694,19 @@
     'Colored killfeed':'Színes találatlista',
     'Optional hitmarker image (HTTPS)':'Egyedi találatjelző-kép (HTTPS)'
   });
+  Object.assign(hu,{
+    'Import Kirka.io session (advanced)':'Kirka.io munkamenet importálása (haladó)',
+    'Import session locally':'Munkamenet helyi importálása',
+    'Kirka.io token (keep secret)':'Kirka.io token (titkos)',
+    'I understand that a session token grants access to my Kirka account.':'Tudom, hogy a munkamenet-token hozzáférést ad a Kirka-fiókomhoz.',
+    'Only the Kirka.io game page can import its own session.':'Csak a Kirka.io játékoldal importálhat munkamenetet.',
+    'Confirm the security warning first.':'Előbb fogadd el a biztonsági figyelmeztetést.',
+    'Invalid session format. Nothing was changed.':'Érvénytelen munkamenet-formátum. Semmi nem változott.',
+    'Replace the current Kirka.io session on this engine?':'Felülírjuk az aktuális Kirka-munkamenetet ennél a motornál?',
+    'Cancelled. Current session preserved.':'Megszakítva. A jelenlegi munkamenet megmaradt.',
+    'Session stored locally. Reloading so Kirka can validate it.':'Munkamenet elmentve. Újratöltés után a Kirka ellenőrzi.',
+    'Local import failed. No credentials were transmitted.':'Helyi importálás sikertelen. Nincs továbbított hitelesítő adat.'
+  });
   function L(input) {
     const str=String(input ?? '');
     if(state.language!=='hu')return str;
@@ -1693,6 +1744,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.6',en:['Added optional local Kirka.io session transfer for users logged in via their normal browser. The imported bearer token is never sent to native IPC or logs.','Google embedded OAuth remains unsupported; Kirka validates the imported session and may reject or expire it. Existing providers, engines, Workshop, HUD and settings are preserved.','Public release archives now exclude source code while keeping the source repository private.']},
     {v:'Beta 1.0.5',en:['Researched Google embedded OAuth restrictions affecting Gmail/YouTube account login. Google does not support login inside CEF or Electron embedded windows.','Added explicit secure Windows browser sign-in assistance; never copy account credentials, OAuth codes or cookies back to KS Client.','Preserved native non-Google sign-in popups and added safer Google redirect handling, sanitized diagnostics and regression tests. Full in-client Google login needs official Kirka OAuth callback support.']},
     {v:'Beta 1.0.4',en:['All new GitHub release notes, in-client update descriptions and version-history patch notes are in English.','Adjusted Electron and CEF loading screens with English text and complete, unclipped layouts.','Setup now reads the version from the actual bundled Electron/CEF release metadata; Windows install and uninstall dialogs no longer show a hard-coded version.']},
     {v:'Beta 1.0.3',en:['Improved GitHub update checks: reduced API payload, safer retry and corrected updater-process timeout.','13 complete ready-made visual themes plus advanced appearance-only patterns, corners, surface materials and glow.','Redesigned Electron/CEF splash screens and native Windows Setup/Uninstall windows to match the modern charcoal-amber Settings UI.'],hu:['Javított GitHub-frissítéskeresés kisebb lekérdezéssel, biztonságos újrapróbálkozással és hosszabb időkerettel.','13 teljes színpaletta és extra megjelenési beállítások: minták, lekerekítés, felületek és ragyogás.','Az Electron/CEF betöltőképernyő és a Windows telepítő/eltávolító megjelenése illeszkedik a sötét-narancssárga Beállításokhoz.']},
@@ -1816,11 +1868,12 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', 'KS Client Beta 1.0.5 starts in Electron by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client Beta 1.0.6 starts in Electron by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ. Native shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
-          `<div class="ks-row"><div><div class="ks-label">Account sign-in assistance</div><div class="ks-desc">Google, Gmail and YouTube accounts cannot sign in through embedded Chromium under Google's security policy. Open Kirka.io in your default browser instead. This does not automatically transfer that browser login to KS Client without an official Kirka callback. Other supported providers can still use in-client popups.</div></div><button class="ks-btn" data-action="auth-open-browser">Open secure browser sign-in</button></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Account sign-in assistance</div><div class="ks-desc">Google OAuth is not supported in embedded CEF/Electron. Use a supported browser to sign in, then optionally bring the Kirka.io game session into KS Client below. You can play here if Kirka accepts the session.</div></div><button class="ks-btn" data-action="auth-open-browser">Browser sign-in help</button></div>` +
+          `<div class="ks-row"><div style="min-width:0;flex:1"><div class="ks-label">Import Kirka.io session (advanced)</div><div class="ks-desc">First sign in to https://kirka.io/ in your regular browser. On that exact page, open Developer Tools Console and run <code>copy(localStorage.getItem('token'))</code>. Paste below. Treat this session token like a password: never share it, including in chat or support. It is saved only in this engine's Kirka.io local storage, not sent to KS Client servers. Kirka may reject or expire it.</div><input class="ks-input" id="ks-account-session-token" type="password" maxlength="8192" autocomplete="new-password" spellcheck="false" placeholder="Kirka.io token (keep secret)" aria-label="Kirka.io session token" style="width:100%;margin-top:8px"><label class="ks-desc" style="display:block;margin-top:8px"><input id="ks-account-session-consent" type="checkbox"> I understand that a session token grants access to my Kirka account.</label><div id="ks-account-session-status" class="ks-desc" role="status" aria-live="polite"></div></div><button class="ks-btn" data-action="auth-import-session">Import session locally</button></div>` +
           (engineSwitchStatus ? `<p class="ks-hint" id="ks-engine-switch-status">${esc(engineSwitchStatus)}</p>` : '') +
           `<div class="ks-row"><div class="ks-label">Borderless fullscreen</div><button class="ks-btn" data-action="fullscreen">Toggle fullscreen · F11</button></div>` +
           `<div class="ks-row"><div class="ks-label">Reset client settings</div><button class="ks-btn danger" data-action="reset">Reset all settings</button></div>` +
@@ -2419,7 +2472,7 @@
       `<div id="ks-search-results" role="group" hidden></div>`+
       `<div id="ks-sidebar-groups">`+
       groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon" aria-hidden="true">${groupIcon(g.key)}</span><span>${translateTab(g.key)}</span>${g.key==='Workshop'?'<span class="ks-experimental-badge">EXPERIMENTAL</span>':''}</button>`).join('')+
-      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.5</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
+      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.6</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
@@ -3214,8 +3267,9 @@
       }catch(e){sharingStatus='Quick join: '+String(e.message||e);}
       const el=$('ks-extra-status');if(el)el.textContent=sharingStatus;
     }
+    if (a === 'auth-import-session') { importKirkaSession(); return; }
     if (a === 'auth-open-browser') {
-      if(!notify('auth-open-browser'))alert('The native sign-in assistant is unavailable. Open https://kirka.io/ in your default browser.');
+      if(!notify('auth-open-browser'))alert('Use KS Client Settings > General to import your own Kirka.io session locally.');
     }
     if (a === 'game-screenshot') notify('game-screenshot');
     if (a === 'fullscreen') notify('fullscreen');
