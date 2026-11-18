@@ -306,7 +306,7 @@ function checkKSUpdate(channel,automatic,autoDownload){
     updateCheckInProgress=false;
     if(err){emitUpdateStatus({state:'error',message:err.message});return;}
     emitUpdateStatus(result);
-    if(automatic&&autoDownload&&result.state==='available')
+    if(automatic&&autoDownload&&nativeUpdatePreferences.automatic&&nativeUpdatePreferences.autoDownload&&result.state==='available')
       execUpdater(['--ks-update-prefetch','--channel='+channel],(ignored,response)=>{
         if(!ignored&&response?.state==='started')emitUpdateStatus({...result,message:'Update download started in background.'});
       });
