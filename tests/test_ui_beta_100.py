@@ -20,6 +20,12 @@ with sync_playwright() as p:
   page.add_script_tag(content=js.replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1))
   page.wait_for_function('!!window.__KS_CLIENT__')
   page.evaluate('window.__KS_CLIENT__.open()')
+  page.evaluate('window.__KS_CLIENT__.openAccountHelp()')
+  account_text=page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-body').textContent""")
+  assert 'Kirka account sign-in' in account_text,account_text[:240]
+  assert 'Import Kirka.io session' in account_text,account_text[:240]
+  assert 'Browser sign-in help' not in account_text, 'No forced Windows browser auth button in Beta 1.0.8'
+  assert not page.evaluate("""() => !!document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-action="auth-open-browser"]')""")
   info=page.evaluate("""() => {
    const s=document.querySelector('#ks-client-root').shadowRoot;
    const fps=getComputedStyle(s.querySelector('#ks-fps')),close=getComputedStyle(s.querySelector('#ks-close'));
