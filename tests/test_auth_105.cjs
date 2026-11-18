@@ -57,7 +57,7 @@ async function run(){
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(x.prompts.length,1,'User must get a clear Google login message');
   assert.equal(x.opened.length,0,'No external browser without user consent');
-  assert(x.prompts[0].detail.includes('does NOT automatically transfer'));
+  assert(x.prompts[0].detail.includes('session token'));
   assert.equal(popup.webContents.handler({url:'https://www.facebook.com/dialog/oauth'}).action,'allow');
   assert.equal(popup.webContents.handler({url:'https://example.org/'}).action,'deny');
   assert(!x.reports.join(' ').includes('SECRET'),'Do not log provider tokens');
