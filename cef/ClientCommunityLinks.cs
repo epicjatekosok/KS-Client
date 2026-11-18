@@ -11,20 +11,6 @@ namespace KSClient.CefHost;
 internal static class ClientCommunityLinks
 {
     internal const string Invite = "https://discord.gg/cxP386yGjk";
-    internal const string Game = "https://kirka.io/";
-    // Only the fixed game URL is passed to the system browser. Never transfer
-    // OAuth tokens, authorization codes or browser cookies across profiles.
-    internal static bool OpenGameSignIn()
-    {
-        try {
-            using var p=Process.Start(new ProcessStartInfo {FileName=Game,UseShellExecute=true});
-            if(p is null){Program.Log("External Kirka browser returned no process");return false;}
-            Program.Log("User opened Kirka in default browser for account sign-in");
-            return true;
-        }catch(Exception ex){Program.Log("External Kirka browser failed: "+ex.Message);return false;}
-    }
-
-
     internal static bool IsDiscordTarget(string? value)
     {
         if(!Uri.TryCreate(value,UriKind.Absolute,out var uri) ||
@@ -46,9 +32,6 @@ internal static class ClientCommunityLinks
 
 internal sealed class ClientCommunityPopupHandler : CefSharp.Handler.LifeSpanHandler
 {
-    private readonly Action requestGoogleHelp;
-    internal ClientCommunityPopupHandler(Action requestGoogleHelp)
-        => this.requestGoogleHelp=requestGoogleHelp;
     protected override bool OnBeforePopup(
         IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame,
         string targetUrl,string targetFrameName,WindowOpenDisposition targetDisposition,
@@ -64,16 +47,11 @@ internal sealed class ClientCommunityPopupHandler : CefSharp.Handler.LifeSpanHan
             _=Task.Run(()=>ClientCommunityLinks.OpenInvite());
             return true;
         }
-        // Google explicitly prohibits account login in CEF. Prompt for the
-        // real Windows browser; do not open a Google credential form inside KS.
-        // Existing third-party providers retain native opener/popup behavior.
-        bool trusted=ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true) ||
-            (browser.IsPopup && ClientAuthentication.IsAllowed(frame.Url,allowBlank:true));
-        if(trusted && ClientAuthentication.IsGoogleSignIn(targetUrl)){
-            Program.Log("CEF Google embedded popup blocked (provider policy)");
-            requestGoogleHelp();
-            return true;
-        }
+        // Keep account popups inside the persistent CEF profile. Google's own
+        // OAuth page may reject an embedded user agent; never spoof the browser
+        // or redirect the user to a separate game running in Windows Chrome.
+        if(ClientAuthentication.IsGoogleSignIn(targetUrl))
+            Program.Log("CEF provider popup: Google may reject embedded user agents");
         // Kirka's OAuth providers need a real popup with window.opener intact.
         // Non-HTTPS/unrecognized destinations stay blocked.
         // A provider may create a temporary about:blank document and navigate
