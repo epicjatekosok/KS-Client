@@ -25,7 +25,24 @@ function Test-Executable([string]$exe,[string]$working,[string]$name,[hashtable]
     }
     if ($process.ExitCode -ne 0) {
       $hex=[System.BitConverter]::ToUInt32([System.BitConverter]::GetBytes([int]$process.ExitCode),0).ToString('X8')
-      if($hex -eq 'C0000005'){throw "$name 0xC0000005 native access violation. Inspect Windows Event Viewer and cef-native-debug.log. Offline packaging blocked."}
+      if($hex -eq 'C0000005'){
+        # Debug a native crash without ignoring the release-safety gate.
+        if($name -eq 'CEF'){
+          $clientLogs=Join-Path $env:LOCALAPPDATA 'KSClient'
+          foreach($logName in @('cef-1.0.6.log','cef-native-debug.log')){
+            $logFile=Join-Path $clientLogs $logName
+            if(Test-Path -LiteralPath $logFile -PathType Leaf){
+              Write-Host "CEF crash diagnostics: $logName"
+              Get-Content -LiteralPath $logFile -Tail 100 | ForEach-Object { Write-Host $_ }
+            }else{Write-Host "CEF crash diagnostics unavailable: $logName"}
+          }
+          try{
+            Get-WinEvent -FilterHashtable @{LogName='Application';Id=1000;StartTime=(Get-Date).AddMinutes(-10)} -MaxEvents 3 -ErrorAction Stop |
+              ForEach-Object { Write-Host ('Windows application crash event: '+($_.Message -replace '\r|\n',' ')) }
+          }catch{Write-Host 'Windows crash event not accessible'}
+        }
+        throw "$name 0xC0000005 native access violation. Offline packaging blocked."
+      }
       throw "$name self-test failed: exit=$($process.ExitCode) hex=$hex"
     }
   } finally { $process.Dispose() }
