@@ -39,6 +39,41 @@ internal sealed class ClientForm : Form
     private Rectangle oldBounds;
     private FormBorderStyle oldBorder;
     private FormWindowState oldWindowState;
+    // The same non-secret updater preferences are used by Electron, CEF and the game Settings.
+    private sealed record NativeUpdatePreferences(bool Automatic,bool AutoDownload,string Channel);
+    private static readonly string UpdaterPreferencesPath=Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"KSClient","updater-preferences.json");
+    private NativeUpdatePreferences nativeUpdaterPrefs=ReadUpdaterPreferences();
+    private object? lastNativeUpdateStatus;
+    private static NativeUpdatePreferences ReadUpdaterPreferences()
+    {
+        try {
+            using var doc=JsonDocument.Parse(File.ReadAllText(UpdaterPreferencesPath));
+            var value=doc.RootElement;
+            bool enabled(string key)=>value.TryGetProperty(key,out var v)&&v.ValueKind==JsonValueKind.False?false:true;
+            string channel=value.TryGetProperty("channel",out var c)?c.GetString()??"beta":"beta";
+            if(channel is not("alpha" or "beta" or "stable"))channel="beta";
+            return new NativeUpdatePreferences(enabled("automatic"),enabled("autoDownload"),channel);
+        }catch{return new NativeUpdatePreferences(true,true,"beta");}
+    }
+    private void SaveUpdaterPreferences(BridgeMsg msg)
+    {
+        string channel=msg.Channel is "alpha" or "beta" or "stable"?msg.Channel:"beta";
+        nativeUpdaterPrefs=new NativeUpdatePreferences(msg.Automatic==true,msg.AutoDownload==true,channel);
+        try {
+            Directory.CreateDirectory(Path.GetDirectoryName(UpdaterPreferencesPath)!);
+            File.WriteAllText(UpdaterPreferencesPath,JsonSerializer.Serialize(new {
+                automatic=nativeUpdaterPrefs.Automatic,autoDownload=nativeUpdaterPrefs.AutoDownload,channel=nativeUpdaterPrefs.Channel
+            }));
+        }catch(Exception ex){Program.Log("Update preferences not saved: "+ex.GetType().Name);}
+    }
+    private void ReportNativeUpdateStatus(object status,string? splashText=null)
+    {
+        lastNativeUpdateStatus=status;
+        if(splashText is not null && loadingPanel is not null && !loadingPanel.IsDisposed)
+            loadingPanel.Status(splashText);
+        Reply("setUpdateStatus",status);
+    }
     private DateTime lastAutoUpdateCheck=DateTime.MinValue;
     private bool updateCheckInProgress;
     private bool engineSwitching;
@@ -171,6 +206,8 @@ internal sealed class ClientForm : Form
             // could leave Active Browser Engine permanently on "Loading...".
             e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setEngineInfo?.('CEF (CefSharp)');");
             e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setBrowserConfig?.("+JS(desired)+","+JS(Program.Active)+","+JS(NeedsRestart())+",'');");
+            if(lastNativeUpdateStatus is not null)
+                e.Frame.ExecuteJavaScriptAsync("window.__KS_CLIENT__?.setUpdateStatus?.("+JS(lastNativeUpdateStatus)+");");
             if(gameResolution!="native" && IsHandleCreated)BeginInvoke((Action)(()=>SetGameResolution(gameResolution)));
             if(IsHandleCreated)BeginInvoke((Action)(() => CloseLoadingPanel()));
             // Readiness is signalled by WinForms Shown, not FrameLoadEnd.
@@ -243,6 +280,9 @@ internal sealed class ClientForm : Form
                 return;
             }
             BeginInvoke((Action)(() => Program.SignalSwitchReady()));
+            // Startup check is independent of Kirka.io page loading; never stall gameplay.
+            if(!switchProbe && nativeUpdaterPrefs.Automatic)
+                CheckKSUpdate(nativeUpdaterPrefs.Channel,true,nativeUpdaterPrefs.AutoDownload);
         };
         Program.Log("CEF native window created; gameplay loading is independent");
     }
@@ -297,11 +337,11 @@ internal sealed class ClientForm : Form
     private string UpdateLauncher() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","KS-Client.exe"));
     private async void CheckKSUpdate(string channel,bool automatic,bool prefetch)
     {
-        if(updateCheckInProgress){Reply("setUpdateStatus",new {state="checking",message="A GitHub release check is already in progress…"});return;}
+        if(updateCheckInProgress){ReportNativeUpdateStatus(new {state="checking",message="A GitHub release check is already in progress…"});return;}
         if(automatic && DateTime.UtcNow-lastAutoUpdateCheck<TimeSpan.FromHours(24))return;
         if(automatic)lastAutoUpdateCheck=DateTime.UtcNow;
         updateCheckInProgress=true;
-        Reply("setUpdateStatus",new {state="checking",message="Checking GitHub for updates…"});
+        ReportNativeUpdateStatus(new {state="checking",message="Checking GitHub for updates…"},"CHECKING UPDATES…");
         try
         {
             var exe=UpdateLauncher();
@@ -317,14 +357,15 @@ internal sealed class ClientForm : Form
             using var document=JsonDocument.Parse(raw);
             var result=document.RootElement.Clone();
             if(IsHandleCreated)BeginInvoke((Action)(() => {
-                Reply("setUpdateStatus",result);
-                if(automatic && prefetch && result.TryGetProperty("state",out var s)&&s.GetString()=="available")
+                var available=result.TryGetProperty("state",out var state)&&state.GetString()=="available";
+                ReportNativeUpdateStatus(result,available?"UPDATE AVAILABLE":"LOADING KS CLIENT");
+                if(automatic && prefetch && nativeUpdaterPrefs.Automatic && nativeUpdaterPrefs.AutoDownload && available)
                     LaunchUpdateHelper("prefetch",channel);
             }));
         }
         catch(Exception ex)
         {
-            if(IsHandleCreated)BeginInvoke((Action)(() => Reply("setUpdateStatus",new {state="unavailable",message=ex.Message})));
+            if(IsHandleCreated)BeginInvoke((Action)(() => ReportNativeUpdateStatus(new {state="unavailable",message=ex.Message},"LOADING KS CLIENT")));
         }
         finally{updateCheckInProgress=false;}
     }
@@ -497,6 +538,12 @@ internal sealed class ClientForm : Form
             case "engine-info":Reply("setEngineInfo","CEF (CefSharp)");break;
             case "engine-switch":
                 if(m.Engine=="electron")SwitchToElectron();
+                break;
+            case "update-config":
+                SaveUpdaterPreferences(m);
+                if(lastNativeUpdateStatus is not null)Reply("setUpdateStatus",lastNativeUpdateStatus);
+                else if(!updateCheckInProgress && nativeUpdaterPrefs.Automatic && lastAutoUpdateCheck==DateTime.MinValue)
+                    CheckKSUpdate(nativeUpdaterPrefs.Channel,true,nativeUpdaterPrefs.AutoDownload);
                 break;
             case "update-check":CheckKSUpdate(m.Channel=="stable"?"stable":m.Channel=="alpha"?"alpha":"beta",m.Automatic==true,m.AutoDownload==true);break;
             case "update-install":LaunchUpdateHelper("install",m.Channel=="stable"?"stable":m.Channel=="alpha"?"alpha":"beta");break;
