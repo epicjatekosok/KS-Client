@@ -3,7 +3,7 @@
 param([ValidateSet('Electron','CEF','Both')][string]$Engine='Both')
 $ErrorActionPreference='Stop'
 $repo = Split-Path -Parent $PSScriptRoot
-$releaseVersion = '1.0.6'
+$releaseVersion = '1.0.7'
 function Test-Executable([string]$exe,[string]$working,[string]$name,[hashtable]$variables) {
   Write-Host "Starting $name self-test on this Windows runner: $exe"
   if (-not (Test-Path $exe)) { throw "$name EXE not found: $exe" }
@@ -29,7 +29,7 @@ function Test-Executable([string]$exe,[string]$working,[string]$name,[hashtable]
         # Debug a native crash without ignoring the release-safety gate.
         if($name -eq 'CEF'){
           $clientLogs=Join-Path $env:LOCALAPPDATA 'KSClient'
-          foreach($logName in @('cef-1.0.6.log','cef-native-debug.log')){
+          foreach($logName in @('cef-1.0.7.log','cef-native-debug.log')){
             $logFile=Join-Path $clientLogs $logName
             if(Test-Path -LiteralPath $logFile -PathType Leaf){
               Write-Host "CEF crash diagnostics: $logName"
