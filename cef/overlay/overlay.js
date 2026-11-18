@@ -3287,7 +3287,7 @@
           updateStatus={state:'error',message:'Update check timed out. Try again or open GitHub Releases manually.'};
           if(selectedTab==='Updates')renderTab();
         }
-      },22000);
+      },55000);
     }
     if (a === 'update-open-release') notify('update-open-release');
     if (a === 'update-install' && updateStatus.state==='available') {
