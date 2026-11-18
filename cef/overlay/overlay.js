@@ -1,4 +1,4 @@
-/* KS Client Beta 1.0.6 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.7 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
@@ -158,7 +158,14 @@
     return `<div class="ks-section-reset"><span>${L('This resets only the open settings section.')}</span><button class="ks-btn danger" data-action="reset-section">${L('Reset section settings')}</button></div>`;
   }
   const assetMeta = Object.create(null);
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {} }
+  let lastSentUpdatePreferences='';
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {} syncUpdatePreferences(); }
+  function syncUpdatePreferences() {
+    const prefs={automatic:state.autoCheckUpdates===true,autoDownload:state.autoDownloadUpdates===true,
+      channel:['alpha','beta','stable'].includes(state.updateChannel)?state.updateChannel:'beta'};
+    const fingerprint=JSON.stringify(prefs);
+    if(fingerprint!==lastSentUpdatePreferences && notify('update-config',prefs)) lastSentUpdatePreferences=fingerprint;
+  }
   function notify(type, payload = {}) {
     try {
       const data={ type, ...payload };
@@ -1123,7 +1130,7 @@
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge" aria-label="KS Client Beta 1.0.6">KS · 1.0.6</div>
+    <div id="ks-badge" aria-label="KS Client Beta 1.0.7">KS · 1.0.7</div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings" title="KS Client Settings"><span class="ks-gear-icon" aria-hidden="true">⚙</span></button>
       <button type="button" id="ks-discord-quick" class="ks-quick-btn" aria-label="Open KS Client Discord in default browser">KS Discord</button>
@@ -1172,8 +1179,20 @@
   let browserActive = { ...browserPrefs };
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
-  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.6',channel:'beta'};
+  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.7',channel:'beta'};
   let updateRequestId=0;
+  let lastUpdateNotice='';
+  let updateNoticeTimer=null;
+  function announceAvailableUpdate(release) {
+    if(!release || release===lastUpdateNotice)return;
+    lastUpdateNotice=release;
+    let note=shadow.querySelector('#ks-update-notice');
+    if(!note){note=document.createElement('div');note.id='ks-update-notice';note.setAttribute('role','status');
+      note.style.cssText='position:fixed;bottom:20px;left:18px;max-width:330px;padding:11px 14px;border:1px solid rgba(255,157,24,.65);border-radius:10px;background:rgba(14,13,13,.94);color:#f5eadd;font:600 12px Segoe UI,Arial,sans-serif;box-shadow:0 8px 25px rgba(0,0,0,.35);z-index:2147483647;pointer-events:none;';shadow.appendChild(note);}
+    note.textContent='KS Client '+release+' available · F1 → Updates';note.hidden=false;
+    if(updateNoticeTimer)clearTimeout(updateNoticeTimer);
+    updateNoticeTimer=setTimeout(()=>{if(note)note.hidden=true;},13000);
+  }
   function updateStateText(){
     if(updateStatus.state==='available')return 'New release available: '+String(updateStatus.version||'');
     if(updateStatus.state==='current')return 'You are up to date.';
@@ -1744,6 +1763,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.7',en:['Checks GitHub releases from the native startup screen even if Kirka.io loads slowly. Manual checks, release notes and verified update downloads remain available in Settings.','The updater honors saved auto-check, auto-download and release-channel choices across Electron and CEF. Both engines use the same SHA-256-verified offline installer.','Aligned network timeouts, kept in-place profile/Workshop upgrades, and preserved all previous gameplay and appearance features.']},
     {v:'Beta 1.0.6',en:['Added optional local Kirka.io session transfer for users logged in via their normal browser. The imported bearer token is never sent to native IPC or logs.','Google embedded OAuth remains unsupported; Kirka validates the imported session and may reject or expire it. Existing providers, engines, Workshop, HUD and settings are preserved.','Public release archives now exclude source code while keeping the source repository private.']},
     {v:'Beta 1.0.5',en:['Researched Google embedded OAuth restrictions affecting Gmail/YouTube account login. Google does not support login inside CEF or Electron embedded windows.','Added explicit secure Windows browser sign-in assistance; never copy account credentials, OAuth codes or cookies back to KS Client.','Preserved native non-Google sign-in popups and added safer Google redirect handling, sanitized diagnostics and regression tests. Full in-client Google login needs official Kirka OAuth callback support.']},
     {v:'Beta 1.0.4',en:['All new GitHub release notes, in-client update descriptions and version-history patch notes are in English.','Adjusted Electron and CEF loading screens with English text and complete, unclipped layouts.','Setup now reads the version from the actual bundled Electron/CEF release metadata; Windows install and uninstall dialogs no longer show a hard-coded version.']},
@@ -1868,7 +1888,7 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', 'KS Client Beta 1.0.6 starts in Electron by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client Beta 1.0.7 starts in Electron by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ. Native shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
@@ -1878,7 +1898,7 @@
           `<div class="ks-row"><div class="ks-label">Borderless fullscreen</div><button class="ks-btn" data-action="fullscreen">Toggle fullscreen · F11</button></div>` +
           `<div class="ks-row"><div class="ks-label">Reset client settings</div><button class="ks-btn danger" data-action="reset">Reset all settings</button></div>` +
           `</div>` +
-          `<p class="ks-hint">This build uses the visible label Beta 1.0.0. Game files and player data still come from Kirka.io.</p>` + historyHTML();
+          `<p class="ks-hint">This build uses the visible label Beta 1.0.7. Game files and player data still come from Kirka.io.</p>` + historyHTML();
       case 'Sharing':
         return title('Settings Backup & Language','Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.') +
           `<div class="ks-card">` +
@@ -2472,7 +2492,7 @@
       `<div id="ks-search-results" role="group" hidden></div>`+
       `<div id="ks-sidebar-groups">`+
       groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon" aria-hidden="true">${groupIcon(g.key)}</span><span>${translateTab(g.key)}</span>${g.key==='Workshop'?'<span class="ks-experimental-badge">EXPERIMENTAL</span>':''}</button>`).join('')+
-      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.6</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
+      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.7</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
@@ -3414,13 +3434,14 @@
       const allowed=['idle','checking','available','current','unavailable','error','downloading'];
       updateStatus={
         state:allowed.includes(status.state)?status.state:'error',
-        current:String(status.current||'Beta 1.0.5').slice(0,40),
+        current:String(status.current||'Beta 1.0.7').slice(0,40),
         version:String(status.version||'').slice(0,40),
         channel:String(status.channel||state.updateChannel).slice(0,12),
         message:String(status.message||'').slice(0,380),
         notes:String(status.notes||'').slice(0,1800),
         cached:status.cached===true,
         bytes:Number(status.bytes)||0};
+      if(updateStatus.state==='available')announceAvailableUpdate(updateStatus.version);
       if(selectedTab==='Updates')renderTab();
     },
     setEngineInfo: name => {const n=String(name||'Unknown');if(activeEngine!==n){activeEngine=n;if(selectedTab==='General')renderTab();}},
@@ -3533,9 +3554,9 @@
     requestAnimationFrame(animate);
     notify('engine-info');
     notify('browser-config');
-    if(state.autoCheckUpdates) {
-      setTimeout(()=>notify('update-check',{channel:state.updateChannel,automatic:true,autoDownload:state.autoDownloadUpdates}),1200);
-    }
+    // Native engines begin the automatic check as soon as their window opens.
+    // The page only syncs saved preferences and replays the pending result.
+    setTimeout(syncUpdatePreferences,500);
     notify('fps-diagnostics');
     let handshakeCount=0;
     const handshakeTimer=setInterval(()=>{
