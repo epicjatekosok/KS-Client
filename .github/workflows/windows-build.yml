@@ -113,6 +113,7 @@ jobs:
           python tests/test_auth_theme_101.py
           python tests/test_palette_103.py
           python tests/test_updates_103.py
+          python tests/test_updates_107.py
           python tests/test_public_source_103.py
           python tests/test_english_104.py
           node tests/test_discord_123.cjs
