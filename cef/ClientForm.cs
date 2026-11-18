@@ -63,9 +63,9 @@ internal sealed class ClientForm : Form
               Interlocked.Exchange(ref lastExternalAuthPrompt,now);
               var choice=MessageBox.Show(this,
                 "Google sign-in (including Gmail and YouTube accounts) is not supported inside CEF or other embedded browsers.\n\n"+
-                "Open Kirka.io in your Windows default browser to sign in securely?\n\n"+
-                "Important: a browser login does NOT automatically sign you in to KS Client. "+
-                "The Kirka developers would need to provide an official desktop callback for that. "+
+                "Open Kirka.io in your Windows default browser to start a session transfer?\n\n"+
+                "To play in KS Client, use Settings > General > Import Kirka.io session (advanced). "+
+                "This is manual transfer of a sensitive Kirka session token, NOT Google OAuth. Never share a token. "+
                 "You can still try other sign-in providers within the client.",
                 "KS Client — Account Sign-in",
                 MessageBoxButtons.YesNo,MessageBoxIcon.Information,MessageBoxDefaultButton.Button2);
@@ -85,7 +85,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client Beta 1.0.5 – CEF";
+        Text="KS Client Beta 1.0.6 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
