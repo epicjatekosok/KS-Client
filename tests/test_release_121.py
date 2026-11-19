@@ -22,5 +22,5 @@ assert "GetProcessesByName(\"CefSharp.BrowserSubprocess\")" in (r/'cef/KSDiagnos
 assert "Timeout:18*time.Second" in (r/'launcher/update_windows.go').read_text()
 assert "KS_PUBLIC_RELEASE_TOKEN" in (r/'ci/Publish-Release.ps1').read_text()
 assert 'v1.0.10-beta' in (r/'ci/Publish-Release.ps1').read_text()
-assert 'RELEASE_BETA_109_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
+assert 'RELEASE_BETA_110_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
 print('PASS: 1.0.10 both engines, diagnostics, Electron-first and honest update feed')
