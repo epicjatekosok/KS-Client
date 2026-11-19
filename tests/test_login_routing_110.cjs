@@ -58,4 +58,39 @@ assert(js.includes("{v:'Beta 1.0.10'") && js.includes("{v:'Beta 1.0.9'"),
  'Beta 1.0.9 release history must not be lost');
 assert(electron.includes("win.webContents.on('will-navigate',guardMainNavigation)"),
  'Game and trusted Google callback routing must stay in place');
+// Reproduce a Kirka-initiated Google main-frame account chooser: the account
+// page can request its OWN trusted secondary popup after the main-frame origin
+// is no longer kirka.io. Uninitiated provider windows must remain denied.
+const popupBegin=electron.indexOf("  win.webContents.setWindowOpenHandler(({url,referrer})=>{");
+const popupEnd=electron.indexOf("  win.webContents.on('did-create-window'",popupBegin);
+assert(popupBegin>0 && popupEnd>popupBegin);
+let currentURL='https://accounts.google.com/signin';
+const content={__ksKirkaAuthChain:false,getURL:()=>currentURL,
+ setWindowOpenHandler(fn){this.popupHandler=fn;}};
+const popupCtx={
+ win:{webContents:content},URL,
+ validURL:raw=>{try{return new URL(raw).hostname==='kirka.io';}catch{return false;}},
+ validAuthURL:raw=>{try{return ['accounts.google.com','gsi.google.com'].includes(new URL(raw).hostname) && new URL(raw).protocol==='https:';}catch{return false;}},
+ isGameDiscordTarget:community,isGoogleSignInURL:()=>false,
+ openKSDiscord:()=>{},authPopupOptions:()=>({}),log:()=>{}
+};
+vm.runInNewContext(electron.slice(popupBegin,popupEnd),popupCtx);
+assert.equal(content.popupHandler({url:'https://gsi.google.com/select'}).action,'deny',
+ 'Uninitiated Google popups must not be trusted');
+content.__ksKirkaAuthChain=true;
+assert.equal(content.popupHandler({url:'https://gsi.google.com/select'}).action,'allow',
+ 'Trusted Kirka-started Google account picker must be allowed to spawn its provider popup');
+assert.equal(content.popupHandler({url:'https://evil.example/'}).action,'deny',
+ 'Trusted Google chain must not enable arbitrary popups');
+currentURL='https://evil.example/';
+assert.equal(content.popupHandler({url:'https://accounts.google.com/'}).action,'deny',
+ 'A forged unrelated provider source must remain denied');
+const cefMain=fs.readFileSync(path.join(root,'cef/ClientForm.cs'),'utf8');
+const cefAuth=fs.readFileSync(path.join(root,'cef/ClientAuthentication.cs'),'utf8');
+assert(cefMain.includes('ClientAuthentication.SetMainFrameAuthChain(browser,true)'));
+assert(cefMain.includes('ClientAuthentication.SetMainFrameAuthChain(browser,false)'));
+assert(cefAuth.includes('ConcurrentDictionary<int, byte> MainFrameAuthChains'));
+assert(cef.includes('ClientAuthentication.HasMainFrameAuthChain(browser)'),
+ 'CEF must permit provider popups only for a Kirka-started main-frame chain');
+
 console.log('PASS Beta 1.0.10: Discord community shortcuts cannot hijack Kirka OAuth; existing browser protections and history preserved');
