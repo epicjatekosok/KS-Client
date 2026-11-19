@@ -40,7 +40,7 @@ def check(browser,engine):
   assert data['gearHeight']==data['discordHeight']==36,data
   for field in ('border','bg','radius','shadow'):
     assert data[field][0]==data[field][1],(field,data)
-  assert data['interactive'] and data['version']=='KS · 1.0.11',data
+  assert data['interactive'] and data['version']=='KS · 1.0.12',data
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-gear').click()""")
   anim=page.evaluate("""() => {
     const s=document.querySelector('#ks-client-root').shadowRoot;
@@ -83,7 +83,7 @@ def check(browser,engine):
     document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-body').textContent""")
   assert not errors,errors
   page.close()
-  print('PASS: KS alpha 1.0.11 UI button visual parity, menu animations, reduced motion, Discord and updater',engine)
+  print('PASS: KS alpha 1.0.12 UI button visual parity, menu animations, reduced motion, Discord and updater',engine)
 with sync_playwright() as p:
   browser=p.chromium.launch(headless=True)
   for engine in ('Electron','CEF'):check(browser,engine)
