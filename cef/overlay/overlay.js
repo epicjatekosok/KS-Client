@@ -3574,7 +3574,10 @@
         if((url.hostname==='discord.gg' && url.pathname.length>1 && url.pathname.slice(1).split('/').filter(Boolean).length===1) ||
           (['discord.com','www.discord.com','discordapp.com','www.discordapp.com'].includes(url.hostname) &&
            (url.pathname.startsWith('/invite/')||url.pathname.startsWith('/channels/'))))return true;
-      } catch(_){}
+        // A real anchor with a login/OAuth URL is NOT a community button,
+        // even if its visible text says Discord.
+        return false;
+      } catch(_){return false;}
     }
     const description=[control.getAttribute('aria-label'),control.getAttribute('title'),control.getAttribute('data-testid'),control.id,control.className,control.textContent].filter(Boolean).join(' ').slice(0,260);
     return /(?:^|[^a-z])discord(?:$|[^a-z])/i.test(description);
