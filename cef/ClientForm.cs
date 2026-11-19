@@ -32,6 +32,20 @@ internal sealed class ClientForm : Form
     private readonly string advanced;
     private readonly string freezeGuard;
     private readonly string earlyGameJS;
+    private readonly string nativeLoginGate;
+
+    // Preserve the complete KS feature set after Kirka signs in, but never
+    // hook the game's original login buttons, password fields or Google picker.
+    // The game's own localStorage token is checked ONLY as a boolean inside
+    // its Chromium renderer. No credential is sent to the CEF host.
+    private static string AfterKirkaLogin(string script)
+    {
+        const string condition =
+            "(location.hostname==='kirka.io'||location.hostname==='www.kirka.io')";
+        return "(function(){try{if("+condition+
+            "&&!localStorage.getItem('token'))return;}catch(_){return;}\n"+
+            script+"\n})();";
+    }
     private BrowserPrefs desired=Program.Active;
     private string menuResolution="native";
     private string gameResolution="native";
@@ -98,18 +112,19 @@ internal sealed class ClientForm : Form
         StartPosition=FormStartPosition.CenterScreen;
         try {Icon=new Icon(Path.Combine(AppContext.BaseDirectory,"assets","ks-logo.ico"));} catch { }
         KeyPreview=true;
-        overlay=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","overlay.js"));
-        pacer=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","frame_pacer.js"));
-        extras=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","game_extras.js"));
-        cefInputProbe=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","cef_input_probe.js"));
-        workshop=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","workshop.js"));
-        integrationBoot=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_bootstrap.js"));
-        integrationCore=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_core.js"));
-        gameRuntime=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","game_runtime.js"));
-        drawTelemetry=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","render_telemetry.js"));
-        graphics=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","webgl_cosmetics.js"));
-        advanced=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","advanced_integration.js"));
-        freezeGuard=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","freeze_guard.js"));
+        nativeLoginGate=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","native_login_gate.js"));
+        overlay=AfterKirkaLogin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","overlay.js")));
+        pacer=AfterKirkaLogin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","frame_pacer.js")));
+        extras=AfterKirkaLogin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","game_extras.js")));
+        cefInputProbe=AfterKirkaLogin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","cef_input_probe.js")));
+        workshop=AfterKirkaLogin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","workshop.js")));
+        integrationBoot=AfterKirkaLogin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_bootstrap.js")));
+        integrationCore=AfterKirkaLogin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","integration_core.js")));
+        gameRuntime=AfterKirkaLogin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","game_runtime.js")));
+        drawTelemetry=AfterKirkaLogin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","render_telemetry.js")));
+        graphics=AfterKirkaLogin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","webgl_cosmetics.js")));
+        advanced=AfterKirkaLogin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","advanced_integration.js")));
+        freezeGuard=AfterKirkaLogin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"overlay","freeze_guard.js")));
         // One sequential script evaluation eliminates cross-task injection races.
         earlyGameJS=string.Join("\n;\n",cefInputProbe,pacer,integrationBoot,drawTelemetry,graphics,freezeGuard,gameRuntime);
         // A real CEF renderer->host PostMessage test. This is an offline page,
@@ -162,6 +177,9 @@ internal sealed class ClientForm : Form
         browser.FrameLoadEnd += (_,e)=>{
             try {
             if(!e.Frame.IsValid || !e.Frame.IsMain || !Trust(e.Url))return;
+            // Passive polling reloads once after Kirka itself authenticates.
+            // Its own login form and Google UI see no KS input interception.
+            e.Frame.ExecuteJavaScriptAsync(nativeLoginGate);
             e.Frame.ExecuteJavaScriptAsync(cefInputProbe);
             e.Frame.ExecuteJavaScriptAsync(pacer);
             e.Frame.ExecuteJavaScriptAsync(drawTelemetry);
