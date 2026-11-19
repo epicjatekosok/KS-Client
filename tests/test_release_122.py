@@ -26,5 +26,5 @@ assert 'OnBeforePopup(' in helper and 'UseShellExecute=true' in helper
 assert 'https://discord.gg/cxP386yGjk' in helper
 for f in ('launcher/main_windows.go','installer/main_windows.go','cef/Program.cs','electron-app/main.cjs','ci/Publish-Release.ps1'):
  assert '1.0.10' in (r/f).read_text(),f
-assert 'RELEASE_BETA_109_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
+assert 'RELEASE_BETA_110_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
 print('PASS 1.0.10 dashboard, immutable native Discord invite, disposed CEF IFrame protection')
