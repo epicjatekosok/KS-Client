@@ -690,14 +690,10 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
         // Account popups (including an initially blank Firebase popup) use
         // the same CEF profile as the Kirka game, with opener intact.
         // Do not redirect provider pages to the Windows default browser.
-        // A Google main-frame login request would replace the game; route its
-        // help to the in-client settings instead while allowing true popups.
-        if(ClientAuthentication.IsGoogleSignIn(request.Url) && !browser.IsPopup &&
-           ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true)){
-           Program.Log("CEF Google main-frame navigation kept inside account assistance");
-           requestGoogleHelp();
-           return true;
-        }
+        // Kirka's own Google account picker may use a main-frame navigation,
+        // not a popup. 1.0.9 used to block this and open the KS help dialog.
+        // Let it reach the same HTTPS/provider allowlist as other Kirka
+        // sign-in routes; never spoof Chrome or bypass Google's decision.
         // A separate CEF popup keeps its own OAuth navigation chain and
         // the same persistent cookie profile as Kirka. Never block its
         // whitelisted login-provider redirects using the game's main-frame rule.
