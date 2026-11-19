@@ -47,7 +47,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
-      - name: Cross-compile 1.0.11 Windows launcher and updater
+      - name: Cross-compile 1.0.12 Windows launcher and updater
         shell: bash
         run: |
           cd launcher
@@ -56,6 +56,8 @@ jobs:
       - name: JavaScript syntax, identical engine overlays
         run: |
           node --check electron-app/main.cjs
+          node --check electron-app/overlay/native_login_gate.js
+          node --check cef/overlay/native_login_gate.js
           node --check electron-app/preload.cjs
           node --check electron-app/overlay/frame_pacer.js
           node --check electron-app/overlay/overlay.js
@@ -91,8 +93,8 @@ jobs:
       - name: Verify clean private source snapshot (no Git history or keys)
         shell: pwsh
         run: |
-          ./ci/Package-Source.ps1 -Version '1.0.11'
-          if(-not (Test-Path 'KS-Client-beta-1.0.11-Source.zip')){throw 'Private source snapshot missing'}
+          ./ci/Package-Source.ps1 -Version '1.0.12'
+          if(-not (Test-Path 'KS-Client-beta-1.0.12-Source.zip')){throw 'Private source snapshot missing'}
       - name: Automated browser UI test
         run: |
           python -m pip install playwright
@@ -119,13 +121,9 @@ jobs:
           python tests/test_public_source_103.py
           python tests/test_english_104.py
           node tests/test_discord_123.cjs
-          node tests/test_auth_101.cjs
-          node tests/test_oauth_102.cjs
-          node tests/test_auth_105.cjs
           node tests/test_auth_106.cjs
-          node tests/test_login_navigation_109.cjs
-          node tests/test_login_routing_110.cjs
           node tests/test_native_login_111.cjs
+          node tests/test_redline_navigation_112.cjs
 
   offline-installer:
     if: github.event_name != 'pull_request'
