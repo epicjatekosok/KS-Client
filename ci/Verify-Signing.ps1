@@ -3,11 +3,19 @@
 param()
 $ErrorActionPreference='Stop'
 $repo=Split-Path -Parent $PSScriptRoot
+# The verification target must match the EXE compiled from this source.
+$package=Get-Content -LiteralPath (Join-Path $repo 'electron-app/package.json') -Raw | ConvertFrom-Json
+$packageVersion=[string]$package.version
+if($packageVersion -notmatch '^[0-9]+[.][0-9]+[.][0-9]+-beta$'){
+    throw "Invalid standalone Beta release metadata: $packageVersion"
+}
+$releaseNumber=$packageVersion -replace '-beta$',''
+$setupName="KS-Client-beta-$releaseNumber-Setup.exe"
 $files=@('KS-Client.exe','Uninstall-KS-Client.exe',
-  'runtime/CEF/KS.Cef.Client.exe','KS-Client-beta-1.0.9-Setup.exe')
+  'runtime/CEF/KS.Cef.Client.exe',$setupName)
 $require=[bool]$env:KS_SIGNING_PFX_BASE64
 $allValid=$true
-$report=@('KS CLIENT BETA 1.0.9 CODE SIGNING STATUS',
+$report=@('KS CLIENT BETA $releaseNumber CODE SIGNING STATUS',
   'Authenticode verification only; not a guarantee of browser or SmartScreen reputation.')
 foreach($rel in $files) {
   $path=Join-Path $repo $rel
