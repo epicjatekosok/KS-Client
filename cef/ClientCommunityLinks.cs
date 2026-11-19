@@ -15,8 +15,15 @@ internal static class ClientCommunityLinks
     {
         if(!Uri.TryCreate(value,UriKind.Absolute,out var uri) ||
            !uri.Scheme.Equals(Uri.UriSchemeHttps,StringComparison.OrdinalIgnoreCase))return false;
-        return uri.Host.ToLowerInvariant() is "discord.gg" or "discord.com"
-            or "www.discord.com" or "discordapp.com" or "www.discordapp.com";
+        // A Discord OAuth page is NOT a community invitation. Previously every
+        // discord.com URL was redirected to KS's community invite, preventing
+        // Kirka's own Discord login popup from completing.
+        var host=uri.IdnHost.ToLowerInvariant();
+        var path=uri.AbsolutePath;
+        if(host=="discord.gg")return path.Length>1 && path.Trim('/').IndexOf('/')<0;
+        return (host is "discord.com" or "www.discord.com" or "discordapp.com" or "www.discordapp.com") &&
+            (path.StartsWith("/invite/",StringComparison.OrdinalIgnoreCase) ||
+             path.StartsWith("/channels/",StringComparison.OrdinalIgnoreCase));
     }
 
     internal static bool OpenInvite()
@@ -58,7 +65,13 @@ internal sealed class ClientCommunityPopupHandler : CefSharp.Handler.LifeSpanHan
         // it only after the user selects an account. Popups are created solely
         // from the trusted Kirka browser by this lifetime handler.
         bool trustedOpener=ClientForm.Trust(frame.Url,gameOnly:true) ||
-            (browser.IsPopup && (ClientAuthentication.IsAllowed(frame.Url,allowBlank:true)));
+            (browser.IsPopup && ClientAuthentication.IsAllowed(frame.Url,allowBlank:true)) ||
+            // Kirka may navigate its MAIN frame to the Google/other provider,
+            // whose account picker can then create a secondary OAuth popup.
+            // Only allow this when Kirka previously initiated a trusted
+            // top-level HTTPS provider navigation in this exact CEF browser.
+            (!browser.IsPopup && ClientAuthentication.HasMainFrameAuthChain(browser) &&
+             ClientAuthentication.IsAllowed(frame.Url));
         if(trustedOpener && ClientAuthentication.IsAllowed(targetUrl,allowBlank:userGesture))
         {
             noJavascriptAccess=false; // Required for OAuth popup result -> opener.

@@ -1,4 +1,4 @@
-"""KS alpha 1.0.9 source contracts for CEF/Electron stability and updates."""
+"""KS alpha 1.0.10 source contracts for CEF/Electron stability and updates."""
 from pathlib import Path
 r=Path(__file__).resolve().parents[1]
 a=(r/'electron-app/overlay/overlay.js').read_text(encoding='utf8')
@@ -21,6 +21,6 @@ assert "KSDiagnostics.Sample()" in (r/'cef/ClientForm.cs').read_text()
 assert "GetProcessesByName(\"CefSharp.BrowserSubprocess\")" in (r/'cef/KSDiagnostics.cs').read_text()
 assert "Timeout:18*time.Second" in (r/'launcher/update_windows.go').read_text()
 assert "KS_PUBLIC_RELEASE_TOKEN" in (r/'ci/Publish-Release.ps1').read_text()
-assert 'v1.0.9-beta' in (r/'ci/Publish-Release.ps1').read_text()
-assert 'RELEASE_BETA_109_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
-print('PASS: 1.0.9 both engines, diagnostics, Electron-first and honest update feed')
+assert 'v1.0.10-beta' in (r/'ci/Publish-Release.ps1').read_text()
+assert 'RELEASE_BETA_110_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
+print('PASS: 1.0.10 both engines, diagnostics, Electron-first and honest update feed')

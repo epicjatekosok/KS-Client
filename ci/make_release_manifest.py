@@ -10,8 +10,8 @@ from pathlib import Path
 
 root=Path(__file__).resolve().parents[1]
 files=[
-    "KS-Client-beta-1.0.9-Portable.zip",
-    "KS-Client-beta-1.0.9-Setup.exe",
+    "KS-Client-beta-1.0.10-Portable.zip",
+    "KS-Client-beta-1.0.10-Setup.exe",
     "CI-TEST-RESULT.txt",
     "SIGNING-STATUS.txt",
 ]
@@ -26,7 +26,7 @@ for name in files:
             digest.update(block)
     records.append({"name":name,"bytes":target.stat().st_size,"sha256":digest.hexdigest()})
 manifest={
-    "product":"KS Client","version":"1.0.9","release":"beta",
+    "product":"KS Client","version":"1.0.10","release":"beta",
     "source_repo":"epicjatekosok/KS-Client",
     "source_commit":os.getenv("GITHUB_SHA","unknown"),
     "github_run":os.getenv("GITHUB_RUN_ID","local"),

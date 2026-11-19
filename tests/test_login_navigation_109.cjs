@@ -37,8 +37,10 @@ function allows(to,from='https://kirka.io/'){
  return !prevented;
 }
 assert(allows('https://accounts.google.com/o/oauth2/v2/auth?state=secret'),'Kirka Google account picker must open');
+assert.equal(ctx.win.webContents.__ksKirkaAuthChain,true,'Track Kirka-started provider main navigation');
 assert(allows('https://gsi.google.com/select'),'Google picker navigation should proceed');
 assert(allows('https://kirka.io/','https://accounts.google.com/signin'),'Kirka callback must be possible');
+assert.equal(ctx.win.webContents.__ksKirkaAuthChain,false,'Returning to Kirka clears the provider navigation trust');
 assert(allows('https://some-game.firebaseapp.com/__/auth/handler','https://accounts.google.com/signin'),'Firebase callback must survive');
 assert(allows('https://www.facebook.com/dialog/oauth'),'Other identity provider must stay usable');
 assert(!allows('https://accounts.google.com.evil.example/'),'Reject lookalike domain');
