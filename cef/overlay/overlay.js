@@ -216,11 +216,11 @@
 
   const host = document.createElement('div');
   host.id = 'ks-client-root';
-  host.style.cssText = 'all:initial!important;position:fixed!important;inset:0!important;z-index:2147483647!important;pointer-events:none!important;overflow:visible!important;';
+  host.style.cssText = 'all:initial!important;position:fixed!important;top:0!important;left:0!important;width:0!important;height:0!important;z-index:2147483647!important;pointer-events:none!important;overflow:visible!important;';
   const shadow = host.attachShadow({ mode: 'open' });
   shadow.innerHTML = `
   <style>
-    :host { all: initial; }
+    :host { all: initial; width:0!important; height:0!important; pointer-events:none!important; }
     *, *::before, *::after { box-sizing: border-box; }
     button, input, select, textarea { font: inherit; }
     #ks-screen {
