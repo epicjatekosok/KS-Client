@@ -57,8 +57,8 @@ assert(cef.includes('private static string AfterKirkaLogin(string script)'));
 assert(cef.includes('e.Frame.ExecuteJavaScriptAsync(nativeLoginGate)'));
 for(const file of ['overlay','pacer','extras','workshop','advanced','freezeGuard'])
   assert(new RegExp('\\b'+file+'=AfterKirkaLogin\\(').test(cef),file+' CEF module is not login-gated');
-assert(cef.includes('browser.LifeSpanHandler = new ClientCommunityPopupHandler()'));
-assert(host.includes("win.webContents.on('will-navigate',guardMainNavigation)"));
+assert(!cef.includes('browser.LifeSpanHandler ='), 'CEF must use default Chromium popup management');
+assert(!host.includes("win.webContents.on('will-navigate',guardMainNavigation)"), 'Kirka OAuth navigation is no longer intercepted');
 // No broad Discord text interception: the user's own provider buttons are Kirka's.
 const ui=read('electron-app/overlay/overlay.js');
 assert.equal(ui,read('cef/overlay/overlay.js'));
