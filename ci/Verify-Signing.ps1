@@ -15,7 +15,7 @@ $files=@('KS-Client.exe','Uninstall-KS-Client.exe',
   'runtime/CEF/KS.Cef.Client.exe',$setupName)
 $require=[bool]$env:KS_SIGNING_PFX_BASE64
 $allValid=$true
-$report=@('KS CLIENT BETA $releaseNumber CODE SIGNING STATUS',
+$report=@("KS CLIENT BETA $releaseNumber CODE SIGNING STATUS",
   'Authenticode verification only; not a guarantee of browser or SmartScreen reputation.')
 foreach($rel in $files) {
   $path=Join-Path $repo $rel
