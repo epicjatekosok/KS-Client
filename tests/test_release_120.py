@@ -4,7 +4,7 @@ r=Path(__file__).resolve().parents[1]
 a=(r/'electron-app/overlay/overlay.js').read_text(encoding='utf8')
 b=(r/'cef/overlay/overlay.js').read_text(encoding='utf8')
 assert a==b, 'Both engines must share the modern menu and Discord redirect'
-for required in ('ks-menu-search','ks-search-results','ks-sidebar-groups','updateSettingsSearch','settingsSearchTerms','KS · 1.0.13','isKirkaDiscordButton', "notify('discord-community')"):
+for required in ('ks-menu-search','ks-search-results','ks-sidebar-groups','updateSettingsSearch','settingsSearchTerms','KS · 1.0.13','isKirkaDiscordButton', "openTrustedExternal('discord')"):
  assert required in a,required
 assert "showFPS: false" in a
 assert "ensureOverlayMounted()" in a
