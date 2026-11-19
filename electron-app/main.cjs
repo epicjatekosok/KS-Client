@@ -1,5 +1,5 @@
 'use strict';
-// KS Client Beta 1.0.10: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.11: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'Beta 1.0.10';
+const APP_VERSION = 'Beta 1.0.11';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -17,7 +17,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.10.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.11.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -98,7 +98,7 @@ function isGoogleSignInURL(raw){
       (u.port===''||u.port==='443') && GOOGLE_ACCOUNT_HOSTS.has(u.hostname);
   }catch(_){return false;}
 }
-// Beta 1.0.10: do not launch the installed browser on account clicks.
+// Beta 1.0.11: do not launch the installed browser on account clicks.
 // OAuth provider popups use the SAME persistent Electron session as Kirka.io.
 // Google may reject embedded user agents on its own page: no UA spoofing,
 // provider-cookie export, or false "signed in" message is attempted.
@@ -125,7 +125,7 @@ function configureAuthPopup(child,depth=1){
   authContents.add(content);
   child.setMenu(null);
   // Some identity providers open a second named popup after account selection.
-  // Beta 1.0.10 blocked these indiscriminately; keep native opener references
+  // Beta 1.0.11 blocked these indiscriminately; keep native opener references
   // while allowing only game / known HTTPS identity-provider destinations.
   content.setWindowOpenHandler(({url,referrer})=>{
     const source=content.getURL();
@@ -243,7 +243,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.10').slice(0,40),
+      current:String(payload.current||'1.0.11').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -455,7 +455,7 @@ function createWindow(){
       win.webContents.__ksKirkaAuthChain=false;
       return;
     }
-    // Dawn allows provider-controlled main-frame navigation. The 1.0.10 KS
+    // Dawn allows provider-controlled main-frame navigation. The 1.0.11 KS
     // Google-only interception prevented Kirka's own login UI from opening
     // at all. Apply the existing HTTPS/host allowlist to Google too; the
     // provider decides whether it supports this embedded OAuth user agent.
@@ -477,7 +477,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.10 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.11 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
