@@ -1,5 +1,5 @@
 'use strict';
-// KS Client Beta 1.0.7: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.8: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'Beta 1.0.7';
+const APP_VERSION = 'Beta 1.0.8';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -17,7 +17,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.7.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.8.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -92,28 +92,10 @@ function isGoogleSignInURL(raw){
       (u.port===''||u.port==='443') && GOOGLE_ACCOUNT_HOSTS.has(u.hostname);
   }catch(_){return false;}
 }
-let loginHelpPending=false;
-let lastLoginHelpAt=0;
-async function offerSystemBrowserSignIn(){
-  if(!win||win.isDestroyed()||loginHelpPending)return;
-  if(Date.now()-lastLoginHelpAt<7000)return; // avoid repeated OAuth redirects
-  lastLoginHelpAt=Date.now();
-  loginHelpPending=true;
-  try{
-    const result=await dialog.showMessageBox(win,{
-      type:'info',title:'KS Client — Google account sign-in',
-      message:'Google sign-in is not supported inside embedded browsers.',
-      detail:'Gmail and YouTube accounts use Google sign-in. To play in KS Client, you can optionally sign in to Kirka.io in a normal browser, then use Settings > General > Import Kirka.io session (advanced). This imports a sensitive Kirka session token locally; it is NOT native Google OAuth and may expire. Never share tokens.',
-      buttons:['Open Kirka.io to get a session','Stay in KS Client / Import session'],defaultId:1,cancelId:1,noLink:true
-    });
-    if(result.response===0){
-      // Open only this hard-coded Kirka URL, never an OAuth target or token.
-      await shell.openExternal(GAME);
-      log('User chose external system browser for game sign-in');
-    }else log('User declined external browser sign-in');
-  }catch(e){log('External game sign-in prompt error: '+String(e?.message||e).slice(0,90));}
-  finally{loginHelpPending=false;}
-}
+// Beta 1.0.8: do not launch the installed browser on account clicks.
+// OAuth provider popups use the SAME persistent Electron session as Kirka.io.
+// Google may reject embedded user agents on its own page: no UA spoofing,
+// provider-cookie export, or false "signed in" message is attempted.
 // Track only browser windows created by the game or its trusted OAuth flow.
 // Never expose the OAuth result or provider cookies to the native process.
 const authContents=new WeakSet();
@@ -137,16 +119,12 @@ function configureAuthPopup(child,depth=1){
   authContents.add(content);
   child.setMenu(null);
   // Some identity providers open a second named popup after account selection.
-  // Beta 1.0.7 blocked these indiscriminately; keep native opener references
+  // Beta 1.0.8 blocked these indiscriminately; keep native opener references
   // while allowing only game / known HTTPS identity-provider destinations.
   content.setWindowOpenHandler(({url,referrer})=>{
     const source=content.getURL();
     const initiator=referrer?.url||'';
-    if(isGoogleSignInURL(url)){
-      log('Embedded Google account popup redirected to supported browser recovery');
-      void offerSystemBrowserSignIn();
-      return {action:'deny'};
-    }
+    if(isGoogleSignInURL(url))log('Google provider popup requested; provider policy may reject this user agent');
     if(depth>=3 || !validAuthURL(source,true) || !validAuthURL(url,true) ||
        (initiator && !validAuthURL(initiator,true))){
       log('OAuth nested popup blocked: '+authLocationLabel(url));
@@ -157,14 +135,7 @@ function configureAuthPopup(child,depth=1){
   });
   content.on('did-create-window',nested=>configureAuthPopup(nested,depth+1));
   const validate=(event,url)=>{
-    if(isGoogleSignInURL(url)){
-      event.preventDefault();
-      log('Blocked Google OAuth inside embedded popup; offering system browser');
-      // Do not leave an empty Google credential window or an orphaned opener.
-      if(!child.isDestroyed())child.close();
-      void offerSystemBrowserSignIn();
-      return;
-    }
+    if(isGoogleSignInURL(url))log('Google provider navigation inside KS popup (subject to Google policy)');
     // Some Facebook / Firebase popup SDKs navigate to about:blank as a
     // transitional page before completing their opener callback.
     // It stays inside the trusted popup; main-frame checks remain stricter.
@@ -266,7 +237,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.7').slice(0,40),
+      current:String(payload.current||'1.0.8').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -455,11 +426,7 @@ function createWindow(){
     const source=win.webContents.getURL();
     if(!validURL(source,true))return {action:'deny'};
     if(isGameDiscordTarget(url)){openKSDiscord();return {action:'deny'};}
-    if(isGoogleSignInURL(url)){
-      log('Google embedded sign-in requires Windows default browser');
-      void offerSystemBrowserSignIn();
-      return {action:'deny'};
-    }
+    if(isGoogleSignInURL(url))log('Google login popup requested from Kirka: keeping the user inside KS');
     const initiator=referrer?.url||'';
     if(initiator && !validURL(initiator,true) && !validAuthURL(initiator))
       return {action:'deny'};
@@ -474,9 +441,11 @@ function createWindow(){
   const guardMainNavigation=(event,target)=>{
     if(validURL(target))return;
     if(isGoogleSignInURL(target)){
+      // Preserve the game rather than navigating it away to an unsupported
+      // Google OAuth document without a window.opener/callback.
       event.preventDefault();
-      log('Blocked embedded Google main-frame navigation; offering system browser');
-      void offerSystemBrowserSignIn();
+      log('Google main-frame navigation intercepted; account assistance kept inside KS');
+      jsCall('openAccountHelp');
       return;
     }
     const source=win.webContents.getURL();
@@ -492,7 +461,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.7 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.8 settings UI.
     try{
       await win.webContents.executeJavaScript(frameJS,true);
       // Late fallback if early main-world evaluation was blocked or missed.
@@ -594,7 +563,7 @@ function receiveMessage(event, raw){
   if(!validURL(source) || !raw || typeof raw!=='object' || Array.isArray(raw))return;
   let data=''; try{data=JSON.stringify(raw)}catch(_){return}
   if(data.length>8192 || typeof raw.type!=='string')return;
-  const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll','update-check','update-install','update-open-release','discord-community','auth-open-browser']);
+  const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll','update-check','update-install','update-open-release','discord-community','auth-help']);
   if(!validURL(source,true)&&!basic.has(raw.type))return;
   switch(raw.type){
     case 'stats':navigate(STATS);break;
@@ -602,7 +571,7 @@ function receiveMessage(event, raw){
     case 'game':navigate(GAME);break;
     case 'update-open-release':void shell.openExternal('https://github.com/epicjatekosok/KS-Client-Updates/releases').catch(e=>log('Public release page: '+e.message));break;
     case 'discord-community':openKSDiscord();break;
-    case 'auth-open-browser':void offerSystemBrowserSignIn();break;
+    case 'auth-help':jsCall('openAccountHelp');break;
     case 'fullscreen':win.setFullScreen(!win.isFullScreen());break;
     case 'game-resolution':setGameResolution(String(raw.preset||'native'));break;
     case 'menu-resolution':setWindowSize(String(raw.preset||'native'));break;

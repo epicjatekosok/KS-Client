@@ -1,4 +1,4 @@
-"""KS Client 1.0.7 regressions: preserve both engine overlays and release contracts."""
+"""KS Client 1.0.8 regressions: preserve both engine overlays and release contracts."""
 from pathlib import Path
 r=Path(__file__).resolve().parents[1]
 a=(r/'electron-app/overlay/overlay.js').read_text(encoding='utf8')
@@ -20,9 +20,9 @@ assert 'Kirka HUD data not exposed as HTML' not in x
 assert "shown.length?'block':'none'" in x
 assert "shown.join(' · ')" in x
 assert 'gameKeystrokes' in x and 'gameStats' in x
-assert '1.0.7' in (r/'electron-app/main.cjs').read_text()
-assert '1.0.7' in (r/'launcher/main_windows.go').read_text()
-assert '1.0.7' in (r/'installer/main_windows.go').read_text()
-assert 'v1.0.7-beta' in (r/'ci/Publish-Release.ps1').read_text()
-assert 'RELEASE_BETA_107_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
-print('PASS: KS 1.0.7 persistent gear, disabled FPS default, optional HUD and release contract')
+assert '1.0.8' in (r/'electron-app/main.cjs').read_text()
+assert '1.0.8' in (r/'launcher/main_windows.go').read_text()
+assert '1.0.8' in (r/'installer/main_windows.go').read_text()
+assert 'v1.0.8-beta' in (r/'ci/Publish-Release.ps1').read_text()
+assert 'RELEASE_BETA_108_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
+print('PASS: KS 1.0.8 persistent gear, disabled FPS default, optional HUD and release contract')
