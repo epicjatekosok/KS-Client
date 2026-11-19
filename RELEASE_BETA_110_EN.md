@@ -1,5 +1,13 @@
 # KS Client — Beta 1.0.10
 
+## Independent standalone Windows release
+
+**No previous KS Client version is needed.** Beta 1.0.10 is shipped as a complete **offline Setup EXE** and a separate **Portable ZIP**, both with the full Electron and CEF browser engines and app-local CEF .NET 10 runtime. The standalone setup embeds the entire ZIP payload rather than downloading or borrowing any previous release files. Existing installations can still be updated in place while preserving their settings and profiles.
+
+The release is published under its own immutable `v1.0.10-beta` tag in the public binary-only `KS-Client-Updates` repository, leaving all Beta 1.0.9 and 1.0.9 R2 assets intact. SHA-256 checksums, full manifest, automated test results and transparent Authenticode status are included. The native signing/audit scripts now target the **version from the packaged Electron metadata** instead of incorrectly expecting an old 1.0.9 Setup EXE.
+
+For installation and portable extraction steps, see `BETA_110_STANDALONE_HU.md` in the private source repository.
+
 ## Kirka sign-in route isolation
 
 - Fixed a real conflict between KS's Discord community shortcut and Kirka's own Discord login: the native Electron and CEF link handlers now recognize community invitations by **path**, rather than treating every discord.com URL as a community invite. Discord OAuth authorization and sign-in URLs stay in Kirka's existing, restricted authentication flow.
