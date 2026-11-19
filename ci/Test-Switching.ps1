@@ -53,7 +53,29 @@ try {
       }
     }
   }
-  foreach($source in @('electron-1.0.13.log','cef-1.0.13.log')){
+  $package=Get-Content -LiteralPath (Join-Path $root 'electron-app/package.json') -Raw | ConvertFrom-Json
+  $expectedVersion=([string]$package.version) -replace '-beta
+    if(-not (Test-Path (Join-Path $folder $source) -PathType Leaf)){throw "Missing engine log: $source"}
+  }
+  # Probe windows can exit asynchronously after the supervising launcher has
+  # finished. They must not remain alive when another CEF runtime test starts:
+  # multiple native CEF instances can collide on the CI runner GPU/cache stack.
+  Start-Sleep -Milliseconds 900
+  foreach($name in @('KS.Cef.Client','electron','CefSharp.BrowserSubprocess')){
+    Get-Process -Name $name -ErrorAction SilentlyContinue | ForEach-Object {
+      try{$_.CloseMainWindow()|Out-Null}catch{}
+      try{if(-not $_.WaitForExit(3500)){$_.Kill()}}catch{}
+    }
+  }
+  Write-Host 'PASS: both native engine switch directions and local logs'
+}finally{
+  if($null -eq $selectedBackup){Remove-Item -LiteralPath $selected -ErrorAction SilentlyContinue}
+  else{[IO.File]::WriteAllBytes($selected,$selectedBackup)}
+  if($null -eq $prefsBackup){Remove-Item -LiteralPath $prefs -ErrorAction SilentlyContinue}
+  else{[IO.File]::WriteAllBytes($prefs,$prefsBackup)}
+}
+,''
+  foreach($source in @("electron-$expectedVersion.log","cef-$expectedVersion.log")){
     if(-not (Test-Path (Join-Path $folder $source) -PathType Leaf)){throw "Missing engine log: $source"}
   }
   # Probe windows can exit asynchronously after the supervising launcher has
