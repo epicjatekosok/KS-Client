@@ -1,3 +1,9 @@
+# KS Client Beta 1.0.14 — new FPS limits, CEF fullscreen and Settings languages
+
+Beta 1.0.14 adds 200/240/300/360 FPS limits, correctly disables native Unlimited FPS startup flags when selecting a fixed cap (restart required), lowers Settings GPU compositing work, fixes the Discord opening indicator, improves CEF fullscreen/F11, and offers 8 additional Settings-only languages. **The Windows Setup and Uninstaller remain English.** All previous features and saved profiles are retained. See [Beta 1.0.14 release notes](RELEASE_BETA_114_EN.md).
+
+---
+
 # KS Client Beta 1.0.0 — Public updates and unified black/orange HUD
 
 **Beta release:** All existing user settings and Workshop data are retained. The FPS counter, Keystrokes, readable game statistics, break reminder and Settings close button now share the black/orange visual language of the KS gear and Discord controls. The Workshop category and its features are marked **Experimental**.

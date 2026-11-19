@@ -1,3 +1,11 @@
+# KS Client Beta 1.0.14
+
+- Fixed CEF fullscreen, Discord status timeout, FPS fixed caps up to 360 and uncapped native Chromium restart handling.
+- Reduced Settings GPU overhead; added 8 Settings-only languages while keeping Setup/Uninstaller English.
+- Preserved all older functions, profiles, settings and release history.
+
+---
+
 # KS Client Beta 1.0.0
 
 - Promote product from Alpha 1.1.23 to Beta 1.0.0, with consistent Windows launcher, Electron and CEF version metadata.
