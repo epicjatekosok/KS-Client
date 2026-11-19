@@ -53,6 +53,7 @@ internal sealed class ClientForm : Form
     private Rectangle oldBounds;
     private FormBorderStyle oldBorder;
     private FormWindowState oldWindowState;
+    private bool oldTopMost;
     // The same non-secret updater preferences are used by Electron, CEF and the game Settings.
     private sealed record NativeUpdatePreferences(bool Automatic,bool AutoDownload,string Channel);
     private static readonly string UpdaterPreferencesPath=Path.Combine(
@@ -136,6 +137,8 @@ internal sealed class ClientForm : Form
         // Activation must be enabled BEFORE the native child window is created.
         browser=new ChromiumWebBrowser(initial) {Dock=DockStyle.Fill,ActivateBrowserOnCreation=true};
         browser.MenuHandler = new ClientMenuHandler(() => desired.ContextMenu);
+        // F11 from the Chromium child may bypass WinForms ProcessCmdKey.
+        browser.KeyboardHandler = new ClientFullscreenKeyboardHandler(() => ToggleFullOnUI());
         browser.PermissionHandler = new ClientGamePermissionHandler();
         // Do not intercept OnCursorChange: Chromium must own the real cursor,
         // capture/release and relative mouse deltas. The earlier native handler
@@ -150,7 +153,7 @@ internal sealed class ClientForm : Form
                     if(IsHandleCreated && !IsDisposed && !Disposing)
                         BeginInvoke((Action)(() => {if(!IsDisposed)SwitchToElectron();}));
                 } catch(InvalidOperationException) {Program.Log("CEF switch ignored during shutdown");}
-            });
+            },() => ToggleFullOnUI());
         Controls.Add(browser);
         if(!switchProbe && !bridgeProbe) {
             loadingPanel=new KSLoadingPanel(Path.Combine(AppContext.BaseDirectory,"assets","ks-logo.png"));
@@ -421,18 +424,28 @@ internal sealed class ClientForm : Form
         Reply("setBrowserConfig",desired,Program.Active,NeedsRestart(),status);
     }
     private void Go(string url){if(Trust(url))browser.Load(url);}
+    private void ToggleFullOnUI()
+    {
+        try {
+            if(IsDisposed || Disposing || !IsHandleCreated)return;
+            if(InvokeRequired) BeginInvoke((Action)(() => {if(!IsDisposed)ToggleFull();}));
+            else ToggleFull();
+        } catch(InvalidOperationException ex) {Program.Log("CEF fullscreen unavailable during shutdown: "+ex.Message);}
+    }
     private void ToggleFull()
     {
         if(!borderless)
         {
-            oldBounds=Bounds;oldBorder=FormBorderStyle;oldWindowState=WindowState;
+            oldBounds=Bounds;oldBorder=FormBorderStyle;oldWindowState=WindowState;oldTopMost=TopMost;
             WindowState=FormWindowState.Normal;
             FormBorderStyle=FormBorderStyle.None;
             Bounds=Screen.FromControl(this).Bounds;
+            TopMost=true;BringToFront();
             borderless=true;
         }
         else
         {
+            TopMost=oldTopMost;
             FormBorderStyle=oldBorder;Bounds=oldBounds;WindowState=oldWindowState;
             borderless=false;
         }
@@ -695,9 +708,11 @@ internal sealed class ClientMenuHandler : CefSharp.Handler.ContextMenuHandler
 internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
 {
     private readonly Action requestSwitchToElectron;
-    internal ClientRequestHandler(Action requestSwitchToElectron)
+    private readonly Action requestToggleFullscreen;
+    internal ClientRequestHandler(Action requestSwitchToElectron,Action requestToggleFullscreen)
     {
         this.requestSwitchToElectron=requestSwitchToElectron;
+        this.requestToggleFullscreen=requestToggleFullscreen;
     }
     protected override IResourceRequestHandler GetResourceRequestHandler(
         IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame,IRequest request,
@@ -723,6 +738,12 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
                 StringComparison.OrdinalIgnoreCase))
             {
                 if(trusted)requestSwitchToElectron();
+                return true;
+            }
+            if(string.Equals(command,"https://kirka.io/__ksclient_internal_toggle_fullscreen__",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                if(trusted)requestToggleFullscreen();
                 return true;
             }
             if(string.Equals(command,"https://kirka.io/__ksclient_internal_open_discord__",
@@ -773,6 +794,20 @@ internal sealed class ClientGamePermissionHandler : CefSharp.Handler.PermissionH
             Program.Log("CEF trusted Kirka.io pointer lock permission granted");
             return true;
         }
+        return false;
+    }
+}
+
+// Capture F11 on the CEF browser thread and marshal the action to WinForms.
+internal sealed class ClientFullscreenKeyboardHandler : CefSharp.Handler.KeyboardHandler
+{
+    private readonly Action toggle;
+    internal ClientFullscreenKeyboardHandler(Action toggle) {this.toggle=toggle;}
+    protected override bool OnPreKeyEvent(IWebBrowser chromiumWebBrowser, IBrowser browser,
+        KeyType type, int windowsKeyCode, int nativeKeyCode, CefEventFlags modifiers,
+        bool isSystemKey, ref bool isKeyboardShortcut)
+    {
+        if(windowsKeyCode==(int)Keys.F11 && type==KeyType.RawKeyDown){toggle();return true;}
         return false;
     }
 }
