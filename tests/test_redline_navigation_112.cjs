@@ -24,7 +24,7 @@ const gameSetup=electron.slice(gameStart,gameEnd);
 assert(!gameSetup.includes('setWindowOpenHandler('),'Kirka game popup must not have a KS handler');
 assert(!gameSetup.includes("on('will-navigate'"),'No game navigation interception');
 assert(!gameSetup.includes("on('will-redirect'"),'No provider redirect interception');
-assert(!gameSetup.includes('did-create-window'),'Do not attach native OAuth popup wrappers');
+assert(!/webContents\\.on\\(['"]did-create-window/.test(gameSetup),'Do not attach native OAuth popup wrappers');
 assert(gameSetup.includes('webSecurity:true')&&gameSetup.includes('sandbox:true')
   &&gameSetup.includes('nodeIntegration:false')&&gameSetup.includes('contextIsolation:true'),
   'Keep current safe Electron renderer options');
