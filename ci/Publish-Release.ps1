@@ -30,11 +30,11 @@ foreach($path in $paths){if(-not (Test-Path $path -PathType Leaf)){throw "Cannot
 & gh release view $tag --repo $repo *> $null
 if($LASTEXITCODE -eq 0){
     # Preserve previously validated release binaries.
-    & gh release edit $tag --repo $repo --notes-file 'RELEASE_BETA_113_EN.md'
+    & gh release edit $tag --repo $repo --notes-file 'RELEASE_BETA_114_EN.md'
     if($LASTEXITCODE -ne 0){throw "Could not refresh $tag release notes"}
     Write-Host "Private release already exists; verified assets preserved."
 } else {
-    & gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client Beta 1.0.14 (CEF fullscreen, FPS caps and languages)' --prerelease --notes-file 'RELEASE_BETA_113_EN.md'
+    & gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client Beta 1.0.14 (CEF fullscreen, FPS caps and languages)' --prerelease --notes-file 'RELEASE_BETA_114_EN.md'
     if($LASTEXITCODE -ne 0){throw "GitHub private release $tag publishing failed"}
 }
 Write-Host "Verified source release: https://github.com/$repo/releases/tag/$tag"
@@ -59,7 +59,7 @@ try{
         Write-Host "Public release $tag already exists; never overwrite verified downloadable assets."
     } else {
         # Public repo has its own main branch/commit, not the private source SHA.
-        & gh release create $tag @publicPaths --repo $publicRepo --target main --title 'KS Client Beta 1.0.14 (Windows binaries)' --prerelease --notes-file 'RELEASE_BETA_113_EN.md'
+        & gh release create $tag @publicPaths --repo $publicRepo --target main --title 'KS Client Beta 1.0.14 (Windows binaries)' --prerelease --notes-file 'RELEASE_BETA_114_EN.md'
         if($LASTEXITCODE -ne 0){throw "Could not publish verified update assets to $publicRepo"}
         Write-Host "Public auto-update feed: https://github.com/$publicRepo/releases/tag/$tag"
     }
