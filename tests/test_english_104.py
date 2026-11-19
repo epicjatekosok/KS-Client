@@ -1,4 +1,4 @@
-"""Beta 1.0.8: English release notes, fitting splash and dynamic setup version."""
+"""Beta 1.0.9: English release notes, fitting splash and dynamic setup version."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -13,17 +13,17 @@ publish=(root/'ci/Publish-Release.ps1').read_text(encoding='utf-8')
 notes=(root/'RELEASE_BETA_105_EN.md').read_text(encoding='utf-8')
 overlay=(root/'electron-app/overlay/overlay.js').read_text(encoding='utf-8')
 
-assert "RELEASE_BETA_108_EN.md" in publish
+assert "RELEASE_BETA_109_EN.md" in publish
 assert "RELEASE_BETA_103_HU.md" not in publish
-assert "v1.0.8-beta" in publish
+assert "v1.0.9-beta" in publish
 assert "Account sign-in: security and recovery" in notes and "Google" in notes
 assert "lang=\"en\"" in loading
 assert "LOADING KS CLIENT" in loading
 assert "KLIENS BETÖLTÉSE" not in loading and "Betöltés" not in loading
 assert "title:'KS Client — Loading',width:490,height:390" in main
 assert 'private string message = "LOADING KS CLIENT"' in cef
-assert "statusBounds" in cef and 'BETA 1.0.8' in cef
-assert "BETA 1.0.3" not in shared and "BETA 1.0.8" not in shared
+assert "statusBounds" in cef and 'BETA 1.0.9' in cef
+assert "BETA 1.0.3" not in shared and "BETA 1.0.9" not in shared
 assert 'strings.TrimSpace(w.Version)' in shared
 assert 'w.Version=releaseLabel' in setup
 assert 'bundledVersionFromArchive' in setup
@@ -32,7 +32,7 @@ assert 'runtime/CEF/ks-smoke-pass.json' in setup
 assert 'w.Version=installedReleaseLabel(folder)' in uninstall
 assert 'r.en.map(item' in overlay
 assert "state.language==='hu'?r.hu:r.en" not in overlay
-assert "v:'Beta 1.0.8'" in overlay and "v:'Beta 1.0.7'" in overlay and "v:'Beta 1.0.6'" in overlay
+assert "v:'Beta 1.0.9'" in overlay and "v:'Beta 1.0.8'" in overlay and "v:'Beta 1.0.7'" in overlay and "v:'Beta 1.0.6'" in overlay
 assert overlay==(root/'cef/overlay/overlay.js').read_text(encoding='utf-8')
 with sync_playwright() as pw:
     browser=pw.chromium.launch(headless=True)
@@ -52,4 +52,4 @@ with sync_playwright() as pw:
     assert not page.locator('.detail').is_hidden()
     assert page.locator('.detail').inner_text()=='LOADING KS CLIENT'
     browser.close()
-print('PASS: Beta 1.0.8 English patch notes and GitHub body, unclipped English splash and dynamic installer version')
+print('PASS: Beta 1.0.9 English patch notes and GitHub body, unclipped English splash and dynamic installer version')
