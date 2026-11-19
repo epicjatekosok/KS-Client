@@ -10,7 +10,7 @@ def add(path,content=b'test'):
  path.write_bytes(content)
 def mark(folder,engine,filename):
  blob=(folder/filename).read_bytes()
- value={'version':'1.0.10','engine':engine,'exeName':filename,
+ value={'version':'1.0.11','engine':engine,'exeName':filename,
         'exeSha256':sha256(blob).hexdigest(),'runner':'windows','result':'PASS'}
  add(folder/'ks-smoke-pass.json',json.dumps(value).encode('utf8'))
 with TemporaryDirectory() as temp:
@@ -21,6 +21,7 @@ with TemporaryDirectory() as temp:
              'runtime/Electron/resources/app/preload.cjs',
              'runtime/Electron/resources/app/assets/loading.html',
              'runtime/Electron/resources/app/assets/ks-logo.png',
+             'runtime/Electron/resources/app/overlay/native_login_gate.js',
              'runtime/Electron/resources/app/overlay/workshop.js',
              'runtime/Electron/resources/app/overlay/integration_core.js',
              'runtime/Electron/resources/app/overlay/game_runtime.js',
@@ -31,6 +32,7 @@ with TemporaryDirectory() as temp:
              'runtime/Electron/resources/app/overlay/freeze_guard.js',
              'runtime/Electron/resources/app/swapper.cjs',
              'runtime/CEF/assets/ks-logo.png',
+             'runtime/CEF/overlay/native_login_gate.js',
              'runtime/CEF/overlay/workshop.js',
              'runtime/CEF/overlay/integration_core.js',
              'runtime/CEF/overlay/game_runtime.js',
@@ -60,5 +62,5 @@ with TemporaryDirectory() as temp:
  mark(root/'runtime/CEF','CEF','KS.Cef.Client.exe')
  ok=run()
  assert ok.returncode==0,(ok.stdout,ok.stderr)
- assert (root/'KS-Client-beta-1.0.10-Portable.zip').is_file()
+ assert (root/'KS-Client-beta-1.0.11-Portable.zip').is_file()
  print('PASS: release requires both current Windows smoke markers')

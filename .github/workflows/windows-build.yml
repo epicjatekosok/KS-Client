@@ -47,7 +47,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
-      - name: Cross-compile 1.0.10 Windows launcher and updater
+      - name: Cross-compile 1.0.11 Windows launcher and updater
         shell: bash
         run: |
           cd launcher
@@ -91,8 +91,8 @@ jobs:
       - name: Verify clean private source snapshot (no Git history or keys)
         shell: pwsh
         run: |
-          ./ci/Package-Source.ps1 -Version '1.0.10'
-          if(-not (Test-Path 'KS-Client-beta-1.0.10-Source.zip')){throw 'Private source snapshot missing'}
+          ./ci/Package-Source.ps1 -Version '1.0.11'
+          if(-not (Test-Path 'KS-Client-beta-1.0.11-Source.zip')){throw 'Private source snapshot missing'}
       - name: Automated browser UI test
         run: |
           python -m pip install playwright
@@ -110,6 +110,7 @@ jobs:
           python tests/test_ui_122.py
           python tests/test_ui_123.py
           python tests/test_ui_beta_100.py
+          python tests/test_auth_clickthrough_111.py
           python tests/test_auth_theme_101.py
           python tests/test_palette_103.py
           python tests/test_updates_103.py
@@ -124,6 +125,7 @@ jobs:
           node tests/test_auth_106.cjs
           node tests/test_login_navigation_109.cjs
           node tests/test_login_routing_110.cjs
+          node tests/test_native_login_111.cjs
 
   offline-installer:
     if: github.event_name != 'pull_request'

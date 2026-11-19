@@ -21,7 +21,7 @@ def test_engine(browser,engine):
     const s=document.querySelector('#ks-client-root').shadowRoot;
     return s.querySelectorAll('#ks-sidebar-groups .ks-tab').length;
   }""")==7
-  assert page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-badge').textContent""")=='KS · 1.0.10'
+  assert page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-badge').textContent""")=='KS · 1.0.11'
   badge=page.evaluate("""() => {
     const b=document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-badge');
     const s=getComputedStyle(b);
@@ -45,10 +45,12 @@ def test_engine(browser,engine):
   page.locator('#join-community').click()
   page.locator('#other-action').click()
   out=page.evaluate('window.__out.filter(m=>m.type==="discord-community")')
-  assert len(out)==2,out
+  # Generic Discord-labelled buttons could be Kirka's OAuth sign-in, not a
+  # community invitation. Intercept only an actual Discord invite URL.
+  assert len(out)==1,out
   assert page.evaluate("document.location.href")== 'about:blank'
   page.close()
-  print('PASS alpha 1.0.10 Chromium UI + Discord',engine)
+  print('PASS alpha 1.0.11 Chromium UI + Discord',engine)
 with sync_playwright() as p:
   browser=p.chromium.launch(headless=True)
   for engine in ('Electron','CEF'):test_engine(browser,engine)
