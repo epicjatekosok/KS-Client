@@ -3563,11 +3563,16 @@
   function isKirkaDiscordButton(element) {
     const control=element.closest('a,button,[role="button"],[id*="discord" i],[class*="discord" i]');
     if(!control || host.contains(control))return false;
+    // Provider buttons live inside Kirka's account dialog. Never hijack a
+    // Discord sign-in button just because its visible label says "Discord".
+    if(control.closest('#auth-modal-modal,[role="dialog"],[id*="auth" i],[class*="auth" i],[id*="login" i],[class*="login" i]'))return false;
     const href=control.getAttribute('href')||'';
     if(href){
       try {
         const url=new URL(href,location.href);
-        if(url.hostname==='discord.gg' || (['discord.com','www.discord.com','discordapp.com'].includes(url.hostname) && (url.pathname.startsWith('/invite/')||url.pathname.startsWith('/channels/'))))return true;
+        if((url.hostname==='discord.gg' && /^\\/[^/]+\\/?$/.test(url.pathname)) ||
+          (['discord.com','www.discord.com','discordapp.com','www.discordapp.com'].includes(url.hostname) &&
+           (url.pathname.startsWith('/invite/')||url.pathname.startsWith('/channels/'))))return true;
       } catch(_){}
     }
     const description=[control.getAttribute('aria-label'),control.getAttribute('title'),control.getAttribute('data-testid'),control.id,control.className,control.textContent].filter(Boolean).join(' ').slice(0,260);
