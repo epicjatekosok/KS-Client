@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.13 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.14 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.13';
+  const CLIENT_VERSION='1.0.14';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -1153,7 +1153,7 @@
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge" aria-label="KS Client Beta 1.0.13">KS · 1.0.13</div>
+    <div id="ks-badge" aria-label="KS Client ${CLIENT_LABEL}">KS · ${CLIENT_VERSION}</div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings" title="KS Client Settings"><span class="ks-gear-icon" aria-hidden="true">⚙</span></button>
       <button type="button" id="ks-discord-quick" class="ks-quick-btn" aria-label="Open KS Client Discord in default browser">KS Discord</button>
@@ -1805,6 +1805,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.14',en:['Fixed the Discord opening indicator so it automatically disappears even when CEF does not send an external-browser reply.','Repaired CEF borderless fullscreen using a trusted native navigation command, a Chromium F11 keyboard handler and Windows UI-thread marshaling.','Expanded fixed FPS targets to 200, 240, 300 and 360; selecting any finite cap now disables persistent Chromium uncap flags and clearly requests restart to reduce uncapped GPU work.','Reduced expensive Settings GPU compositing by removing full-screen backdrop blur, capping graph canvas resolution and avoiding unnecessary client RAF callbacks while settings tabs are open.','Added German, French, Spanish, Portuguese, Italian, Russian, Simplified Chinese and Japanese to Settings; English fallback for rare technical strings, with Windows Setup and Uninstaller remaining English.','Preserved both engines, Kirka native login, user settings, Workshop Experimental, local profiles and verified GitHub releases.']},
     {v:'Beta 1.0.13',en:['Fixed the Settings and sidebar version labels by using the current build version instead of old hard-coded 1.0.5 and 1.0.9 strings.','Protected CEF JavaScript calls when Chromium has not initialized or its IBrowser has been disposed; no uncaught WinForms browser-null dialog after game navigation.','CEF Discord and manual GitHub Releases use fixed client-owned same-origin navigation commands intercepted by the native host, without relying on a potentially dropped JavaScript bridge. Electron sign-in and external links are unchanged.','Clarified engine selection: CEF may provide more FPS but can be less stable; Electron generally favors stability at potentially lower FPS. Actual performance varies.']},
     {v:'Beta 1.0.12',en:['Replaced KS-managed Electron OAuth popup overrides and provider hostname allowlists with the default native Chromium window.open and navigation behavior, following the simpler Redline model.','Removed the CEF account popup lifetime handler, Google/Firebase domain allowlist and authentication-chain tracking; normal HTTP(S) sign-in navigation now belongs to CEF. Kept browser sandboxing, safe renderer preferences, local-file blocking, game pointer lock and only the exact KS-owned Discord invite.','Preserved original Kirka Google, Discord and email login buttons, native login passthrough, HUD, Workshop Experimental, themes, both engines, saved profiles and auto/manual updates. Google may still independently reject embedded OAuth under its official policies.']},
     {v:'Beta 1.0.11',en:['Kirka first-party sign-in is now left untouched: before a game session exists, Electron and CEF skip all injected KS overlays, input listeners and WebGL instrumentation. This allows the original email/password and provider buttons to receive their own browser events.','After Kirka itself creates its game session, the client reloads once and restores the full KS HUD, Workshop, presets, cosmetics, performance features and both browser engines. No user-entered tokens or passwords are required by KS.','Only explicit Discord invitation links open the KS community: game provider buttons with a plain Discord label can no longer be hijacked. Added browser-click and account-gate regression tests; Google may still reject embedded OAuth under its own policy.']},
@@ -1936,7 +1937,7 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', 'KS Client Beta 1.0.13 starts in Electron by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client '+CLIENT_LABEL+' starts in Electron by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Choose CEF for potentially higher FPS, but it may be less stable. Choose Electron for potentially lower FPS, but generally more stable behavior. Actual FPS depends on your PC and game settings. Switching restarts KS Client; browser profiles may differ. Shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron" title="Electron: usually more stable, may run at lower FPS">Electron · Stable</button><button class="ks-btn" data-action="engine-cef" title="CEF: potentially higher FPS, may be less stable">CEF · Higher FPS (experimental)</button></div></div>` +
