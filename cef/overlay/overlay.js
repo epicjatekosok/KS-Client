@@ -184,7 +184,7 @@
   // to reserved Kirka URLs that the native CEF request handler ALWAYS
   // intercepts before network access. Electron keeps its existing IPC path.
   function openTrustedExternal(kind) {
-    if(isGamePage && !window.__KS_NATIVE__?.post && window.CefSharp?.PostMessage) {
+    if(isGamePage && !window.__KS_NATIVE__?.post && (window.CefSharp?.PostMessage || (typeof activeEngine==='string' && activeEngine.toLowerCase().includes('cef')))) {
       const routes={
         discord:'https://kirka.io/__ksclient_internal_open_discord__',
         releases:'https://kirka.io/__ksclient_internal_open_releases__'
@@ -3368,7 +3368,7 @@
     if (a === 'auth-help') { window.__KS_CLIENT__?.openAccountHelp?.(); return; }
     if (a === 'game-screenshot') notify('game-screenshot');
     if (a === 'fullscreen') {
-      if(isGamePage && !window.__KS_NATIVE__?.post && window.CefSharp?.PostMessage)
+      if(isGamePage && !window.__KS_NATIVE__?.post && (window.CefSharp?.PostMessage || (typeof activeEngine==='string' && activeEngine.toLowerCase().includes('cef'))))
         location.assign('https://kirka.io/__ksclient_internal_toggle_fullscreen__');
       else notify('fullscreen');
     }
