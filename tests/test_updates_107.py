@@ -1,4 +1,4 @@
-"""KS Client Beta 1.0.11 native-first, regression-safe dual-engine updater."""
+"""KS Client Beta 1.0.12 native-first, regression-safe dual-engine updater."""
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 electron=(root/'electron-app/main.cjs').read_text(encoding='utf-8')
@@ -10,15 +10,15 @@ cef_loader=(root/'cef/KSLoadingPanel.cs').read_text(encoding='utf-8')
 native=(root/'launcher/update_windows.go').read_text(encoding='utf-8')
 publish=(root/'ci/Publish-Release.ps1').read_text(encoding='utf-8')
 tests=(root/'launcher/update_windows_test.go').read_text(encoding='utf-8')
-assert "const version = \"1.0.11\"" in (root/'launcher/main_windows.go').read_text()
-assert '"version": "1.0.11-beta"' in (root/'electron-app/package.json').read_text()
-assert 'BETA 1.0.11' in loader and 'BETA 1.0.11' in cef_loader
-assert '1.0.11' in (root/'cef/Program.cs').read_text()
-assert '<Version>1.0.11</Version>' in (root/'cef/KS.Cef.Client.csproj').read_text()
+assert "const version = \"1.0.12\"" in (root/'launcher/main_windows.go').read_text()
+assert '"version": "1.0.12-beta"' in (root/'electron-app/package.json').read_text()
+assert 'BETA 1.0.12' in loader and 'BETA 1.0.12' in cef_loader
+assert '1.0.12' in (root/'cef/Program.cs').read_text()
+assert '<Version>1.0.12</Version>' in (root/'cef/KS.Cef.Client.csproj').read_text()
 smoke=(root/'ci/Test-Engines.ps1').read_text()
-assert "$releaseVersion = '1.0.11'" in smoke and 'cef-1.0.11.log' in smoke
+assert "$releaseVersion = '1.0.12'" in smoke and 'cef-1.0.12.log' in smoke
 assert 'Application.Run(smokeContext)' in (root/'cef/Program.cs').read_text(), 'Real CEF startup must use a native WinForms message pump'
-assert 'KS · 1.0.11' in overlay and "v:'Beta 1.0.11'" in overlay and "v:'Beta 1.0.9'" in overlay
+assert 'KS · 1.0.12' in overlay and "v:'Beta 1.0.12'" in overlay and "v:'Beta 1.0.9'" in overlay
 assert "v:'Beta 1.0.6'" in overlay, 'All older release history must remain'
 assert 'ks-workshop-experimental' in overlay and 'auth-import-session' in overlay
 # Both native hosts check as soon as a real game window opens, before waiting for Kirka.io.
@@ -41,8 +41,8 @@ assert 'data-action="update-check"' in overlay and 'data-action="update-install"
 assert 'validUpdateAsset' in native and 'sha256.New()' in native
 assert 'https://api.github.com/repos/' in native and 'digestPattern' in native
 assert 'CheckRedirect' in native and 'waitForExitedPID' in native
-assert 'v1.0.11-beta' in tests and 'v1.0.12-beta' in tests
-assert 'v1.0.11-beta' in publish and 'RELEASE_BETA_111_EN.md' in publish
+assert 'v1.0.13-beta' in tests and 'v1.0.13-beta' in tests
+assert 'v1.0.13-beta' in publish and 'RELEASE_BETA_112_EN.md' in publish
 assert 'gh release create $tag @publicPaths --repo $publicRepo' in publish
 assert 'gh release create $tag @paths --repo $publicRepo' not in publish
-print('PASS Beta 1.0.11 native startup lookup, optional prefetch, settings, dual-engine UI, manual/verified updates')
+print('PASS Beta 1.0.12 native startup lookup, optional prefetch, settings, dual-engine UI, manual/verified updates')
