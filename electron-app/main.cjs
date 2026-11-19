@@ -47,10 +47,15 @@ function validURL(value, gameOnly=false) {
 // navigation/popup callbacks. Keeping it inside createWindow caused a
 // ReferenceError in receiveMessage and an unhandled main-process error dialog.
 function isGameDiscordTarget(raw) {
+  // Only community invitations are redirected to the fixed KS Discord invite.
+  // Discord's OAuth authorization and login pages must remain untouched so
+  // Kirka's own login popup can complete its opener callback.
   try {
     const u=new URL(raw);
-    return u.protocol==='https:' &&
-      ['discord.gg','discord.com','www.discord.com','discordapp.com'].includes(u.hostname);
+    if(u.protocol!=='https:' || u.username || u.password || (u.port && u.port!=='443'))return false;
+    if(u.hostname==='discord.gg')return /^\\/[^/]+\\/?$/.test(u.pathname);
+    return ['discord.com','www.discord.com','discordapp.com','www.discordapp.com'].includes(u.hostname) &&
+      (u.pathname.startsWith('/invite/') || u.pathname.startsWith('/channels/'));
   }catch(_){return false;}
 }
 // Kirka's account login uses real cross-origin OAuth popup windows.
