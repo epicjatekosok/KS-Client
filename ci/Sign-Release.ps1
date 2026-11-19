@@ -4,6 +4,14 @@
 param([Parameter(Mandatory)][ValidateSet('cef','native','setup')][string]$Stage)
 $ErrorActionPreference='Stop'
 $repo=Split-Path -Parent $PSScriptRoot
+# Derive this release's EXE filename from Electron's packaged metadata.
+$package=Get-Content -LiteralPath (Join-Path $repo 'electron-app/package.json') -Raw | ConvertFrom-Json
+$packageVersion=[string]$package.version
+if($packageVersion -notmatch '^[0-9]+[.][0-9]+[.][0-9]+-beta$'){
+    throw "Invalid standalone Beta release metadata: $packageVersion"
+}
+$releaseNumber=$packageVersion -replace '-beta$',''
+$setupName="KS-Client-beta-$releaseNumber-Setup.exe"
 $encoded=$env:KS_SIGNING_PFX_BASE64
 $password=$env:KS_SIGNING_PFX_PASSWORD
 if([bool]$encoded -xor [bool]$password) { throw 'Both signing secrets must be configured together' }
@@ -14,7 +22,7 @@ if(-not $encoded) {
 $files=switch($Stage) {
     'cef' { @(Join-Path $repo 'runtime/CEF/KS.Cef.Client.exe') }
     'native' { @((Join-Path $repo 'KS-Client.exe'),(Join-Path $repo 'Uninstall-KS-Client.exe')) }
-    'setup' { @(Join-Path $repo 'KS-Client-beta-1.0.9-Setup.exe') }
+    'setup' { @(Join-Path $repo $setupName) }
 }
 $exe=Get-Command signtool.exe -ErrorAction SilentlyContinue
 if(-not $exe) {
