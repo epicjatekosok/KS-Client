@@ -24,13 +24,30 @@ internal static class ClientCommunityLinks
              path.StartsWith("/channels/",StringComparison.OrdinalIgnoreCase));
     }
 
-    internal static bool OpenInvite()
+    internal const string PublicReleases="https://github.com/epicjatekosok/KS-Client-Updates/releases";
+
+    private static bool OpenFixedHttps(string address,string label)
     {
-        try {
-            var p=Process.Start(new ProcessStartInfo {FileName=Invite,UseShellExecute=true});
-            if(p is null){Program.Log("KS Discord: Windows returned no default browser process");return false;}
-            p.Dispose();
+        // Call this only with a constant owned by KS Client. No renderer-provided
+        // URL, OAuth token or auth callback may be passed into Process.Start.
+        try
+        {
+            using var process=Process.Start(new ProcessStartInfo {
+                FileName=address, UseShellExecute=true, Verb="open"
+            });
+            if(process is null) {
+                Program.Log(label+": Windows did not return a browser process");
+                return false;
+            }
+            Program.Log(label+": default browser launch requested");
             return true;
-        }catch(Exception ex){Program.Log("KS Discord default browser failed: "+ex.Message);return false;}
+        }
+        catch(Exception ex)
+        {
+            Program.Log(label+": could not open default browser: "+ex.Message);
+            return false;
+        }
     }
+    internal static bool OpenInvite()=>OpenFixedHttps(Invite,"KS Discord");
+    internal static bool OpenPublicReleases()=>OpenFixedHttps(PublicReleases,"KS Releases");
 }

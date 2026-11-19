@@ -106,7 +106,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client Beta 1.0.12 – CEF";
+        Text="KS Client Beta 1.0.13 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -146,7 +146,10 @@ internal sealed class ClientForm : Form
         // an extra KS-specific OAuth domain list or window.opener handler.
         if (!switchProbe && !bridgeProbe)
             browser.RequestHandler = new ClientRequestHandler(() => {
-                if(IsHandleCreated)BeginInvoke((Action)(() => SwitchToElectron()));
+                try {
+                    if(IsHandleCreated && !IsDisposed && !Disposing)
+                        BeginInvoke((Action)(() => {if(!IsDisposed)SwitchToElectron();}));
+                } catch(InvalidOperationException) {Program.Log("CEF switch ignored during shutdown");}
             });
         Controls.Add(browser);
         if(!switchProbe && !bridgeProbe) {
@@ -319,9 +322,35 @@ internal sealed class ClientForm : Form
         return gameOnly?u.Host is "kirka.io" or "www.kirka.io":Allowed.Contains(u.Host);
     }
     private static string JS(object value)=>JsonSerializer.Serialize(value,BrowserPrefs.JsonOpts);
+    // A Kirka single-page route, login callback, reload, or CEF popup may
+    // destroy the underlying IBrowser between a trusted JS event and a native
+    // WinForms reply. CefSharp.ExecuteScriptAsync throws when IBrowser is null.
+    // Guard every native->renderer reply here, not only FrameLoadEnd.
     private void RunJS(string code)
     {
-        if(Trust(browser.Address))browser.ExecuteScriptAsync(code);
+        if(IsDisposed || Disposing || !browser.IsBrowserInitialized || browser.IsDisposed)
+            return;
+        try
+        {
+            if(!Trust(browser.Address))return;
+            var native=browser.GetBrowser();
+            if(native is null || native.IsDisposed)return;
+            var frame=native.MainFrame;
+            if(frame is null || !frame.IsValid)return;
+            frame.ExecuteJavaScriptAsync(code);
+        }
+        catch(ObjectDisposedException)
+        {
+            Program.Log("CEF JavaScript reply skipped: browser/frame disposed");
+        }
+        catch(InvalidOperationException ex)
+        {
+            Program.Log("CEF JavaScript reply skipped: "+ex.Message);
+        }
+        catch(Exception ex)
+        {
+            Program.Log("CEF JavaScript reply failed safely: "+ex.GetType().Name);
+        }
     }
     private void Reply(string method,params object[] args)
       => RunJS("window.__KS_CLIENT__?."+method+"?.apply(window.__KS_CLIENT__,"+JS(args)+");");
@@ -513,8 +542,9 @@ internal sealed class ClientForm : Form
         {
             case "game": Go(Game);break;
             case "update-open-release":
-                try {Process.Start(new ProcessStartInfo {FileName="https://github.com/epicjatekosok/KS-Client-Updates/releases",UseShellExecute=true});}
-                catch(Exception ex){Program.Log("Releases page: "+ex.Message);}
+                // Retained for older overlays. Beta 1.0.13 uses the fixed
+                // native request-command above to survive bridge races.
+                _=Task.Run(()=>ClientCommunityLinks.OpenPublicReleases());
                 break;
             case "auth-help":ShowAccountHelp();break;
             case "discord-community":
@@ -680,15 +710,33 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
     protected override bool OnBeforeBrowse(IWebBrowser chromiumWebBrowser,IBrowser browser,
         IFrame frame,IRequest request,bool userGesture,bool isRedirect)
     {
-        // Preserve the one internal client command, not a general URL router.
-        if(frame.IsMain && string.Equals(
-            request.Url?.TrimEnd('/'),"https://kirka.io/__ksclient_internal_switch_electron__",
-            StringComparison.OrdinalIgnoreCase))
+        // Fixed same-origin commands are intercepted BEFORE Chromium navigates.
+        // They avoid a dropped CefSharp.PostMessage while Kirka changes frames.
+        // Nothing arbitrary can reach Windows: ONLY these literal actions work.
+        // Keep this completely independent from Kirka's original OAuth popups.
+        if(frame.IsMain)
         {
-            if(ClientForm.Trust(frame.Url,gameOnly:true) &&
-               ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true))
-                requestSwitchToElectron();
-            return true;
+            string command=request.Url?.TrimEnd('/') ?? "";
+            bool trusted=ClientForm.Trust(frame.Url,gameOnly:true) &&
+                         ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true);
+            if(string.Equals(command,"https://kirka.io/__ksclient_internal_switch_electron__",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                if(trusted)requestSwitchToElectron();
+                return true;
+            }
+            if(string.Equals(command,"https://kirka.io/__ksclient_internal_open_discord__",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                if(trusted)_=Task.Run(()=>ClientCommunityLinks.OpenInvite());
+                return true;
+            }
+            if(string.Equals(command,"https://kirka.io/__ksclient_internal_open_releases__",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                if(trusted)_=Task.Run(()=>ClientCommunityLinks.OpenPublicReleases());
+                return true;
+            }
         }
         // Kirka's Discord invite is a community shortcut, not an identity
         // provider. Only a genuine invite URL may open the fixed KS invite.
