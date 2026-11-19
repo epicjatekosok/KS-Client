@@ -9,14 +9,22 @@ if(location.protocol==='https:' && ALLOWED.has(location.hostname)){
   contextBridge.exposeInMainWorld('__KS_NATIVE__',Object.freeze({post:(message)=>{
     if(message && typeof message==='object' && !Array.isArray(message))ipcRenderer.send('ks:message',message);
   }}));
-  // One synchronous main-world evaluation of the vetted, bundled scripts.
-  // Electron world 0 is the Kirka page world. Script order is deterministic:
-  // frame pacing -> passive context registry -> optional cosmetics -> freeze guard.
-  // No Node.js objects, native permissions or raw IPC are exposed to the site.
-  try{
-    const src=ipcRenderer.sendSync('ks:early-bundle');
-    if(typeof src==='string'&&src.length>0&&src.length<50000){
-      webFrame.executeJavaScriptInIsolatedWorld(0,[{code:src}],false).catch(()=>{});
-    }
-  }catch(_){}
+  // Dawn leaves Kirka's unauthenticated page alone. Run KS's document-start
+  // WebGL/game hooks only AFTER the game's own session already exists.
+  // The token is inspected as a boolean entirely inside this renderer; no
+  // credential, authorization code, cookie or token is sent over IPC.
+  let gameSessionReady=true;
+  if(['kirka.io','www.kirka.io'].includes(location.hostname)){
+    try{gameSessionReady=!!localStorage.getItem('token');}
+    catch(_){gameSessionReady=false;}
+  }
+  if(gameSessionReady) {
+    // Authenticated games keep every existing early browser/game feature.
+    try{
+      const src=ipcRenderer.sendSync('ks:early-bundle');
+      if(typeof src==='string'&&src.length>0&&src.length<50000){
+        webFrame.executeJavaScriptInIsolatedWorld(0,[{code:src}],false).catch(()=>{});
+      }
+    }catch(_){}
+  }
 }
