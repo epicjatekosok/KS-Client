@@ -6,7 +6,7 @@ assert ui==(r/'cef/overlay/overlay.js').read_text(encoding='utf-8'), "Both engin
 extras=(r/'electron-app/overlay/game_extras.js').read_text(encoding='utf-8')
 assert extras==(r/'cef/overlay/game_extras.js').read_text(encoding='utf-8')
 for key in ('showFPS: false','autoCheckUpdates: true','autoDownloadUpdates: true',"updateChannel: 'beta'",
-            'KS · 1.0.14', "v:'Beta 1.0.14'", "v:'Beta 1.0.13'", "v:'Beta 1.0.9'", "v:'Beta 1.0.8'", "v:'Beta 1.0.7'", "v:'Beta 1.0.6'", "v:'Beta 1.0.4'", "v:'Beta 1.0.3'", "v:'Beta 1.0.2'", "v:'Beta 1.0.1'", "v:'Beta 1.0.0'",'ks-experimental-badge','ks-workshop-experimental',
+            'KS · ${CLIENT_VERSION}', "v:'Beta 1.0.14'", "v:'Beta 1.0.13'", "v:'Beta 1.0.9'", "v:'Beta 1.0.8'", "v:'Beta 1.0.7'", "v:'Beta 1.0.6'", "v:'Beta 1.0.4'", "v:'Beta 1.0.3'", "v:'Beta 1.0.2'", "v:'Beta 1.0.1'", "v:'Beta 1.0.0'",'ks-experimental-badge','ks-workshop-experimental',
             'EXPERIMENTAL · BETA',"data-action=\"update-check\"","data-action=\"update-install\""):
  assert key in ui,key
 assert 'background:rgba(14,13,13,.92)!important' in ui
