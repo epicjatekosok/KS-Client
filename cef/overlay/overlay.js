@@ -1,4 +1,4 @@
-/* KS Client Beta 1.0.8 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.9 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
@@ -1131,7 +1131,7 @@
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge" aria-label="KS Client Beta 1.0.8">KS · 1.0.8</div>
+    <div id="ks-badge" aria-label="KS Client Beta 1.0.9">KS · 1.0.9</div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings" title="KS Client Settings"><span class="ks-gear-icon" aria-hidden="true">⚙</span></button>
       <button type="button" id="ks-discord-quick" class="ks-quick-btn" aria-label="Open KS Client Discord in default browser">KS Discord</button>
@@ -1180,7 +1180,7 @@
   let browserActive = { ...browserPrefs };
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
-  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.8',channel:'beta'};
+  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.9',channel:'beta'};
   let updateRequestId=0;
   let lastUpdateNotice='';
   let updateNoticeTimer=null;
@@ -1764,6 +1764,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.9',en:['Google sign-in clicks no longer open the full KS Settings menu. A compact in-game dialog explains the embedded Google OAuth restriction and offers a quick Kirka.io session import.','Quick session recovery reuses the existing local-only importer: masked secret, explicit consent, Kirka origin validation, overwrite confirmation and in-game reload. No tokens are sent over native IPC.','Preserved both browser engines, account provider popups, update feed, Workshop, user settings and game controls. Direct Google OAuth still requires a supported Kirka return flow.']},
     {v:'Beta 1.0.8',en:['Kept allowlisted Kirka account popups inside Electron and CEF, including popup redirects, instead of forcing the user into Windows Chrome. Both engines preserve their own sessions and the original game window.','Supported identity providers can complete their native popup callbacks inside the client. Google OAuth may still reject embedded user agents under provider policy; this is not a guaranteed direct Google login.','Account help now opens KS Settings locally, and the existing user-consented Kirka session import remains available without sending tokens over native IPC.']},
     {v:'Beta 1.0.7',en:['Checks GitHub releases from the native startup screen even if Kirka.io loads slowly. Manual checks, release notes and verified update downloads remain available in Settings.','The updater honors saved auto-check, auto-download and release-channel choices across Electron and CEF. Both engines use the same SHA-256-verified offline installer.','Aligned network timeouts, kept in-place profile/Workshop upgrades, and preserved all previous gameplay and appearance features.']},
     {v:'Beta 1.0.6',en:['Added optional local Kirka.io session transfer for users logged in via their normal browser. The imported bearer token is never sent to native IPC or logs.','Google embedded OAuth remains unsupported; Kirka validates the imported session and may reject or expire it. Existing providers, engines, Workshop, HUD and settings are preserved.','Public release archives now exclude source code while keeping the source repository private.']},
@@ -1890,7 +1891,7 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', 'KS Client Beta 1.0.8 starts in Electron by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client Beta 1.0.9 starts in Electron by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ. Native shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
@@ -1900,7 +1901,7 @@
           `<div class="ks-row"><div class="ks-label">Borderless fullscreen</div><button class="ks-btn" data-action="fullscreen">Toggle fullscreen · F11</button></div>` +
           `<div class="ks-row"><div class="ks-label">Reset client settings</div><button class="ks-btn danger" data-action="reset">Reset all settings</button></div>` +
           `</div>` +
-          `<p class="ks-hint">This build uses the visible label Beta 1.0.7. Game files and player data still come from Kirka.io.</p>` + historyHTML();
+          `<p class="ks-hint">This build uses the visible label Beta 1.0.9. Game files and player data still come from Kirka.io.</p>` + historyHTML();
       case 'Sharing':
         return title('Settings Backup & Language','Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.') +
           `<div class="ks-card">` +
@@ -2494,7 +2495,7 @@
       `<div id="ks-search-results" role="group" hidden></div>`+
       `<div id="ks-sidebar-groups">`+
       groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon" aria-hidden="true">${groupIcon(g.key)}</span><span>${translateTab(g.key)}</span>${g.key==='Workshop'?'<span class="ks-experimental-badge">EXPERIMENTAL</span>':''}</button>`).join('')+
-      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.8</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
+      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.9</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
@@ -3489,7 +3490,7 @@
       const allowed=['idle','checking','available','current','unavailable','error','downloading'];
       updateStatus={
         state:allowed.includes(status.state)?status.state:'error',
-        current:String(status.current||'Beta 1.0.8').slice(0,40),
+        current:String(status.current||'Beta 1.0.9').slice(0,40),
         version:String(status.version||'').slice(0,40),
         channel:String(status.channel||state.updateChannel).slice(0,12),
         message:String(status.message||'').slice(0,380),
