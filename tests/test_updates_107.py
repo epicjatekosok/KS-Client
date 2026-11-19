@@ -41,7 +41,7 @@ assert 'data-action="update-check"' in overlay and 'data-action="update-install"
 assert 'validUpdateAsset' in native and 'sha256.New()' in native
 assert 'https://api.github.com/repos/' in native and 'digestPattern' in native
 assert 'CheckRedirect' in native and 'waitForExitedPID' in native
-assert 'v1.0.10-beta' in tests and 'v1.0.10-beta' in tests
+assert 'v1.0.9-beta' in tests and 'v1.0.10-beta' in tests
 assert 'v1.0.9-beta' in publish and 'RELEASE_BETA_109_EN.md' in publish
 assert 'gh release create $tag @publicPaths --repo $publicRepo' in publish
 assert 'gh release create $tag @paths --repo $publicRepo' not in publish
