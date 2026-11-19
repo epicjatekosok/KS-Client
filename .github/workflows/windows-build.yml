@@ -125,6 +125,7 @@ jobs:
           node tests/test_native_login_111.cjs
           node tests/test_redline_navigation_112.cjs
           node tests/test_version_cef_links_113.cjs
+          node tests/test_beta_114.cjs
 
   offline-installer:
     if: github.event_name != 'pull_request'
