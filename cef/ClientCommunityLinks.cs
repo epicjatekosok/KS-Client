@@ -65,7 +65,13 @@ internal sealed class ClientCommunityPopupHandler : CefSharp.Handler.LifeSpanHan
         // it only after the user selects an account. Popups are created solely
         // from the trusted Kirka browser by this lifetime handler.
         bool trustedOpener=ClientForm.Trust(frame.Url,gameOnly:true) ||
-            (browser.IsPopup && (ClientAuthentication.IsAllowed(frame.Url,allowBlank:true)));
+            (browser.IsPopup && ClientAuthentication.IsAllowed(frame.Url,allowBlank:true)) ||
+            // Kirka may navigate its MAIN frame to the Google/other provider,
+            // whose account picker can then create a secondary OAuth popup.
+            // Only allow this when Kirka previously initiated a trusted
+            // top-level HTTPS provider navigation in this exact CEF browser.
+            (!browser.IsPopup && ClientAuthentication.HasMainFrameAuthChain(browser) &&
+             ClientAuthentication.IsAllowed(frame.Url));
         if(trustedOpener && ClientAuthentication.IsAllowed(targetUrl,allowBlank:userGesture))
         {
             noJavascriptAccess=false; // Required for OAuth popup result -> opener.
