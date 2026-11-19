@@ -53,7 +53,7 @@ function isGameDiscordTarget(raw) {
   try {
     const u=new URL(raw);
     if(u.protocol!=='https:' || u.username || u.password || (u.port && u.port!=='443'))return false;
-    if(u.hostname==='discord.gg')return /^\\/[^/]+\\/?$/.test(u.pathname);
+    if(u.hostname==='discord.gg')return u.pathname.length>1 && u.pathname.slice(1).split('/').filter(Boolean).length===1;
     return ['discord.com','www.discord.com','discordapp.com','www.discordapp.com'].includes(u.hostname) &&
       (u.pathname.startsWith('/invite/') || u.pathname.startsWith('/channels/'));
   }catch(_){return false;}
