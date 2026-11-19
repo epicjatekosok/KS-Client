@@ -3571,7 +3571,7 @@
     if(href){
       try {
         const url=new URL(href,location.href);
-        if((url.hostname==='discord.gg' && /^\\/[^/]+\\/?$/.test(url.pathname)) ||
+        if((url.hostname==='discord.gg' && url.pathname.length>1 && url.pathname.slice(1).split('/').filter(Boolean).length===1) ||
           (['discord.com','www.discord.com','discordapp.com','www.discordapp.com'].includes(url.hostname) &&
            (url.pathname.startsWith('/invite/')||url.pathname.startsWith('/channels/'))))return true;
       } catch(_){}
