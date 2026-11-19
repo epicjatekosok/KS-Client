@@ -56,8 +56,8 @@ func TestUpdateChannels(t *testing.T){
  if _,ok=chooseUpdate(releases[:1],"beta");ok{t.Fatal("beta channel accepted legacy alpha bridge")}
 }
 func TestNoCurrentVersionOffered(t *testing.T){
- current:=makeAsset("v1.0.13-beta")
- if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.0.13-beta",Prerelease:true,Assets:[]updateAsset{current}}},"beta");ok{
+ current:=makeAsset("v1.0.12-beta")
+ if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.0.12-beta",Prerelease:true,Assets:[]updateAsset{current}}},"beta");ok{
   t.Fatal("updater must not offer the already installed beta")
  }
 }
