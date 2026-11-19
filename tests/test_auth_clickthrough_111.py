@@ -8,7 +8,7 @@ for engine in ('Electron','CEF'):
   browser=pw.chromium.launch(headless=True)
   page=browser.new_page(viewport={'width':1280,'height':800})
   page.set_content("""<!doctype html><html><body>
-  <section id="kirka-login-window">
+  <section id="kirka-login-window" style="position:absolute;top:25%;left:45%;width:340px;padding:18px;background:#171717">
     <button id="google-provider" type="button">Google</button>
     <button id="discord-provider" type="button">Discord</button>
     <form id="email-signin">
