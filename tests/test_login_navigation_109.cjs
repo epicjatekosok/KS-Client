@@ -10,7 +10,7 @@ const src=fs.readFileSync(path.join(root,'electron-app/main.cjs'),'utf8');
 const cef=fs.readFileSync(path.join(root,'cef/ClientForm.cs'),'utf8');
 const popup=fs.readFileSync(path.join(root,'cef/ClientCommunityLinks.cs'),'utf8');
 const auth=fs.readFileSync(path.join(root,'cef/ClientAuthentication.cs'),'utf8');
-const prefix=src.slice(src.indexOf('const AUTH_HOSTS='),src.indexOf('// Beta 1.0.8:',src.indexOf('const AUTH_HOSTS=')));
+const prefix=src.slice(src.indexOf('const AUTH_HOSTS='),src.indexOf('const authContents=new WeakSet();',src.indexOf('const AUTH_HOSTS=')));
 const start=src.indexOf('  const guardMainNavigation=(event,target)=>{');
 const end=src.indexOf("  win.webContents.on('will-navigate',guardMainNavigation);",start);
 assert(start>=0&&end>start&&prefix.includes('function validAuthURL'));
