@@ -1,4 +1,4 @@
-"""KS alpha 1.0.11 release regression: Discord IPC scope, visual controls and honest updater."""
+"""KS alpha 1.0.12 release regression: Discord IPC scope, visual controls and honest updater."""
 from pathlib import Path
 r=Path(__file__).resolve().parents[1]
 e=(r/'electron-app/main.cjs').read_text()
@@ -12,7 +12,7 @@ assert e.count('function openKSDiscord(){')==1
 assert "case 'discord-community':openKSDiscord();break;" in e
 assert "ipcMain.on('ks:message',(event,raw)=>{" in e
 assert "Promise.resolve(shell.openExternal('https://discord.gg/cxP386yGjk'))" in e
-assert "if(u.hostname==='discord.gg')" in e
+assert "if(u.hostname==='discord.gg')" not in e, 'Do not treat arbitrary game popup URLs as KS community'
 assert "['discord.gg','discord.com','www.discord.com','discordapp.com'].includes(u.hostname)" not in e, 'Do not hijack Discord OAuth as a community invite'
 assert '<button type="button" id="ks-discord-quick" class="ks-quick-btn"' in ui
 assert ui.index('id="ks-quick"')<ui.index('id="ks-gear"')<ui.index('id="ks-discord-quick"')
@@ -26,6 +26,6 @@ assert 'epicjatekosok/KS-Client-Updates' in up
 assert 'if response.StatusCode==404' in up
 assert 'digestPattern' in up and 'validUpdateAsset' in up
 assert 'KS_PUBLIC_RELEASE_TOKEN' in pub
-assert 'RELEASE_BETA_111_EN.md' in pub and "v1.0.11-beta" in pub
+assert 'RELEASE_BETA_112_EN.md' in pub and "v1.0.12-beta" in pub
 assert 'PUBLIC_UPDATES_SETUP_HU.md' in (r/'START_HERE_HU.md').read_text()
-print('PASS: 1.0.11 scope-safe native Discord, consistent controls, accessible animations and honest updater')
+print('PASS: 1.0.12 scope-safe native Discord, consistent controls, accessible animations and honest updater')
