@@ -1,7 +1,7 @@
 {
   "name": "ks-client-electron",
   "productName": "KS Client Electron",
-  "version": "1.0.13-beta",
+  "version": "1.0.14-beta",
   "private": true,
   "description": "Unofficial Kirka.io KS Client Electron runtime",
   "main": "main.cjs",
