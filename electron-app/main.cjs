@@ -440,16 +440,16 @@ function createWindow(){
   win.webContents.on('did-create-window',child=>configureAuthPopup(child));
   const guardMainNavigation=(event,target)=>{
     if(validURL(target))return;
-    if(isGoogleSignInURL(target)){
-      // Preserve the game rather than navigating it away to an unsupported
-      // Google OAuth document without a window.opener/callback.
-      event.preventDefault();
-      log('Google main-frame navigation intercepted; account assistance kept inside KS');
-      jsCall('openAccountHelp');
+    // Dawn allows provider-controlled main-frame navigation. The 1.0.9 KS
+    // Google-only interception prevented Kirka's own login UI from opening
+    // at all. Apply the existing HTTPS/host allowlist to Google too; the
+    // provider decides whether it supports this embedded OAuth user agent.
+    // Never spoof Chrome, alter provider credentials, or open Settings here.
+    const source=win.webContents.getURL();
+    if(validAuthURL(target) && (validURL(source,true)||validAuthURL(source))){
+      if(isGoogleSignInURL(target))log('Allowed Kirka-initiated Google navigation (provider policy may deny)');
       return;
     }
-    const source=win.webContents.getURL();
-    if(validAuthURL(target) && (validURL(source,true)||validAuthURL(source)))return;
     event.preventDefault();
     if(validURL(source,true)&&isGameDiscordTarget(target))openKSDiscord();
     else log('Blocked navigation outside client/OAuth allowlist');
