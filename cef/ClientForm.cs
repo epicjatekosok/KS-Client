@@ -106,7 +106,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client Beta 1.0.11 – CEF";
+        Text="KS Client Beta 1.0.12 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -141,11 +141,13 @@ internal sealed class ClientForm : Form
         // capture/release and relative mouse deltas. The earlier native handler
         // could hide an arrow without providing an actual pointer lock.
         browser.RenderProcessMessageHandler = new KSEarlyIntegrationHandler(earlyGameJS);
-        browser.LifeSpanHandler = new ClientCommunityPopupHandler();
+        // No custom LifeSpanHandler: let CEF create normal browser popups.
+        // Its native popup/navigation lifecycle is no longer filtered by
+        // an extra KS-specific OAuth domain list or window.opener handler.
         if (!switchProbe && !bridgeProbe)
             browser.RequestHandler = new ClientRequestHandler(() => {
                 if(IsHandleCreated)BeginInvoke((Action)(() => SwitchToElectron()));
-            },ShowAccountHelp);
+            });
         Controls.Add(browser);
         if(!switchProbe && !bridgeProbe) {
             loadingPanel=new KSLoadingPanel(Path.Combine(AppContext.BaseDirectory,"assets","ks-logo.png"));
@@ -657,16 +659,15 @@ internal sealed class ClientMenuHandler : CefSharp.Handler.ContextMenuHandler
         if(!enabled()) model.Clear();
     }
 }
-// Navigate the main frame only to the game and its approved stats websites.
+// Keep the KS-specific resource swapper and the internal engine switch.
+// Unlike previous versions, Kirka's login providers and their native popups
+// are not routed through a KS-managed authentication/navigation allowlist.
 internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
 {
     private readonly Action requestSwitchToElectron;
-    private readonly Action requestGoogleHelp;
-    private bool authMainFrameNavigation;
-    internal ClientRequestHandler(Action requestSwitchToElectron,Action requestGoogleHelp)
+    internal ClientRequestHandler(Action requestSwitchToElectron)
     {
         this.requestSwitchToElectron=requestSwitchToElectron;
-        this.requestGoogleHelp=requestGoogleHelp;
     }
     protected override IResourceRequestHandler GetResourceRequestHandler(
         IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame,IRequest request,
@@ -676,68 +677,34 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
         var file=KSResourceSwap.Match(request.Url,requestInitiator);
         return file is null ? null! : new KSResourceRequestHandler(file);
     }
-    // Never write OAuth queries, auth codes, email or access tokens to disk.
-    private static string AuthNavigationLabel(string? address)
+    protected override bool OnBeforeBrowse(IWebBrowser chromiumWebBrowser,IBrowser browser,
+        IFrame frame,IRequest request,bool userGesture,bool isRedirect)
     {
-        if(!Uri.TryCreate(address,UriKind.Absolute,out var uri))return "invalid URL";
-        return uri.Scheme=="https" ? uri.Host : "non-HTTPS";
-    }
-    protected override bool OnBeforeBrowse(IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame,IRequest request,bool userGesture,bool isRedirect)
-    {
-        // Native fallback for Kirka's Discord anchor, even when overlay click
-        // interception misses a game-created link.
+        // Preserve the one internal client command, not a general URL router.
+        if(frame.IsMain && string.Equals(
+            request.Url?.TrimEnd('/'),"https://kirka.io/__ksclient_internal_switch_electron__",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            if(ClientForm.Trust(frame.Url,gameOnly:true) &&
+               ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true))
+                requestSwitchToElectron();
+            return true;
+        }
+        // Kirka's Discord invite is a community shortcut, not an identity
+        // provider. Only a genuine invite URL may open the fixed KS invite.
         if(userGesture && ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true)
             && ClientCommunityLinks.IsDiscordTarget(request.Url))
         {
             _=Task.Run(()=>ClientCommunityLinks.OpenInvite());
             return true;
         }
-        try {
-        // Independent navigation fallback if CefSharp.PostMessage is present but
-        // the asynchronous JS->native message is dropped by a renderer.
-        // Restrict the action to a single, exact URL on the trusted game origin.
-        if(frame.IsMain && string.Equals(
-            request.Url?.TrimEnd('/'),"https://kirka.io/__ksclient_internal_switch_electron__",
-            StringComparison.OrdinalIgnoreCase))
-        {
-            if(ClientForm.Trust(frame.Url,gameOnly:true) &&
-                ClientForm.Trust(chromiumWebBrowser.Address,gameOnly:true))
-                requestSwitchToElectron();
-            return true; // Do not actually navigate the game to this internal path.
-        }
-        // Account popups (including an initially blank Firebase popup) use
-        // the same CEF profile as the Kirka game, with opener intact.
-        // Do not redirect provider pages to the Windows default browser.
-        // Kirka's own Google account picker may use a main-frame navigation,
-        // not a popup. 1.0.9 used to block this and open the KS help dialog.
-        // Let it reach the same HTTPS/provider allowlist as other Kirka
-        // sign-in routes; never spoof Chrome or bypass Google's decision.
-        // A separate CEF popup keeps its own OAuth navigation chain and
-        // the same persistent cookie profile as Kirka. Never block its
-        // whitelisted login-provider redirects using the game's main-frame rule.
-        if(browser.IsPopup)
-        {
-            // Firebase/Google may navigate an initially blank provider popup
-            // after account selection. Keep its opener and Chromium cookies.
-            bool accepted=ClientAuthentication.IsAllowed(request.Url,allowBlank:true);
-            if(!accepted)Program.Log("CEF blocked OAuth redirect to "+AuthNavigationLabel(request.Url));
-            return !accepted;
-        }
-        if(!frame.IsMain)return false;
-        if(ClientForm.Trust(request.Url)){
-            authMainFrameNavigation=false;
-            ClientAuthentication.SetMainFrameAuthChain(browser,false);
-            return false;
-        }
-        if(ClientAuthentication.IsAllowed(request.Url) &&
-           (authMainFrameNavigation || ClientForm.Trust(frame.Url,gameOnly:true))){
-            authMainFrameNavigation=true;
-            ClientAuthentication.SetMainFrameAuthChain(browser,true);
-            return false;
-        }
-        Program.Log("CEF blocked non-authentication main-frame navigation");
-        return true;
-        } catch(ObjectDisposedException){return true;}
+        // Security baseline only: never let web content navigate the browser
+        // to local files or privileged script schemes. All ordinary HTTP(S)
+        // account and callback URLs are left to Chromium, with NO host list.
+        if(Uri.TryCreate(request.Url,UriKind.Absolute,out var target) &&
+           target.Scheme is not("https" or "http" or "about"))
+            return true;
+        return false;
     }
 }
 

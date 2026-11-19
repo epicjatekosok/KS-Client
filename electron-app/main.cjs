@@ -1,5 +1,5 @@
 'use strict';
-// KS Client Beta 1.0.11: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.12: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'Beta 1.0.11';
+const APP_VERSION = 'Beta 1.0.12';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -17,7 +17,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.11.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.12.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -47,137 +47,10 @@ function validURL(value, gameOnly=false) {
 // One module-scoped helper shared by the native IPC handler and the Electron
 // navigation/popup callbacks. Keeping it inside createWindow caused a
 // ReferenceError in receiveMessage and an unhandled main-process error dialog.
-function isGameDiscordTarget(raw) {
-  // Only community invitations are redirected to the fixed KS Discord invite.
-  // Discord's OAuth authorization and login pages must remain untouched so
-  // Kirka's own login popup can complete its opener callback.
-  try {
-    const u=new URL(raw);
-    if(u.protocol!=='https:' || u.username || u.password || (u.port && u.port!=='443'))return false;
-    if(u.hostname==='discord.gg')return u.pathname.length>1 && u.pathname.slice(1).split('/').filter(Boolean).length===1;
-    return ['discord.com','www.discord.com','discordapp.com','www.discordapp.com'].includes(u.hostname) &&
-      (u.pathname.startsWith('/invite/') || u.pathname.startsWith('/channels/'));
-  }catch(_){return false;}
-}
-// Kirka's account login uses real cross-origin OAuth popup windows.
-// Keep these windows in Electron's persistent session, with the opener
-// relationship intact. No blanket popups, Node.js, or file:// navigation.
-const AUTH_HOSTS=new Set([
-  'accounts.google.com','consent.google.com','myaccount.google.com',
-  'gsi.google.com','oauth2.googleapis.com','accounts.youtube.com',
-  'facebook.com','www.facebook.com','m.facebook.com','web.facebook.com',
-  'appleid.apple.com','idmsa.apple.com',
-  'login.microsoftonline.com','login.live.com','account.live.com',
-  'github.com','www.github.com','discord.com','www.discord.com',
-  'twitter.com','www.twitter.com','x.com','www.x.com','api.twitter.com',
-  'id.twitch.tv','www.twitch.tv','steamcommunity.com','store.steampowered.com',
-  'auth.kirka.io','accounts.kirka.io'
-]);
-const AUTH_SUFFIXES=['.firebaseapp.com','.web.app','.auth0.com','.supabase.co','.web3auth.io','.kirka.io'];
-function validAuthURL(raw,allowBlank=false){
-  if(allowBlank && (raw==='' || raw==='about:blank'))return true;
-  try{
-    const u=new URL(raw);
-    return u.protocol==='https:' && !u.username && !u.password && (u.port===''||u.port==='443') &&
-      (validURL(raw,true) || AUTH_HOSTS.has(u.hostname) ||
-       AUTH_SUFFIXES.some(suffix=>u.hostname.endsWith(suffix)));
-  }catch(_){return false;}
-}
-// Google's OAuth policy prohibits desktop embedded browsers (including CEF
-// and Electron BrowserWindow) as login user agents. Never spoof Chrome or
-// export provider cookies. Only the exact account-provider hosts trigger
-// the explicit, system-browser recovery path.
-const GOOGLE_ACCOUNT_HOSTS=new Set([
-  'accounts.google.com','consent.google.com','gsi.google.com',
-  'myaccount.google.com','oauth2.googleapis.com','accounts.youtube.com'
-]);
-function isGoogleSignInURL(raw){
-  try{
-    const u=new URL(raw);
-    return u.protocol==='https:' && !u.username && !u.password &&
-      (u.port===''||u.port==='443') && GOOGLE_ACCOUNT_HOSTS.has(u.hostname);
-  }catch(_){return false;}
-}
-// Beta 1.0.11: do not launch the installed browser on account clicks.
-// OAuth provider popups use the SAME persistent Electron session as Kirka.io.
-// Google may reject embedded user agents on its own page: no UA spoofing,
-// provider-cookie export, or false "signed in" message is attempted.
-// Track only browser windows created by the game or its trusted OAuth flow.
-// Never expose the OAuth result or provider cookies to the native process.
-const authContents=new WeakSet();
-function authLocationLabel(raw){
-  try {
-    const u=new URL(raw);
-    // A provider may place one-time tokens in URL paths as well as queries.
-    // Log a hostname only; never store an OAuth code, state, or identity.
-    return u.protocol==='https:' ? u.hostname : 'non-HTTPS';
-  }catch(_){return 'unparseable';}
-}
-function authPopupOptions(parent){
-  // Inherit the SAME defaultSession as the game. Different partitions would
-  // allow Google login but strand the final Kirka account callback.
-  return {title:'KS Client - Account sign-in',width:540,height:720,minWidth:420,minHeight:520,
-    parent,autoHideMenuBar:true,backgroundColor:'#0d1015',
-    webPreferences:{sandbox:true,nodeIntegration:false,contextIsolation:true,webSecurity:true}};
-}
-function configureAuthPopup(child,depth=1){
-  const content=child.webContents;
-  authContents.add(content);
-  child.setMenu(null);
-  // Some identity providers open a second named popup after account selection.
-  // Beta 1.0.11 blocked these indiscriminately; keep native opener references
-  // while allowing only game / known HTTPS identity-provider destinations.
-  content.setWindowOpenHandler(({url,referrer})=>{
-    const source=content.getURL();
-    const initiator=referrer?.url||'';
-    if(isGoogleSignInURL(url))log('Google provider popup requested; provider policy may reject this user agent');
-    if(depth>=3 || !validAuthURL(source,true) || !validAuthURL(url,true) ||
-       (initiator && !validAuthURL(initiator,true))){
-      log('OAuth nested popup blocked: '+authLocationLabel(url));
-      return {action:'deny'};
-    }
-    log('OAuth nested popup allowed: '+authLocationLabel(url));
-    return {action:'allow',overrideBrowserWindowOptions:authPopupOptions(child)};
-  });
-  content.on('did-create-window',nested=>configureAuthPopup(nested,depth+1));
-  const validate=(event,url)=>{
-    if(isGoogleSignInURL(url))log('Google provider navigation inside KS popup (subject to Google policy)');
-    // Some Facebook / Firebase popup SDKs navigate to about:blank as a
-    // transitional page before completing their opener callback.
-    // It stays inside the trusted popup; main-frame checks remain stricter.
-    if(!validAuthURL(url,true)) {
-      event.preventDefault();
-      log('OAuth navigation blocked: '+authLocationLabel(url));
-    }else{
-      log('OAuth navigation allowed: '+authLocationLabel(url));
-    }
-  };
-  content.on('will-navigate',validate);
-  content.on('will-redirect',validate);
-  content.on('did-finish-load',()=>{
-    log('OAuth provider page loaded: '+authLocationLabel(content.getURL()));
-  });
-  child.on('closed',()=>log('OAuth popup closed (no login outcome inferred)'));
-  content.on('did-fail-load',(_event,code,description,url,isMainFrame)=>{
-    if(isMainFrame && code!==-3)
-      log('OAuth load failed '+authLocationLabel(url)+': '+code+' '+String(description).slice(0,60));
-  });
-  content.on('render-process-gone',(_event,details)=>{
-    log('OAuth renderer exited: '+String(details.reason).slice(0,70));
-  });
-}
-function allowOAuthStoragePermission(contents,permission,requestingUrl){
-  if(permission!=='storage-access' && permission!=='top-level-storage-access')return false;
-  const isKirka=Boolean(win && contents===win.webContents &&
-    validURL(win.webContents.getURL(),true));
-  const isAuthPopup=Boolean(contents && authContents.has(contents));
-  if(!isKirka && !isAuthPopup)return false;
-  // Do not grant unrelated camera, microphone, geolocation or device access.
-  if(permission==='storage-access')
-    return validAuthURL(requestingUrl) && !validURL(requestingUrl,true);
-  return (isKirka && validURL(requestingUrl,true)) ||
-    (isAuthPopup && validAuthURL(requestingUrl));
-}
+// Kirka owns its login and OAuth popups. Just like Redline, Electron's
+// built-in navigation/window.open implementation retains the opener and
+// persistent defaultSession. Do NOT register per-provider host allowlists,
+// popup overrides, user-agent spoofing, or custom Google routing here.
 function openKSDiscord(){
   // Constant URL: Kirka JavaScript is never permitted to pass its own URL
   // into the OS shell, preventing arbitrary external link execution.
@@ -243,7 +116,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.11').slice(0,40),
+      current:String(payload.current||'1.0.12').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -425,59 +298,16 @@ function createWindow(){
     webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,nodeIntegration:false,contextIsolation:true,
       webSecurity:true,devTools:true,backgroundThrottling:false,defaultFontFamily:{standard:'Segoe UI'}}});
   win.setMenu(null);
-  // Only game-originated, known HTTPS identity providers can open native
-  // OAuth windows. This preserves window.opener and Kirka's existing cookies.
-  // Google may independently reject embedded user agents; never spoof it.
-  win.webContents.setWindowOpenHandler(({url,referrer})=>{
-    const source=win.webContents.getURL();
-    // A Kirka-started top-level login can itself open a secondary account
-    // selector. Retain the trusted chain after leaving kirka.io, but only for
-    // exact HTTPS identity-provider hosts; never trust arbitrary websites.
-    const trustedOpener=validURL(source,true) ||
-      (win.webContents.__ksKirkaAuthChain===true && validAuthURL(source));
-    if(!trustedOpener)return {action:'deny'};
-    if(isGameDiscordTarget(url)){openKSDiscord();return {action:'deny'};}
-    if(isGoogleSignInURL(url))log('Google login popup requested from Kirka: keeping the user inside KS');
-    const initiator=referrer?.url||'';
-    if(initiator && !validURL(initiator,true) && !validAuthURL(initiator))
-      return {action:'deny'};
-    if(!validAuthURL(url,true)){
-      log('Blocked non-authentication popup');
-      return {action:'deny'};
-    }
-    log('Allowed Kirka OAuth popup');
-    return {action:'allow',overrideBrowserWindowOptions:authPopupOptions(win)};
-  });
-  win.webContents.on('did-create-window',child=>configureAuthPopup(child));
-  const guardMainNavigation=(event,target)=>{
-    if(validURL(target)){
-      // A return to Kirka closes the tracked main-window OAuth chain.
-      win.webContents.__ksKirkaAuthChain=false;
-      return;
-    }
-    // Dawn allows provider-controlled main-frame navigation. The 1.0.11 KS
-    // Google-only interception prevented Kirka's own login UI from opening
-    // at all. Apply the existing HTTPS/host allowlist to Google too; the
-    // provider decides whether it supports this embedded OAuth user agent.
-    // Never spoof Chrome, alter provider credentials, or open Settings here.
-    const source=win.webContents.getURL();
-    if(validAuthURL(target) && (validURL(source,true)||validAuthURL(source))){
-      win.webContents.__ksKirkaAuthChain=true;
-      if(isGoogleSignInURL(target))log('Allowed Kirka-initiated Google navigation (provider policy may deny)');
-      return;
-    }
-    event.preventDefault();
-    if(validURL(source,true)&&isGameDiscordTarget(target))openKSDiscord();
-    else log('Blocked navigation outside client/OAuth allowlist');
-  };
-  win.webContents.on('will-navigate',guardMainNavigation);
-  win.webContents.on('will-redirect',guardMainNavigation);
+  // No game setWindowOpenHandler, did-create-window OAuth wrapper,
+  // will-navigate interceptor or will-redirect interceptor. Electron 45
+  // handles Kirka's window.open and normal HTTPS navigation natively.
+  // This matches Redline's simpler BrowserWindow approach.
   win.webContents.on('context-menu',(event)=>{if(!desired.contextMenu)event.preventDefault()});
   win.webContents.on('dom-ready',async()=>{
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.11 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.12 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
@@ -758,8 +588,17 @@ app.whenReady().then(()=>{
   // Use the browser permissions necessary for an FPS game, deny unrelated access.
   const allowGamePermission=(wc,permission,origin)=>{
     const isGame=validURL(origin||wc?.getURL?.()||'',true);
-    return (isGame && (permission==='pointerLock'||permission==='fullscreen')) ||
-      allowOAuthStoragePermission(wc,permission,origin);
+    if(isGame && (permission==='pointerLock'||permission==='fullscreen'))return true;
+    // Grant Chromium's generic HTTPS storage-access permission without
+    // assuming which third-party identity provider Kirka currently uses.
+    // No domain list, password access, token relay or Google-specific rule.
+    if(permission==='storage-access'||permission==='top-level-storage-access'){
+      try{
+        const u=new URL(origin||wc?.getURL?.()||'');
+        return u.protocol==='https:' && !u.username && !u.password;
+      }catch(_){return false;}
+    }
+    return false; // Camera, mic and other game-irrelevant capabilities stay denied.
   };
   session.defaultSession.setPermissionRequestHandler((contents,permission,callback,details)=>{
     const origin=details?.requestingUrl||contents?.getURL()||'';
