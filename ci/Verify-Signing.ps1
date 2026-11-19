@@ -4,10 +4,10 @@ param()
 $ErrorActionPreference='Stop'
 $repo=Split-Path -Parent $PSScriptRoot
 $files=@('KS-Client.exe','Uninstall-KS-Client.exe',
-  'runtime/CEF/KS.Cef.Client.exe','KS-Client-beta-1.0.7-Setup.exe')
+  'runtime/CEF/KS.Cef.Client.exe','KS-Client-beta-1.0.8-Setup.exe')
 $require=[bool]$env:KS_SIGNING_PFX_BASE64
 $allValid=$true
-$report=@('KS CLIENT BETA 1.0.7 CODE SIGNING STATUS',
+$report=@('KS CLIENT BETA 1.0.8 CODE SIGNING STATUS',
   'Authenticode verification only; not a guarantee of browser or SmartScreen reputation.')
 foreach($rel in $files) {
   $path=Join-Path $repo $rel

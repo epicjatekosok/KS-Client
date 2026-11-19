@@ -1,4 +1,4 @@
-/* KS Client Beta 1.0.7 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.8 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
@@ -1130,7 +1130,7 @@
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge" aria-label="KS Client Beta 1.0.7">KS · 1.0.7</div>
+    <div id="ks-badge" aria-label="KS Client Beta 1.0.8">KS · 1.0.8</div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings" title="KS Client Settings"><span class="ks-gear-icon" aria-hidden="true">⚙</span></button>
       <button type="button" id="ks-discord-quick" class="ks-quick-btn" aria-label="Open KS Client Discord in default browser">KS Discord</button>
@@ -1179,7 +1179,7 @@
   let browserActive = { ...browserPrefs };
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
-  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.7',channel:'beta'};
+  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.8',channel:'beta'};
   let updateRequestId=0;
   let lastUpdateNotice='';
   let updateNoticeTimer=null;
@@ -1763,6 +1763,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.8',en:['Kept allowlisted Kirka account popups inside Electron and CEF, including popup redirects, instead of forcing the user into Windows Chrome. Both engines preserve their own sessions and the original game window.','Supported identity providers can complete their native popup callbacks inside the client. Google OAuth may still reject embedded user agents under provider policy; this is not a guaranteed direct Google login.','Account help now opens KS Settings locally, and the existing user-consented Kirka session import remains available without sending tokens over native IPC.']},
     {v:'Beta 1.0.7',en:['Checks GitHub releases from the native startup screen even if Kirka.io loads slowly. Manual checks, release notes and verified update downloads remain available in Settings.','The updater honors saved auto-check, auto-download and release-channel choices across Electron and CEF. Both engines use the same SHA-256-verified offline installer.','Aligned network timeouts, kept in-place profile/Workshop upgrades, and preserved all previous gameplay and appearance features.']},
     {v:'Beta 1.0.6',en:['Added optional local Kirka.io session transfer for users logged in via their normal browser. The imported bearer token is never sent to native IPC or logs.','Google embedded OAuth remains unsupported; Kirka validates the imported session and may reject or expire it. Existing providers, engines, Workshop, HUD and settings are preserved.','Public release archives now exclude source code while keeping the source repository private.']},
     {v:'Beta 1.0.5',en:['Researched Google embedded OAuth restrictions affecting Gmail/YouTube account login. Google does not support login inside CEF or Electron embedded windows.','Added explicit secure Windows browser sign-in assistance; never copy account credentials, OAuth codes or cookies back to KS Client.','Preserved native non-Google sign-in popups and added safer Google redirect handling, sanitized diagnostics and regression tests. Full in-client Google login needs official Kirka OAuth callback support.']},
@@ -1888,11 +1889,11 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', 'KS Client Beta 1.0.7 starts in Electron by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client Beta 1.0.8 starts in Electron by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ. Native shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
-          `<div class="ks-row"><div><div class="ks-label">Account sign-in assistance</div><div class="ks-desc">Google OAuth is not supported in embedded CEF/Electron. Use a supported browser to sign in, then optionally bring the Kirka.io game session into KS Client below. You can play here if Kirka accepts the session.</div></div><button class="ks-btn" data-action="auth-open-browser">Browser sign-in help</button></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Kirka account sign-in</div><div class="ks-desc">Sign-in windows for supported providers stay inside KS Client, sharing the game's browser session. Google can refuse authentication in embedded apps by its own policy; KS does not spoof the browser or send you away to play in Chrome. A Chrome login alone does not sign in this separate profile. If you already have a Kirka game session in Chrome, the optional local import below can transfer it into the client.</div></div><span class="ks-pill">IN CLIENT</span></div>` +
           `<div class="ks-row"><div style="min-width:0;flex:1"><div class="ks-label">Import Kirka.io session (advanced)</div><div class="ks-desc">First sign in to https://kirka.io/ in your regular browser. On that exact page, open Developer Tools Console and run <code>copy(localStorage.getItem('token'))</code>. Paste below. Treat this session token like a password: never share it, including in chat or support. It is saved only in this engine's Kirka.io local storage, not sent to KS Client servers. Kirka may reject or expire it.</div><input class="ks-input" id="ks-account-session-token" type="password" maxlength="8192" autocomplete="new-password" spellcheck="false" placeholder="Kirka.io token (keep secret)" aria-label="Kirka.io session token" style="width:100%;margin-top:8px"><label class="ks-desc" style="display:block;margin-top:8px"><input id="ks-account-session-consent" type="checkbox"> I understand that a session token grants access to my Kirka account.</label><div id="ks-account-session-status" class="ks-desc" role="status" aria-live="polite"></div></div><button class="ks-btn" data-action="auth-import-session">Import session locally</button></div>` +
           (engineSwitchStatus ? `<p class="ks-hint" id="ks-engine-switch-status">${esc(engineSwitchStatus)}</p>` : '') +
           `<div class="ks-row"><div class="ks-label">Borderless fullscreen</div><button class="ks-btn" data-action="fullscreen">Toggle fullscreen · F11</button></div>` +
@@ -2492,7 +2493,7 @@
       `<div id="ks-search-results" role="group" hidden></div>`+
       `<div id="ks-sidebar-groups">`+
       groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon" aria-hidden="true">${groupIcon(g.key)}</span><span>${translateTab(g.key)}</span>${g.key==='Workshop'?'<span class="ks-experimental-badge">EXPERIMENTAL</span>':''}</button>`).join('')+
-      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.7</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
+      `</div><div class="ks-sidebar-foot">KS CLIENT <span>BETA 1.0.8</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
@@ -3288,9 +3289,7 @@
       const el=$('ks-extra-status');if(el)el.textContent=sharingStatus;
     }
     if (a === 'auth-import-session') { importKirkaSession(); return; }
-    if (a === 'auth-open-browser') {
-      if(!notify('auth-open-browser'))alert('Use KS Client Settings > General to import your own Kirka.io session locally.');
-    }
+    if (a === 'auth-help') { window.__KS_CLIENT__?.openAccountHelp?.(); return; }
     if (a === 'game-screenshot') notify('game-screenshot');
     if (a === 'fullscreen') notify('fullscreen');
     if (a === 'check-gpu') checkGPU();
@@ -3428,13 +3427,15 @@
   setInterval(()=>{if(open && selectedTab==='Diagnostics')notify('diagnostics-poll');},2000);
   setInterval(()=>{if(open && (selectedTab==='Performance'||selectedTab==='Frame Stability'))notify('fps-diagnostics');},1800);
   window.__KS_CLIENT__ = {
+    // Never use native IPC for Kirka bearer tokens; account help is local UI.
+    openAccountHelp: () => { selectedTab='General';show(true); },
     setUpdateStatus: status => {
       if(!status || typeof status!=='object')return;
       updateRequestId++;
       const allowed=['idle','checking','available','current','unavailable','error','downloading'];
       updateStatus={
         state:allowed.includes(status.state)?status.state:'error',
-        current:String(status.current||'Beta 1.0.7').slice(0,40),
+        current:String(status.current||'Beta 1.0.8').slice(0,40),
         version:String(status.version||'').slice(0,40),
         channel:String(status.channel||state.updateChannel).slice(0,12),
         message:String(status.message||'').slice(0,380),

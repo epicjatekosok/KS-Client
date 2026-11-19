@@ -1,5 +1,5 @@
 'use strict';
-// Beta 1.0.2: simulate the final browser-side OAuth handoff without credentials.
+// Beta 1.0.8: simulate trusted in-client OAuth popup navigation without credentials.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
@@ -44,7 +44,7 @@ const googleOption=popup.webContents.handler({
   url:'https://gsi.google.com/select?client_id=secret',
   referrer:{url:'https://accounts.google.com/'}
 });
-assert.equal(googleOption.action,'deny','Google must never be embedded in KS');
+assert.equal(googleOption.action,'allow','Trusted Google provider popup remains in-client; Google policy may still reject it');
 const options=popup.webContents.handler({
   url:'https://www.facebook.com/dialog/oauth',
   referrer:{url:'https://kirka.io/'}
@@ -70,7 +70,7 @@ assert.equal(nested.webContents.handler({
 }).action,'allow');
 assert.equal(nested.webContents.handler({
   url:'https://accounts.google.com/o/oauth2/v2/auth'
-}).action,'deny','Google redirect from a blank popup must be recovered in system browser');
+}).action,'allow','Trusted late Google redirect should preserve the popup opener');
 let blocked=false;
 nestedEvents['will-redirect']({preventDefault(){blocked=true;}},
  'https://project-name.firebaseapp.com/__/auth/handler?state=private-token');
@@ -92,7 +92,7 @@ closePopup.setMenu=()=>{};
 configure(closePopup,2);
 lateEvents['will-redirect']({preventDefault(){blocked=true;}},
  'https://accounts.google.com/o/oauth2/v2/auth?state=secret');
-assert(blocked && closePopup.closed,'Late Google redirect must be blocked and empty popup closed');
+assert(!blocked && !closePopup.closed,'Safe Google redirect remains in native popup; no Chrome handoff');
 assert(!label('https://accounts.google.com/signin?email=private@example.com&state=secret').includes('private@example.com'));
 assert(!reports.join(' ').includes('private-token'), 'Never log OAuth secret parameters');
 // Chromium Storage Access API is requested independently of permissionRequest.
@@ -116,4 +116,4 @@ assert(cefAuth.includes('gsi.google.com')&&cefAuth.includes('.web.app'));
 assert(cefPopup.includes('noJavascriptAccess=false'));
 assert(src.includes('session.defaultSession.setPermissionRequestHandler'));
 assert(src.includes('session.defaultSession.setPermissionCheckHandler'));
-console.log('PASS: Beta 1.0.5 safe external Google recovery, other provider popups, Firebase callback, scoped storage and sanitized logs');
+console.log('PASS: Beta 1.0.8 native OAuth popups, Firebase callback, scoped storage, no external game and sanitized logs');
