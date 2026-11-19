@@ -92,7 +92,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client Beta 1.0.9 – CEF";
+        Text="KS Client Beta 1.0.10 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -708,11 +708,13 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
         if(!frame.IsMain)return false;
         if(ClientForm.Trust(request.Url)){
             authMainFrameNavigation=false;
+            ClientAuthentication.SetMainFrameAuthChain(browser,false);
             return false;
         }
         if(ClientAuthentication.IsAllowed(request.Url) &&
            (authMainFrameNavigation || ClientForm.Trust(frame.Url,gameOnly:true))){
             authMainFrameNavigation=true;
+            ClientAuthentication.SetMainFrameAuthChain(browser,true);
             return false;
         }
         Program.Log("CEF blocked non-authentication main-frame navigation");

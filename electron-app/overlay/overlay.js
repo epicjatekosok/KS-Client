@@ -1,4 +1,4 @@
-/* KS Client Beta 1.0.9 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.10 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
@@ -1131,7 +1131,7 @@
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge" aria-label="KS Client Beta 1.0.9">KS · 1.0.9</div>
+    <div id="ks-badge" aria-label="KS Client Beta 1.0.10">KS · 1.0.10</div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings" title="KS Client Settings"><span class="ks-gear-icon" aria-hidden="true">⚙</span></button>
       <button type="button" id="ks-discord-quick" class="ks-quick-btn" aria-label="Open KS Client Discord in default browser">KS Discord</button>
@@ -1180,7 +1180,7 @@
   let browserActive = { ...browserPrefs };
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
-  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.9',channel:'beta'};
+  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.10',channel:'beta'};
   let updateRequestId=0;
   let lastUpdateNotice='';
   let updateNoticeTimer=null;
@@ -1764,6 +1764,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.10',en:['Kept Kirka account login buttons separate from KS Discord community invitations in both Electron and CEF. Discord OAuth authorization pages now follow the normal allowed provider flow.','Preserved trusted Kirka-initiated Google/Firebase popup and main-frame navigation without opening Settings or requiring a manual session import for regular in-game sign-in. Google can still deny embedded OAuth due to provider policy.','Kept existing settings, Workshop Experimental, both browser engines, user profiles, pointer lock, HUD, in-place updater and complete earlier version history.']},
     {v:'Beta 1.0.9',en:['Google sign-in clicks no longer open the full KS Settings menu. A compact in-game dialog explains the embedded Google OAuth restriction and offers a quick Kirka.io session import.','Quick session recovery reuses the existing local-only importer: masked secret, explicit consent, Kirka origin validation, overwrite confirmation and in-game reload. No tokens are sent over native IPC.','Preserved both browser engines, account provider popups, update feed, Workshop, user settings and game controls. Direct Google OAuth still requires a supported Kirka return flow.']},
     {v:'Beta 1.0.8',en:['Kept allowlisted Kirka account popups inside Electron and CEF, including popup redirects, instead of forcing the user into Windows Chrome. Both engines preserve their own sessions and the original game window.','Supported identity providers can complete their native popup callbacks inside the client. Google OAuth may still reject embedded user agents under provider policy; this is not a guaranteed direct Google login.','Account help now opens KS Settings locally, and the existing user-consented Kirka session import remains available without sending tokens over native IPC.']},
     {v:'Beta 1.0.7',en:['Checks GitHub releases from the native startup screen even if Kirka.io loads slowly. Manual checks, release notes and verified update downloads remain available in Settings.','The updater honors saved auto-check, auto-download and release-channel choices across Electron and CEF. Both engines use the same SHA-256-verified offline installer.','Aligned network timeouts, kept in-place profile/Workshop upgrades, and preserved all previous gameplay and appearance features.']},
@@ -1891,7 +1892,7 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', 'KS Client Beta 1.0.9 starts in Electron by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client Beta 1.0.10 starts in Electron by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Both engines are installed together. Switching restarts KS Client; browser profiles may differ. Native shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron">Electron</button><button class="ks-btn" data-action="engine-cef">CEF</button></div></div>` +
@@ -1901,7 +1902,7 @@
           `<div class="ks-row"><div class="ks-label">Borderless fullscreen</div><button class="ks-btn" data-action="fullscreen">Toggle fullscreen · F11</button></div>` +
           `<div class="ks-row"><div class="ks-label">Reset client settings</div><button class="ks-btn danger" data-action="reset">Reset all settings</button></div>` +
           `</div>` +
-          `<p class="ks-hint">This build uses the visible label Beta 1.0.9. Game files and player data still come from Kirka.io.</p>` + historyHTML();
+          `<p class="ks-hint">This build uses the visible label Beta 1.0.10. Game files and player data still come from Kirka.io.</p>` + historyHTML();
       case 'Sharing':
         return title('Settings Backup & Language','Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.') +
           `<div class="ks-card">` +
@@ -3490,7 +3491,7 @@
       const allowed=['idle','checking','available','current','unavailable','error','downloading'];
       updateStatus={
         state:allowed.includes(status.state)?status.state:'error',
-        current:String(status.current||'Beta 1.0.9').slice(0,40),
+        current:String(status.current||'Beta 1.0.10').slice(0,40),
         version:String(status.version||'').slice(0,40),
         channel:String(status.channel||state.updateChannel).slice(0,12),
         message:String(status.message||'').slice(0,380),
@@ -3563,12 +3564,20 @@
   function isKirkaDiscordButton(element) {
     const control=element.closest('a,button,[role="button"],[id*="discord" i],[class*="discord" i]');
     if(!control || host.contains(control))return false;
+    // Provider buttons live inside Kirka's account dialog. Never hijack a
+    // Discord sign-in button just because its visible label says "Discord".
+    if(control.closest('#auth-modal-modal,[role="dialog"],[id*="auth" i],[class*="auth" i],[id*="login" i],[class*="login" i]'))return false;
     const href=control.getAttribute('href')||'';
     if(href){
       try {
         const url=new URL(href,location.href);
-        if(url.hostname==='discord.gg' || (['discord.com','www.discord.com','discordapp.com'].includes(url.hostname) && (url.pathname.startsWith('/invite/')||url.pathname.startsWith('/channels/'))))return true;
-      } catch(_){}
+        if((url.hostname==='discord.gg' && url.pathname.length>1 && url.pathname.slice(1).split('/').filter(Boolean).length===1) ||
+          (['discord.com','www.discord.com','discordapp.com','www.discordapp.com'].includes(url.hostname) &&
+           (url.pathname.startsWith('/invite/')||url.pathname.startsWith('/channels/'))))return true;
+        // A real anchor with a login/OAuth URL is NOT a community button,
+        // even if its visible text says Discord.
+        return false;
+      } catch(_){return false;}
     }
     const description=[control.getAttribute('aria-label'),control.getAttribute('title'),control.getAttribute('data-testid'),control.id,control.className,control.textContent].filter(Boolean).join(' ').slice(0,260);
     return /(?:^|[^a-z])discord(?:$|[^a-z])/i.test(description);

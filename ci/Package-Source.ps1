@@ -1,7 +1,7 @@
 # Create a public *source snapshot* without .git history, credentials,
 # build output, user profiles or any GitHub Actions secret values.
 [CmdletBinding()]
-param([string]$Version='1.0.9')
+param([string]$Version='1.0.10')
 $ErrorActionPreference='Stop'
 if($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$'){throw 'Invalid source snapshot version'}
 $root=Split-Path -Parent $PSScriptRoot

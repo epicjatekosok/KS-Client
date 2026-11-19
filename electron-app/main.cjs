@@ -1,5 +1,5 @@
 'use strict';
-// KS Client Beta 1.0.9: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.10: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'Beta 1.0.9';
+const APP_VERSION = 'Beta 1.0.10';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -17,7 +17,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.9.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.10.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -47,10 +47,15 @@ function validURL(value, gameOnly=false) {
 // navigation/popup callbacks. Keeping it inside createWindow caused a
 // ReferenceError in receiveMessage and an unhandled main-process error dialog.
 function isGameDiscordTarget(raw) {
+  // Only community invitations are redirected to the fixed KS Discord invite.
+  // Discord's OAuth authorization and login pages must remain untouched so
+  // Kirka's own login popup can complete its opener callback.
   try {
     const u=new URL(raw);
-    return u.protocol==='https:' &&
-      ['discord.gg','discord.com','www.discord.com','discordapp.com'].includes(u.hostname);
+    if(u.protocol!=='https:' || u.username || u.password || (u.port && u.port!=='443'))return false;
+    if(u.hostname==='discord.gg')return u.pathname.length>1 && u.pathname.slice(1).split('/').filter(Boolean).length===1;
+    return ['discord.com','www.discord.com','discordapp.com','www.discordapp.com'].includes(u.hostname) &&
+      (u.pathname.startsWith('/invite/') || u.pathname.startsWith('/channels/'));
   }catch(_){return false;}
 }
 // Kirka's account login uses real cross-origin OAuth popup windows.
@@ -92,7 +97,7 @@ function isGoogleSignInURL(raw){
       (u.port===''||u.port==='443') && GOOGLE_ACCOUNT_HOSTS.has(u.hostname);
   }catch(_){return false;}
 }
-// Beta 1.0.9: do not launch the installed browser on account clicks.
+// Beta 1.0.10: do not launch the installed browser on account clicks.
 // OAuth provider popups use the SAME persistent Electron session as Kirka.io.
 // Google may reject embedded user agents on its own page: no UA spoofing,
 // provider-cookie export, or false "signed in" message is attempted.
@@ -119,7 +124,7 @@ function configureAuthPopup(child,depth=1){
   authContents.add(content);
   child.setMenu(null);
   // Some identity providers open a second named popup after account selection.
-  // Beta 1.0.9 blocked these indiscriminately; keep native opener references
+  // Beta 1.0.10 blocked these indiscriminately; keep native opener references
   // while allowing only game / known HTTPS identity-provider destinations.
   content.setWindowOpenHandler(({url,referrer})=>{
     const source=content.getURL();
@@ -237,7 +242,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.9').slice(0,40),
+      current:String(payload.current||'1.0.10').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -424,7 +429,12 @@ function createWindow(){
   // Google may independently reject embedded user agents; never spoof it.
   win.webContents.setWindowOpenHandler(({url,referrer})=>{
     const source=win.webContents.getURL();
-    if(!validURL(source,true))return {action:'deny'};
+    // A Kirka-started top-level login can itself open a secondary account
+    // selector. Retain the trusted chain after leaving kirka.io, but only for
+    // exact HTTPS identity-provider hosts; never trust arbitrary websites.
+    const trustedOpener=validURL(source,true) ||
+      (win.webContents.__ksKirkaAuthChain===true && validAuthURL(source));
+    if(!trustedOpener)return {action:'deny'};
     if(isGameDiscordTarget(url)){openKSDiscord();return {action:'deny'};}
     if(isGoogleSignInURL(url))log('Google login popup requested from Kirka: keeping the user inside KS');
     const initiator=referrer?.url||'';
@@ -439,14 +449,19 @@ function createWindow(){
   });
   win.webContents.on('did-create-window',child=>configureAuthPopup(child));
   const guardMainNavigation=(event,target)=>{
-    if(validURL(target))return;
-    // Dawn allows provider-controlled main-frame navigation. The 1.0.9 KS
+    if(validURL(target)){
+      // A return to Kirka closes the tracked main-window OAuth chain.
+      win.webContents.__ksKirkaAuthChain=false;
+      return;
+    }
+    // Dawn allows provider-controlled main-frame navigation. The 1.0.10 KS
     // Google-only interception prevented Kirka's own login UI from opening
     // at all. Apply the existing HTTPS/host allowlist to Google too; the
     // provider decides whether it supports this embedded OAuth user agent.
     // Never spoof Chrome, alter provider credentials, or open Settings here.
     const source=win.webContents.getURL();
     if(validAuthURL(target) && (validURL(source,true)||validAuthURL(source))){
+      win.webContents.__ksKirkaAuthChain=true;
       if(isGoogleSignInURL(target))log('Allowed Kirka-initiated Google navigation (provider policy may deny)');
       return;
     }
@@ -461,7 +476,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.9 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.10 settings UI.
     try{
       await win.webContents.executeJavaScript(frameJS,true);
       // Late fallback if early main-world evaluation was blocked or missed.

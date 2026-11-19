@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using CefSharp;
 
 namespace KSClient.CefHost;
 
@@ -7,6 +9,18 @@ namespace KSClient.CefHost;
 // external pages through a Kirka popup.
 internal static class ClientAuthentication
 {
+    // Tracks only whether an approved Kirka-originated top-level provider flow
+    // is active; never stores OAuth URLs, credentials or provider cookies.
+    // Indexed by native CEF browser identity so unrelated pages cannot
+    // authorize popups from a different game browser.
+    private static readonly ConcurrentDictionary<int, byte> MainFrameAuthChains = new();
+    internal static void SetMainFrameAuthChain(IBrowser browser, bool active)
+    {
+        if(active)MainFrameAuthChains[browser.Identifier]=1;
+        else MainFrameAuthChains.TryRemove(browser.Identifier,out _);
+    }
+    internal static bool HasMainFrameAuthChain(IBrowser browser)
+        => MainFrameAuthChains.ContainsKey(browser.Identifier);
     private static readonly HashSet<string> Hosts = new(StringComparer.OrdinalIgnoreCase)
     {
         "accounts.google.com", "consent.google.com", "myaccount.google.com",
