@@ -19,7 +19,7 @@ for key in ('#stats{','#keys{','.key.down{','border-radius:10px','rgba(255,157,2
 electron=(r/'electron-app/main.cjs').read_text()
 cef=(r/'cef/ClientForm.cs').read_text()
 assert 'https://github.com/epicjatekosok/KS-Client-Updates/releases' in electron
-assert 'https://github.com/epicjatekosok/KS-Client-Updates/releases' in cef
+assert 'https://github.com/epicjatekosok/KS-Client-Updates/releases' in (r/'cef/ClientCommunityLinks.cs').read_text(), 'CEF release URL must remain a fixed Windows-shell destination'
 assert "['alpha','beta','stable'].includes(raw.channel)" in electron
 assert 'm.Channel=="alpha"?"alpha":"beta"' in cef
 go=(r/'launcher/update_windows.go').read_text()
