@@ -42,7 +42,7 @@ assert 'validUpdateAsset' in native and 'sha256.New()' in native
 assert 'https://api.github.com/repos/' in native and 'digestPattern' in native
 assert 'CheckRedirect' in native and 'waitForExitedPID' in native
 assert 'v1.0.13-beta' in tests and 'v1.0.13-beta' in tests
-assert 'v1.0.13-beta' in publish and 'RELEASE_BETA_112_EN.md' in publish
+assert 'v1.0.12-beta' in publish and 'RELEASE_BETA_112_EN.md' in publish
 assert 'gh release create $tag @publicPaths --repo $publicRepo' in publish
 assert 'gh release create $tag @paths --repo $publicRepo' not in publish
 print('PASS Beta 1.0.12 native startup lookup, optional prefetch, settings, dual-engine UI, manual/verified updates')
