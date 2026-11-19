@@ -3579,8 +3579,11 @@
         return false;
       } catch(_){return false;}
     }
-    const description=[control.getAttribute('aria-label'),control.getAttribute('title'),control.getAttribute('data-testid'),control.id,control.className,control.textContent].filter(Boolean).join(' ').slice(0,260);
-    return /(?:^|[^a-z])discord(?:$|[^a-z])/i.test(description);
+    // Dawn leaves Kirka's provider UI alone. A plain "Discord" label or
+    // icon is never enough evidence of a community invitation: Kirka's login
+    // can use custom buttons with no auth-modal ancestry or href.
+    // The KS-owned quick/menu Discord buttons continue using native IPC.
+    return false;
   }
   if(isGamePage)document.addEventListener('click',event=>{
     if(!event.isTrusted || !(event.target instanceof Element))return;
