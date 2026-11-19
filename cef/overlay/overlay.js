@@ -178,9 +178,10 @@
   // Beta 1.0.6: voluntary transfer of an existing Kirka session.
   // Never send the bearer token to native IPC, logs, our settings or any server.
   function importKirkaSession() {
-    const input=$('ks-account-session-token');
-    const consent=$('ks-account-session-consent');
-    const status=$('ks-account-session-status');
+    const source=arguments[0]||{};
+    const input=source.input||$('ks-account-session-token');
+    const consent=source.consent||$('ks-account-session-consent');
+    const status=source.status||$('ks-account-session-status');
     if(!input||!consent||!status)return false;
     const token=String(input.value||'').trim();
     input.value='';
@@ -3426,9 +3427,62 @@
   }
   setInterval(()=>{if(open && selectedTab==='Diagnostics')notify('diagnostics-poll');},2000);
   setInterval(()=>{if(open && (selectedTab==='Performance'||selectedTab==='Frame Stability'))notify('fps-diagnostics');},1800);
+  function showAccountHelpDialog() {
+    // Google OAuth is restricted in embedded browsers. Offer a direct,
+    // user-consented Kirka session handoff, not a misleading Settings redirect.
+    const old=shadow.getElementById('ks-quick-account-dialog');
+    if(old){old.focus();return;}
+    const hu=state.language==='hu';
+    const root=document.createElement('section');
+    root.id='ks-quick-account-dialog';
+    root.setAttribute('role','dialog');
+    root.setAttribute('aria-modal','false');
+    root.setAttribute('aria-label',hu?'Kirka-fiók bejelentkezése':'Kirka account sign-in');
+    root.tabIndex=-1;
+    root.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(430px,calc(100vw - 32px));max-height:min(85vh,670px);overflow:auto;pointer-events:auto;z-index:2147483647;border:1px solid rgba(245,166,33,.65);border-radius:12px;padding:20px;background:#141820;color:#f4f2ed;box-shadow:0 18px 55px rgba(0,0,0,.65);font:13px/1.55 Segoe UI,Arial,sans-serif;';
+    // Only fixed, bundled UI text and markup; no OAuth URLs, codes, or tokens
+    // are transferred through native IPC, native logs, or the system browser.
+    root.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+      <strong style="font-size:16px;color:#ffb238">${hu?'Kirka-fiók bejelentkezése':'Kirka account sign-in'}</strong>
+      <button type="button" data-account-dismiss aria-label="Close" style="background:#262d38;color:#fff;border:1px solid #495260;border-radius:7px;padding:4px 9px;cursor:pointer">✕</button>
+    </div>
+    <p>${hu?'A Google nem támogatja a KS Clienthez hasonló beágyazott OAuth-bejelentkezést. Ezért a Google-gomb önmagában nem tudja hitelesíteni a kliens külön böngészőprofilját.':'Google does not support embedded OAuth sign-in in clients like KS. Clicking Google alone cannot authenticate this separate browser profile.'}</p>
+    <p>${hu?'Ha már be vagy jelentkezve a kirka.io oldalra a saját böngésződben, a Kirka-munkamenetedet közvetlenül ide importálhatod.':'If you are already signed in on kirka.io in your browser, you can import that Kirka session directly here.'}</p>
+    <div style="border-radius:7px;padding:10px;background:#202733;color:#e8e5d9">
+      ${hu?'A kirka.io oldalon nyisd meg az F12 → Console részt, és futtasd:':'On kirka.io open F12 → Console and run:'}
+      <code style="display:block;white-space:normal;word-break:break-word;margin-top:5px;color:#ffce7b">copy(localStorage.getItem('token'))</code>
+    </div>
+    <label style="display:block;margin-top:12px">${hu?'Kirka-munkamenet (titkos)':'Kirka session (secret)'}
+      <input data-account-token type="password" maxlength="8192" autocomplete="new-password" spellcheck="false" style="display:block;width:100%;margin-top:5px;background:#0d1015;color:#fff;border:1px solid #55606b;border-radius:7px;padding:9px;box-sizing:border-box" />
+    </label>
+    <label style="display:flex;align-items:start;gap:7px;margin:12px 0 8px">
+      <input data-account-consent type="checkbox" style="margin-top:3px">
+      <span>${hu?'Tudom, hogy ez a munkamenet-token hozzáférést ad a Kirka-fiókomhoz, és nem osztom meg másokkal.':'I understand this session token grants access to my Kirka account and must never be shared.'}</span>
+    </label>
+    <p data-account-status role="status" aria-live="polite" style="min-height:16px;color:#ffce7b"></p>
+    <div style="display:flex;gap:9px;flex-wrap:wrap">
+      <button type="button" data-account-import style="background:#ffa913;color:#16171b;border:0;border-radius:8px;padding:9px 12px;font-weight:700;cursor:pointer">${hu?'Munkamenet importálása':'Import Kirka session'}</button>
+      <button type="button" data-account-dismiss style="background:#272d36;color:#fff;border:1px solid #404a53;border-radius:8px;padding:9px 12px;cursor:pointer">${hu?'Mégse':'Cancel'}</button>
+    </div>
+    <p style="color:#aab1bf;font-size:11px;margin-bottom:0">${hu?'A Google-jelszavadat soha ne írd ide. A Kirka dönti el, hogy az importált munkamenet érvényes-e.':'Never enter your Google password here. Kirka determines whether the imported game session is valid.'}</p>`;
+    for(const btn of root.querySelectorAll('[data-account-dismiss]'))
+      btn.addEventListener('click',()=>{root.querySelector('[data-account-token]').value='';root.remove();});
+    root.querySelector('[data-account-import]').addEventListener('click',()=>{
+      const ok=importKirkaSession({input:root.querySelector('[data-account-token]'),
+        consent:root.querySelector('[data-account-consent]'),
+        status:root.querySelector('[data-account-status]')});
+      if(ok)root.remove();
+    });
+    root.addEventListener('keydown',event=>{
+      if(event.key==='Escape'){event.preventDefault();root.querySelector('[data-account-token]').value='';root.remove();}
+    });
+    try{document.exitPointerLock?.();}catch(_){}
+    shadow.appendChild(root);
+    root.focus();
+  }
   window.__KS_CLIENT__ = {
     // Never use native IPC for Kirka bearer tokens; account help is local UI.
-    openAccountHelp: () => { selectedTab='General';show(true); },
+    openAccountHelp: showAccountHelpDialog,
     setUpdateStatus: status => {
       if(!status || typeof status!=='object')return;
       updateRequestId++;
