@@ -39,6 +39,22 @@ assert.equal(happy.ctx.importSession(),true);
 assert.equal(happy.data.get('token'),'KIRKA_SESSION_abcdef1234');
 assert.equal(happy.reloads,1);
 assert.equal(happy.fields['ks-account-session-token'].value,'','Do not leave bearer token in the form');
+// Beta 1.0.9: the Google-click helper reuses this SAME routine with its own
+// inline dialog fields, instead of navigating to the full Settings menu.
+const quick=createContext({token:'IGNORED_SETTINGS_TOKEN'});
+const quickFields={input:{value:'KIRKA_QUICK_SESSION_123456789'},
+  consent:{checked:true},status:{textContent:''}};
+assert.equal(quick.ctx.importSession(quickFields),true);
+assert.equal(quick.data.get('token'),'KIRKA_QUICK_SESSION_123456789');
+assert.equal(quickFields.input.value,'','Quick dialog must immediately clear the bearer token');
+assert.equal(quick.reloads,1,'Kirka page reloads after local import');
+const quickNoConsent=createContext();
+assert.equal(quickNoConsent.ctx.importSession({input:{value:'KIRKA_QUICK_1234'},
+  consent:{checked:false},status:{textContent:''}}),false);
+assert.equal(quickNoConsent.data.has('token'),false);
+assert(source.includes('function showAccountHelpDialog()'));
+assert(source.includes('openAccountHelp: showAccountHelpDialog'));
+assert(source.includes("root.querySelector('[data-account-import]').addEventListener"));
 const noConsent=createContext({consent:false});
 assert.equal(noConsent.ctx.importSession(),false);
 assert.equal(noConsent.data.has('token'),false);

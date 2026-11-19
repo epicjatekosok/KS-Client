@@ -1,4 +1,4 @@
-"""KS Beta 1.0.8 browser smoke: matching HUD/close, Experimental Workshop and update buttons."""
+"""KS Beta 1.0.9 browser smoke: matching HUD/close, Experimental Workshop and update buttons."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 root=Path(__file__).resolve().parents[1]
@@ -20,11 +20,17 @@ with sync_playwright() as p:
   page.add_script_tag(content=js.replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1))
   page.wait_for_function('!!window.__KS_CLIENT__')
   page.evaluate('window.__KS_CLIENT__.open()')
+  # Google main-frame navigation must show local account recovery without switching Settings tabs.
+  selected_before=page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-group].active')?.getAttribute('data-group')""")
   page.evaluate('window.__KS_CLIENT__.openAccountHelp()')
-  account_text=page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-body').textContent""")
-  assert 'Kirka account sign-in' in account_text,account_text[:240]
-  assert 'Import Kirka.io session' in account_text,account_text[:240]
-  assert 'Browser sign-in help' not in account_text, 'No forced Windows browser auth button in Beta 1.0.8'
+  account_text=page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-quick-account-dialog').textContent""")
+  assert 'Google' in account_text and 'Kirka session' in account_text,account_text[:240]
+  assert page.evaluate("""() => !!document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-quick-account-dialog input[type=password][maxlength="8192"]')""")
+  assert page.evaluate("""() => !!document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-quick-account-dialog [data-account-consent]')""")
+  selected_after=page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-group].active')?.getAttribute('data-group')""")
+  assert selected_before==selected_after, 'Google click must not navigate Settings'
+  page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-quick-account-dialog [data-account-dismiss]').click()""")
+  assert not page.evaluate("""() => !!document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-quick-account-dialog')""")
   assert not page.evaluate("""() => !!document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-action="auth-open-browser"]')""")
   info=page.evaluate("""() => {
    const s=document.querySelector('#ks-client-root').shadowRoot;
@@ -37,7 +43,7 @@ with sync_playwright() as p:
   assert info['defaultFps']=='none',info
   assert info['fpsBorder']=='10px' and info['closeBorder']=='10px',info
   assert info['fpsBackground']==info['closeBackground'],info
-  assert info['version']=='KS · 1.0.8' and info['workshopBadge'],info
+  assert info['version']=='KS · 1.0.9' and info['workshopBadge'],info
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-group="Workshop"]').click()""")
   assert page.evaluate("""() => {
    const s=document.querySelector('#ks-client-root').shadowRoot;
@@ -49,7 +55,7 @@ with sync_playwright() as p:
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-action="update-check"]').click()""")
   assert page.evaluate("window.__out.some(m=>m.type==='update-check'&&m.channel==='beta')")
   page.evaluate("""() => window.__KS_CLIENT__.setUpdateStatus({
-   state:'available',channel:'beta',current:'1.0.8',version:'1.0.9-beta',
+   state:'available',channel:'beta',current:'1.0.9',version:'1.0.10-beta',
    message:'New verified beta available',bytes:424000000
   })""")
   assert page.evaluate("""() => !!document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-action="update-install"]')""")
@@ -57,5 +63,5 @@ with sync_playwright() as p:
   assert page.evaluate("window.__out.some(m=>m.type==='update-open-release')")
   assert not errors,errors
   page.close()
-  print('PASS KS Beta 1.0.8 HUD, Experimental Workshop, check/install/manual update',engine)
+  print('PASS KS Beta 1.0.9 HUD, Experimental Workshop, check/install/manual update',engine)
  browser.close()
