@@ -124,6 +124,7 @@ jobs:
           node tests/test_auth_106.cjs
           node tests/test_login_navigation_109.cjs
           node tests/test_login_routing_110.cjs
+          node tests/test_native_login_111.cjs
 
   offline-installer:
     if: github.event_name != 'pull_request'
