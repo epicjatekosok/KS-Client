@@ -4,83 +4,13 @@
 param([Parameter(Mandatory)][ValidateSet('cef','native','setup')][string]$Stage)
 $ErrorActionPreference='Stop'
 $repo=Split-Path -Parent $PSScriptRoot
-# Use the version shipped in the current Electron metadata, not an old tag.
+# Derive this release's EXE filename from Electron's packaged metadata.
 $package=Get-Content -LiteralPath (Join-Path $repo 'electron-app/package.json') -Raw | ConvertFrom-Json
 $packageVersion=[string]$package.version
-if($packageVersion -notmatch '^[0-9]+[.][0-9]+[.][0-9]+-beta
-$encoded=$env:KS_SIGNING_PFX_BASE64
-$password=$env:KS_SIGNING_PFX_PASSWORD
-if([bool]$encoded -xor [bool]$password) { throw 'Both signing secrets must be configured together' }
-if(-not $encoded) {
-    Write-Host "AUTHENTICODE: No certificate configured; $Stage binaries remain unsigned. Windows warnings possible."
-    return
+if($packageVersion -notmatch '^[0-9]+[.][0-9]+[.][0-9]+-beta$'){
+    throw "Invalid standalone Beta release metadata: $packageVersion"
 }
-$files=switch($Stage) {
-    'cef' { @(Join-Path $repo 'runtime/CEF/KS.Cef.Client.exe') }
-    'native' { @((Join-Path $repo 'KS-Client.exe'),(Join-Path $repo 'Uninstall-KS-Client.exe')) }
-    'setup' { @(Join-Path $repo $setupName) }
-}
-$exe=Get-Command signtool.exe -ErrorAction SilentlyContinue
-if(-not $exe) {
-    $kits=Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Windows Kits/10/bin'
-    $exe=Get-ChildItem $kits -Filter signtool.exe -Recurse -ErrorAction SilentlyContinue |
-      Where-Object {$_.FullName -match 'x64'} | Sort-Object FullName -Descending | Select-Object -First 1
-    if(-not $exe){throw 'Windows SDK signtool.exe unavailable'}
-}
-$signer=$exe.Source
-if(-not $signer){$signer=$exe.FullName}
-$temp=Join-Path $env:RUNNER_TEMP ('ks-publisher-'+[guid]::NewGuid().ToString('N')+'.pfx')
-try {
-    [System.IO.File]::WriteAllBytes($temp,[Convert]::FromBase64String($encoded))
-    foreach($path in $files) {
-        if(-not (Test-Path $path -PathType Leaf)){throw "Signing input missing: $path"}
-        & $signer sign /fd SHA256 /f $temp /p $password /tr 'http://timestamp.digicert.com' /td SHA256 $path | Out-Null
-        if($LASTEXITCODE -ne 0){throw "Authenticode signing failed: $([IO.Path]::GetFileName($path))"}
-        $check=Get-AuthenticodeSignature -FilePath $path
-        if($check.Status -ne 'Valid'){throw "Signature invalid for $path : $($check.Status)"}
-        Write-Host "Authenticode valid: $([IO.Path]::GetFileName($path)) ($($check.SignerCertificate.Subject))"
-    }
-} finally {
-    Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
-}
-){throw "Invalid release version: $packageVersion"}
-$releaseNumber=$packageVersion -replace '-beta
-$encoded=$env:KS_SIGNING_PFX_BASE64
-$password=$env:KS_SIGNING_PFX_PASSWORD
-if([bool]$encoded -xor [bool]$password) { throw 'Both signing secrets must be configured together' }
-if(-not $encoded) {
-    Write-Host "AUTHENTICODE: No certificate configured; $Stage binaries remain unsigned. Windows warnings possible."
-    return
-}
-$files=switch($Stage) {
-    'cef' { @(Join-Path $repo 'runtime/CEF/KS.Cef.Client.exe') }
-    'native' { @((Join-Path $repo 'KS-Client.exe'),(Join-Path $repo 'Uninstall-KS-Client.exe')) }
-    'setup' { @(Join-Path $repo 'KS-Client-beta-1.0.9-Setup.exe') }
-}
-$exe=Get-Command signtool.exe -ErrorAction SilentlyContinue
-if(-not $exe) {
-    $kits=Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Windows Kits/10/bin'
-    $exe=Get-ChildItem $kits -Filter signtool.exe -Recurse -ErrorAction SilentlyContinue |
-      Where-Object {$_.FullName -match 'x64'} | Sort-Object FullName -Descending | Select-Object -First 1
-    if(-not $exe){throw 'Windows SDK signtool.exe unavailable'}
-}
-$signer=$exe.Source
-if(-not $signer){$signer=$exe.FullName}
-$temp=Join-Path $env:RUNNER_TEMP ('ks-publisher-'+[guid]::NewGuid().ToString('N')+'.pfx')
-try {
-    [System.IO.File]::WriteAllBytes($temp,[Convert]::FromBase64String($encoded))
-    foreach($path in $files) {
-        if(-not (Test-Path $path -PathType Leaf)){throw "Signing input missing: $path"}
-        & $signer sign /fd SHA256 /f $temp /p $password /tr 'http://timestamp.digicert.com' /td SHA256 $path | Out-Null
-        if($LASTEXITCODE -ne 0){throw "Authenticode signing failed: $([IO.Path]::GetFileName($path))"}
-        $check=Get-AuthenticodeSignature -FilePath $path
-        if($check.Status -ne 'Valid'){throw "Signature invalid for $path : $($check.Status)"}
-        Write-Host "Authenticode valid: $([IO.Path]::GetFileName($path)) ($($check.SignerCertificate.Subject))"
-    }
-} finally {
-    Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
-}
-,''
+$releaseNumber=$packageVersion -replace '-beta$',''
 $setupName="KS-Client-beta-$releaseNumber-Setup.exe"
 $encoded=$env:KS_SIGNING_PFX_BASE64
 $password=$env:KS_SIGNING_PFX_PASSWORD
@@ -92,7 +22,7 @@ if(-not $encoded) {
 $files=switch($Stage) {
     'cef' { @(Join-Path $repo 'runtime/CEF/KS.Cef.Client.exe') }
     'native' { @((Join-Path $repo 'KS-Client.exe'),(Join-Path $repo 'Uninstall-KS-Client.exe')) }
-    'setup' { @(Join-Path $repo 'KS-Client-beta-1.0.9-Setup.exe') }
+    'setup' { @(Join-Path $repo $setupName) }
 }
 $exe=Get-Command signtool.exe -ErrorAction SilentlyContinue
 if(-not $exe) {
