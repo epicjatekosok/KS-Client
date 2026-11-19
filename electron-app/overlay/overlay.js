@@ -1202,7 +1202,7 @@
   let browserActive = { ...browserPrefs };
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
-  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.11',channel:'beta'};
+  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:CLIENT_LABEL,channel:'beta'};
   let updateRequestId=0;
   let lastUpdateNotice='';
   let updateNoticeTimer=null;
@@ -2001,7 +2001,11 @@
             { value: 120, label: '120 FPS' },
             { value: 144, label: '144 FPS' },
             { value: 165, label: '165 FPS' },
-            { value: 180, label: '180 FPS' }
+            { value: 180, label: '180 FPS' },
+            { value: 200, label: '200 FPS' },
+            { value: 240, label: '240 FPS' },
+            { value: 300, label: '300 FPS' },
+            { value: 360, label: '360 FPS' }
           ]) +
           `<div class="ks-row"><div><div class="ks-label">Activate Unlimited FPS</div><div class="ks-desc">Requests Chromium FPS unlocking and removes the KS JavaScript callback cap. Restart required; actual Kirka.io FPS is not guaranteed above monitor Hz.</div></div><button class="ks-btn primary" data-action="enable-unlimited-fps" ${!browserPrefsLoaded?'disabled':''}>Enable experimental unlock</button></div>` +
           `<div class="ks-row"><div><div class="ks-label">Experimental Unlimited FPS (Chromium)</div><div class="ks-desc">Attempts to remove Chromium rAF/vsync limits. Requires a restart and may cause tearing, higher CPU load or network input delays.</div></div><input type="checkbox" data-browser="uncapFps" ${browserPrefs.uncapFps?'checked':''} ${!browserPrefsLoaded?'disabled':''}></div>` +
@@ -2412,9 +2416,9 @@
     if (!canvas || !state.showGraph) return;
     const width = Math.max(250,Math.round(canvas.clientWidth));
     const height = Math.max(100,Math.round(canvas.clientHeight));
-    const dpr = Math.min(3,window.devicePixelRatio || 1);
-    canvas.width = Math.round(width*dpr);
-    canvas.height = Math.round(height*dpr);
+    const dpr = Math.min(1.5,window.devicePixelRatio || 1);
+    if(canvas.width!==Math.round(width*dpr))canvas.width=Math.round(width*dpr);
+    if(canvas.height!==Math.round(height*dpr))canvas.height=Math.round(height*dpr);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -2452,6 +2456,7 @@
     };
     if (!profiles[preset]) return;
     state={...state,...profiles[preset],smoothPreset:'Native',performancePreset:preset};
+    if(state.fpsLimit>0)disableChromiumUncapForCap();
     save();
     window.__KS_FRAME_PACER__?.setLimit(state.fpsLimit);
     notify('game-resolution',{preset:state.gameResolution});
@@ -2656,6 +2661,7 @@
     if(target===undefined)return;
     state.smoothPreset=preset;state.fpsLimit=target;save();
     window.__KS_FRAME_PACER__?.setLimit(target);
+    if(target>0)disableChromiumUncapForCap();
     renderTab();apply();
   }
   const stabilitySamples=[];
@@ -2699,6 +2705,10 @@
 
   function apply() {
     $('ks-dimmer').classList.toggle('visible', open);
+    // Avoid a full-screen blur of the running WebGL surface: reduces GPU compositing.
+    $('ks-dimmer').style.backdropFilter='none';
+    $('ks-dimmer').style.webkitBackdropFilter='none';
+    $('ks-dimmer').style.background='rgba(0,0,0,.92)';
     $('ks-screen').classList.toggle('no-motion', !state.uiAnimations || state.lowLatency || state.reduceMotion);
     const scale = Math.max(1, Math.min(1.6, Number(state.uiScale)/100 || 1));
     $('ks-panel').style.setProperty('--ks-ui-scale', String(scale));
@@ -2955,6 +2965,15 @@
     }
   }
 
+  // Selecting a finite FPS limit removes persistent Chromium uncap flags.
+  // A normal restart is necessary to undo previously active native switches.
+  function disableChromiumUncapForCap() {
+    if(!(Number(state.fpsLimit)>0) || !browserPrefsLoaded || !browserPrefs.uncapFps)return;
+    browserPrefs={...browserPrefs,uncapFps:false};
+    browserPendingRestart=browserActive.uncapFps!==false;
+    browserStatus='Finite FPS limit selected. Chromium unlimited FPS disabled for next launch. Restart KS Client to reduce GPU work.';
+    notify('browser-save',{browser:browserPrefs});
+  }
   function setSetting(k, value) {
     if (!(k in defaults)) return;
     if (typeof defaults[k] === 'number') value = Number(value);
@@ -2983,7 +3002,7 @@
     // the exact named palette is still active.
     if (['customAccent','customBackground','customPanel','customText','customMuted'].includes(k))
       state.themePreset='Custom';
-    if(k==='fpsLimit') { value=Number(value); if (![0,60,120,144,165,180].includes(value))return; }
+    if(k==='fpsLimit') { value=Number(value); if (![0,60,120,144,165,180,200,240,300,360].includes(value))return; }
     if(k==='uiScale') {
       value=Math.max(100,Math.min(160,Math.round(Number(value)||100)));
       state.uiScale=value;save();
@@ -3007,7 +3026,7 @@
       }
     }
     state[k] = value;
-    if (k === 'fpsLimit') window.__KS_FRAME_PACER__?.setLimit(value);
+    if (k === 'fpsLimit') {window.__KS_FRAME_PACER__?.setLimit(value);if(value>0)disableChromiumUncapForCap();}
     save();
     if(k.startsWith('game'))window.__KS_GAME_EXTRAS__?.refresh?.();
     apply();
@@ -3048,7 +3067,7 @@
     if(typeof def==='string' && value.length>12000)return undefined;
     if(['color','customAccent','centerDotColor','centerDotOutlineColor','outlineColor','shadowColor'].includes(key) && !/^#[a-f0-9]{6}$/i.test(value))return undefined;
     if(key==='language' && !Object.hasOwn(languageNames,value))return undefined;
-    if(key==='fpsLimit' && ![0,60,120,144,165,180].includes(value))return undefined;
+    if(key==='fpsLimit' && ![0,60,120,144,165,180,200,240,300,360].includes(value))return undefined;
     if(key==='gameResolution' && !['native','720','1080','1440','2160'].includes(value))return undefined;
     if(key==='menuResolution' && !['native','720','1080','1440','2160'].includes(value))return undefined;
     if(key==='themePreset' && !Object.hasOwn(themeColors,value))return undefined;
@@ -3124,9 +3143,18 @@
     window.__KS_FRAME_PACER__?.setLimit(state.fpsLimit);
     renderTab();apply();
   });
-  function openCommunity() {
+  let communityNoticeTimer=null;
+  function showCommunityNotice(message,duration=4500) {
     const notice=$('ks-community-status');
-    if(notice){notice.hidden=false;notice.textContent=state.language==='hu'?'Discord meghívó megnyitása…':'Opening KS Discord in your default browser…';}
+    if(!notice)return;
+    if(communityNoticeTimer)clearTimeout(communityNoticeTimer);
+    notice.textContent=String(message||'').slice(0,260);
+    notice.hidden=false;
+    // CEF's fixed native-navigation fallback sends no reply: always dismiss.
+    communityNoticeTimer=setTimeout(()=>{notice.hidden=true;communityNoticeTimer=null;},duration);
+  }
+  function openCommunity() {
+    showCommunityNotice(state.language==='hu'?'Discord meghívó megnyitása…':'Opening KS Discord in your default browser…',2400);
     if(!openTrustedExternal('discord'))window.__KS_CLIENT__?.setCommunityStatus?.('Native client bridge unavailable. Copy https://discord.gg/cxP386yGjk into your browser.');
   }
   $('ks-discord-menu').addEventListener('click',openCommunity);
@@ -3203,7 +3231,8 @@
       state.fpsLimit=0;state.smoothPreset='Native';save();
       window.__KS_FRAME_PACER__?.setLimit(0);
     }
-    browserStatus = 'Saving browser settings…';
+    if(key==='uncapFps')browserPendingRestart=browserActive.uncapFps!==value;
+    browserStatus = key==='uncapFps' ? 'Chromium frame-rate launch flags changed. Restart KS Client to apply.' : 'Saving browser settings…';
     notify('browser-save',{browser:browserPrefs});
   });
 
@@ -3319,7 +3348,11 @@
     if (a === 'auth-import-session') { importKirkaSession(); return; }
     if (a === 'auth-help') { window.__KS_CLIENT__?.openAccountHelp?.(); return; }
     if (a === 'game-screenshot') notify('game-screenshot');
-    if (a === 'fullscreen') notify('fullscreen');
+    if (a === 'fullscreen') {
+      if(isGamePage && !window.__KS_NATIVE__?.post && window.CefSharp?.PostMessage)
+        location.assign('https://kirka.io/__ksclient_internal_toggle_fullscreen__');
+      else notify('fullscreen');
+    }
     if (a === 'check-gpu') checkGPU();
     if (a === 'browser-check-gpu') checkBrowserGPU();
     if (a === 'update-check') {
@@ -3405,7 +3438,7 @@
       nativeDisplayFPS = Math.round(displayFrames * 1000 / (ts-lastSample));
       displayFrames=0;lastSample=ts;
     }
-    if(ts-lastGraphSampleAt>=500) {
+    if(ts-lastGraphSampleAt>=1000) {
       lastGraphSampleAt=ts;
       if(state.fpsSource==='kirka-hud' && ts-gameHUDReadAt>900) {
         gameHUDValue=readGameHUDValue();gameHUDReadAt=ts;
@@ -3450,7 +3483,10 @@
       paintGraphs();
       updateStabilityDiagnostics();
     }
-    animationFrame(animate);
+    // Don't spin our own uncapped RAF observer behind unrelated Settings tabs.
+    if(open && selectedTab!=='Performance' && selectedTab!=='Frame Stability')
+      setTimeout(()=>animationFrame(animate),180);
+    else animationFrame(animate);
   }
   setInterval(()=>{if(open && selectedTab==='Diagnostics')notify('diagnostics-poll');},2000);
   setInterval(()=>{if(open && (selectedTab==='Performance'||selectedTab==='Frame Stability'))notify('fps-diagnostics');},1800);
@@ -3516,7 +3552,7 @@
       const allowed=['idle','checking','available','current','unavailable','error','downloading'];
       updateStatus={
         state:allowed.includes(status.state)?status.state:'error',
-        current:String(status.current||'Beta 1.0.12').slice(0,40),
+        current:String(status.current||CLIENT_LABEL).slice(0,40),
         version:String(status.version||'').slice(0,40),
         channel:String(status.channel||state.updateChannel).slice(0,12),
         message:String(status.message||'').slice(0,380),
@@ -3547,6 +3583,7 @@
         browserActive=active||browserPrefs;
         browserPrefsLoaded=true;
         browserPendingRestart=!!needsRestart;
+        if(state.fpsLimit>0)disableChromiumUncapForCap();
       }
       browserStatus=status || 'Applied on browser startup';
       if(browserGroups.has(selectedTab) || selectedTab==='Performance')renderTab();
@@ -3571,14 +3608,7 @@
     },
     setDiagnostics: d => {if(d && typeof d==='object'){diagnostics=d;updateDiagnosticsUI();}},
     setCrashStatus: s => {crashStatus=String(s);const el=$('ks-crash-status');if(el)el.textContent=L(crashStatus);},
-    setCommunityStatus: status => {
-      const notice=$('ks-community-status');
-      if(!notice)return;
-      notice.textContent=String(status||'').slice(0,260);
-      notice.hidden=false;
-      const marker=notice.textContent;
-      setTimeout(()=>{if(notice.textContent===marker)notice.hidden=true;},6500);
-    },
+    setCommunityStatus: status => {showCommunityNotice(status,5500);},
 
   };
 

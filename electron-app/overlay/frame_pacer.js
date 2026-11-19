@@ -8,7 +8,7 @@
   if (window.__KS_FRAME_PACER__) return;
   const nativeRAF = window.requestAnimationFrame.bind(window);
   const nativeCancelRAF = window.cancelAnimationFrame.bind(window);
-  const allowed = new Set([0, 60, 120, 144, 165, 180]);
+  const allowed = new Set([0, 60, 120, 144, 165, 180, 200, 240, 300, 360]);
   const settingsKey = 'ksclient.settings.alpha';
   let target = 0;
   try {
