@@ -11,7 +11,11 @@ if($env:GITHUB_REF -ne 'refs/heads/main'){
 if(-not $env:GH_TOKEN){throw 'GITHUB_TOKEN is required to publish verified binaries'}
 $repo=$env:GITHUB_REPOSITORY
 if(-not $repo){throw 'GitHub repository not provided'}
-$tag='v1.0.9-beta'
+# Preserve the already released and hash-verified v1.0.9-beta assets.
+# This is the second downloadable build of Beta 1.0.9, not a version 1.0.10.
+# Existing 1.0.9 clients will need a manual in-place install because their
+# version-only updater does not recognize revision suffixes.
+$tag='v1.0.9-beta-r2'
 # Keep a verified source-snapshot in PRIVATE releases only.
 # Never expose the source archive through the public updates channel.
 # Only current tracked contents are archived, never .git history or local secrets.
@@ -31,7 +35,7 @@ if($LASTEXITCODE -eq 0){
     if($LASTEXITCODE -ne 0){throw "Could not refresh $tag release notes"}
     Write-Host "Private release already exists; verified assets preserved."
 } else {
-    & gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client Beta 1.0.9' --prerelease --notes-file 'RELEASE_BETA_109_EN.md'
+    & gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client Beta 1.0.9 Revision 2 (login navigation)' --prerelease --notes-file 'RELEASE_BETA_109_EN.md'
     if($LASTEXITCODE -ne 0){throw "GitHub private release $tag publishing failed"}
 }
 Write-Host "Verified source release: https://github.com/$repo/releases/tag/$tag"
@@ -56,7 +60,7 @@ try{
         Write-Host "Public release $tag already exists; never overwrite verified downloadable assets."
     } else {
         # Public repo has its own main branch/commit, not the private source SHA.
-        & gh release create $tag @publicPaths --repo $publicRepo --target main --title 'KS Client Beta 1.0.9 (Windows binaries)' --prerelease --notes-file 'RELEASE_BETA_109_EN.md'
+        & gh release create $tag @publicPaths --repo $publicRepo --target main --title 'KS Client Beta 1.0.9 Revision 2 (Windows binaries)' --prerelease --notes-file 'RELEASE_BETA_109_EN.md'
         if($LASTEXITCODE -ne 0){throw "Could not publish verified update assets to $publicRepo"}
         Write-Host "Public auto-update feed: https://github.com/$publicRepo/releases/tag/$tag"
     }
