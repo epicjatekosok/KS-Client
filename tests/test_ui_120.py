@@ -45,7 +45,9 @@ def test_engine(browser,engine):
   page.locator('#join-community').click()
   page.locator('#other-action').click()
   out=page.evaluate('window.__out.filter(m=>m.type==="discord-community")')
-  assert len(out)==2,out
+  # Generic Discord-labelled buttons could be Kirka's OAuth sign-in, not a
+  # community invitation. Intercept only an actual Discord invite URL.
+  assert len(out)==1,out
   assert page.evaluate("document.location.href")== 'about:blank'
   page.close()
   print('PASS alpha 1.0.11 Chromium UI + Discord',engine)
