@@ -429,7 +429,12 @@ function createWindow(){
   // Google may independently reject embedded user agents; never spoof it.
   win.webContents.setWindowOpenHandler(({url,referrer})=>{
     const source=win.webContents.getURL();
-    if(!validURL(source,true))return {action:'deny'};
+    // A Kirka-started top-level login can itself open a secondary account
+    // selector. Retain the trusted chain after leaving kirka.io, but only for
+    // exact HTTPS identity-provider hosts; never trust arbitrary websites.
+    const trustedOpener=validURL(source,true) ||
+      (win.webContents.__ksKirkaAuthChain===true && validAuthURL(source));
+    if(!trustedOpener)return {action:'deny'};
     if(isGameDiscordTarget(url)){openKSDiscord();return {action:'deny'};}
     if(isGoogleSignInURL(url))log('Google login popup requested from Kirka: keeping the user inside KS');
     const initiator=referrer?.url||'';
@@ -444,7 +449,11 @@ function createWindow(){
   });
   win.webContents.on('did-create-window',child=>configureAuthPopup(child));
   const guardMainNavigation=(event,target)=>{
-    if(validURL(target))return;
+    if(validURL(target)){
+      // A return to Kirka closes the tracked main-window OAuth chain.
+      win.webContents.__ksKirkaAuthChain=false;
+      return;
+    }
     // Dawn allows provider-controlled main-frame navigation. The 1.0.10 KS
     // Google-only interception prevented Kirka's own login UI from opening
     // at all. Apply the existing HTTPS/host allowlist to Google too; the
@@ -452,6 +461,7 @@ function createWindow(){
     // Never spoof Chrome, alter provider credentials, or open Settings here.
     const source=win.webContents.getURL();
     if(validAuthURL(target) && (validURL(source,true)||validAuthURL(source))){
+      win.webContents.__ksKirkaAuthChain=true;
       if(isGoogleSignInURL(target))log('Allowed Kirka-initiated Google navigation (provider policy may deny)');
       return;
     }
