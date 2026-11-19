@@ -1,5 +1,20 @@
 # KS Client — Beta 1.0.9
 
+## Beta 1.0.9 Revision 2 — Kirka login navigation hotfix
+
+The original Beta 1.0.9 build incorrectly intercepted Google sign-in navigation in BOTH Electron and CEF, replacing the real Kirka account flow with the KS account-helper dialog. Revision 2 corrects that bug:
+
+- Trusted Kirka-initiated HTTPS Google sign-in/navigation is now treated like other allowlisted providers rather than blocked by a Google-only rule. The game's own email/password login, provider popup, Firebase callback and account selector can proceed to the extent supported by Kirka and the identity provider.
+- No automatic Settings screen, token importer or KS account dialog is forced when Kirka navigates to a trusted Google account URL.
+- The existing security boundaries remain: exact trusted HTTPS hosts only, original browser sandbox, no disabled web security, no Node.js exposed to a remote game, no UA spoofing, no credential/token interception, no arbitrary third-party or local-file navigation.
+- Both browser engines, update logic, Workshop, HUD and player settings are preserved.
+
+**This is still Beta 1.0.9**, published as a separate immutable hotfix tag `v1.0.9-beta-r2` so the SHA256-verified original release is not silently replaced. The current 1.0.9 updater compares version numbers only and will **not** detect this same-version revision automatically. Install the hotfix Setup.exe manually over your existing installation.
+
+**Important:** Google OAuth can reject embedded browsers (`disallowed_useragent`) regardless of these fixes. Source-level navigation tests are not proof of a completed Google account login; Kirka and Google's servers decide whether authentication completes. Revision 2 does not bypass that policy.
+
+---
+
 **Windows · Electron + CEF · Account sign-in clarity and direct local Kirka-session recovery**
 
 ## Why this release
