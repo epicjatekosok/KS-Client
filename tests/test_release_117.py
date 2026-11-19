@@ -52,4 +52,4 @@ assert 'test_cef_input_117.py' in workflow
 print('PASS: CEF 1.0.10 pointer-lock ownership and compatibility test gates')
 
 # The standalone GitHub Release must use its own 1.0.10 QA documentation.
-assert "RELEASE_BETA_109_EN.md" in (root/'ci/Publish-Release.ps1').read_text(encoding='utf8')
+assert "RELEASE_BETA_110_EN.md" in (root/'ci/Publish-Release.ps1').read_text(encoding='utf8')
