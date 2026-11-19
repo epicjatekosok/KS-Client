@@ -37,12 +37,18 @@ for engine in ('Electron','CEF'):
   script=(root/('cef/overlay/overlay.js' if engine=='CEF' else 'electron-app/overlay/overlay.js')).read_text(encoding='utf8')
   page.add_script_tag(content=script.replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1))
   page.wait_for_function('!!window.__KS_CLIENT__')
+  # The KS shadow host must have zero hit-test area. Only its own visible
+  # buttons (gear, KS Discord, open Settings) may opt back into pointer events.
+  assert page.evaluate("""() => {
+    const root=document.querySelector('#ks-client-root'),r=root.getBoundingClientRect();
+    return r.width===0 && r.height===0 && getComputedStyle(root).pointerEvents==='none';
+  }"""),'KS full-screen host must not overlay Kirka login'
   # Real Playwright pointer clicks trigger Chromium's trusted click path.
-  page.locator('#google-provider').click()
-  page.locator('#discord-provider').click()
+  page.locator('#google-provider').click(timeout=5000)
+  page.locator('#discord-provider').click(timeout=5000)
   page.locator('#email').fill('not-a-real-user@example.invalid')
   page.locator('#password').fill('synthetic-fake-data-only')
-  page.locator('#email-submit').click()
+  page.locator('#email-submit').click(timeout=5000)
   counts=page.evaluate('window.__clicks')
   assert counts=={'google':1,'discord':1,'submit':1},(engine,counts)
   assert not page.evaluate("window.__KS_CLIENT__.isSettingsOpen()"),'Provider click must not open KS Settings'
