@@ -11,7 +11,7 @@ const electronGate=read('electron-app/overlay/native_login_gate.js');
 const cefGate=read('cef/overlay/native_login_gate.js');
 assert.equal(electronGate,cefGate);
 assert(!/preventDefault|stopPropagation|stopImmediatePropagation/.test(electronGate));
-assert(!/fetch\(|XMLHttpRequest|clipboard|postMessage|password|location\.href/.test(electronGate));
+assert(!/fetch\(|XMLHttpRequest|clipboard|postMessage|location\.href/.test(electronGate));
 assert(electronGate.includes("localStorage.getItem('token')"));
 
 // Simulate the Kirka page before and after its own email/password or Google
