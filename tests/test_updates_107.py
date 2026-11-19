@@ -18,7 +18,7 @@ assert '<Version>1.0.14</Version>' in (root/'cef/KS.Cef.Client.csproj').read_tex
 smoke=(root/'ci/Test-Engines.ps1').read_text()
 assert "$releaseVersion = '1.0.14'" in smoke and 'cef-1.0.14.log' in smoke
 assert 'Application.Run(smokeContext)' in (root/'cef/Program.cs').read_text(), 'Real CEF startup must use a native WinForms message pump'
-assert 'KS · 1.0.14' in overlay and "v:'Beta 1.0.14'" in overlay and "v:'Beta 1.0.9'" in overlay
+assert 'KS · ${CLIENT_VERSION}' in overlay and "v:'Beta 1.0.14'" in overlay and "v:'Beta 1.0.9'" in overlay
 assert "v:'Beta 1.0.6'" in overlay, 'All older release history must remain'
 assert 'ks-workshop-experimental' in overlay and 'auth-import-session' in overlay
 # Both native hosts check as soon as a real game window opens, before waiting for Kirka.io.
