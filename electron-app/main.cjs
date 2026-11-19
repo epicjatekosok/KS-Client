@@ -22,6 +22,7 @@ fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
 const overlayJS = fs.readFileSync(path.join(__dirname,'overlay','overlay.js'),'utf8');
+const nativeLoginGateJS = fs.readFileSync(path.join(__dirname,'overlay','native_login_gate.js'),'utf8');
 const frameJS = fs.readFileSync(path.join(__dirname,'overlay','frame_pacer.js'),'utf8');
 const extrasJS = fs.readFileSync(path.join(__dirname,'overlay','game_extras.js'),'utf8');
 const workshopJS=fs.readFileSync(path.join(__dirname,'overlay','workshop.js'),'utf8');
@@ -478,6 +479,20 @@ function createWindow(){
     // Frame pacer is also installed at document start by preload where possible.
     // The overlay runs after the page DOM exists, retaining its 1.0.10 settings UI.
     try{
+      // Let Kirka's original email/password and OAuth buttons handle their
+      // own events without any injected KS listeners or render hooks.
+      // Dawn's native sign-in approach uses the site's own login UI.
+      if(validURL(win.webContents.getURL(),true)){
+        await win.webContents.executeJavaScript(nativeLoginGateJS,true);
+        const authenticated=await win.webContents.executeJavaScript(
+          "(()=>{try{return !!localStorage.getItem('token')}catch(_){return false}})()",true);
+        if(!authenticated){
+          log('Kirka sign-in: running original game login UI without KS injections');
+          setGameResolution(gameResolution);
+          closeSplash();
+          return;
+        }
+      }
       await win.webContents.executeJavaScript(frameJS,true);
       // Late fallback if early main-world evaluation was blocked or missed.
       await win.webContents.executeJavaScript(integrationBootJS,true);
