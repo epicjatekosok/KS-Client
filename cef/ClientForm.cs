@@ -708,11 +708,13 @@ internal sealed class ClientRequestHandler : CefSharp.Handler.RequestHandler
         if(!frame.IsMain)return false;
         if(ClientForm.Trust(request.Url)){
             authMainFrameNavigation=false;
+            ClientAuthentication.SetMainFrameAuthChain(browser,false);
             return false;
         }
         if(ClientAuthentication.IsAllowed(request.Url) &&
            (authMainFrameNavigation || ClientForm.Trust(frame.Url,gameOnly:true))){
             authMainFrameNavigation=true;
+            ClientAuthentication.SetMainFrameAuthChain(browser,true);
             return false;
         }
         Program.Log("CEF blocked non-authentication main-frame navigation");
