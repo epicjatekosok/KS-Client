@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.13 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.14 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.13';
+  const CLIENT_VERSION='1.0.14';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -184,7 +184,7 @@
   // to reserved Kirka URLs that the native CEF request handler ALWAYS
   // intercepts before network access. Electron keeps its existing IPC path.
   function openTrustedExternal(kind) {
-    if(isGamePage && !window.__KS_NATIVE__?.post && window.CefSharp?.PostMessage) {
+    if(isGamePage && !window.__KS_NATIVE__?.post && (window.CefSharp?.PostMessage || (typeof activeEngine==='string' && activeEngine.toLowerCase().includes('cef')))) {
       const routes={
         discord:'https://kirka.io/__ksclient_internal_open_discord__',
         releases:'https://kirka.io/__ksclient_internal_open_releases__'
@@ -1153,7 +1153,7 @@
     <div id="ks-fps" aria-label="Estimated frame rate"></div>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
-    <div id="ks-badge" aria-label="KS Client Beta 1.0.13">KS · 1.0.13</div>
+    <div id="ks-badge" aria-label="KS Client ${CLIENT_LABEL}">KS · ${CLIENT_VERSION}</div>
     <div id="ks-quick">
       <button id="ks-gear" class="ks-quick-btn" aria-label="Open KS Client settings" title="KS Client Settings"><span class="ks-gear-icon" aria-hidden="true">⚙</span></button>
       <button type="button" id="ks-discord-quick" class="ks-quick-btn" aria-label="Open KS Client Discord in default browser">KS Discord</button>
@@ -1197,12 +1197,15 @@
   const currentGroup = () => groups.find(group=>group.items.includes(selectedTab)) || groups[0];
   // Complete English/Hungarian KS Client interface translation. Internal
   // preference values and game data are deliberately not translated.
-  const languageNames = { en:'English', hu:'Magyar' };
+  const languageNames = {
+    en:'English',hu:'Magyar',de:'Deutsch',fr:'Français',es:'Español',
+    pt:'Português',it:'Italiano',ru:'Русский',zh:'简体中文',ja:'日本語'
+  };
   let browserPrefs = { gpu:'enabled', angle:'default', devTools:false, contextMenu:false, uncapFps:false };
   let browserActive = { ...browserPrefs };
   let browserPrefsLoaded = false;
   let browserPendingRestart = false;
-  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:'Beta 1.0.11',channel:'beta'};
+  let updateStatus={state:'idle',message:'Updates have not been checked yet.',current:CLIENT_LABEL,channel:'beta'};
   let updateRequestId=0;
   let lastUpdateNotice='';
   let updateNoticeTimer=null;
@@ -1749,10 +1752,26 @@
     'Session stored locally. Reloading so Kirka can validate it.':'Munkamenet elmentve. Újratöltés után a Kirka ellenőrzi.',
     'Local import failed. No credentials were transmitted.':'Helyi importálás sikertelen. Nincs továbbított hitelesítő adat.'
   });
+  // Settings-only translations; native Windows Setup/Uninstaller stay English.
+  // Rare advanced diagnostics safely fall back to English, never machine-guess.
+  const extraLocales={"de":{"Settings":"Einstellungen","SETTINGS":"EINSTELLUNGEN","Graphics":"Grafik","Display":"Anzeige","Gameplay":"Spiel","Workshop":"Werkstatt","Controls":"Steuerung","Interface":"Oberfläche","Advanced":"Erweitert","Performance":"Leistung","Frame Stability":"Bildstabilität","Browser Graphics":"Browsergrafik","Browser GPU Info":"Browser-GPU-Info","Eye Comfort":"Augenschonung","Crosshair":"Fadenkreuz","Game Integration":"Spielintegration","Lobby":"Lobby","Friends & Profiles":"Freunde & Profile","Weapon Studio":"Waffenstudio","Resource Swapper":"Ressourcenaustausch","Plugins":"Plugins","Inventory & Market":"Inventar & Markt","Browser Controls":"Browsersteuerung","Appearance":"Darstellung","Resources":"Ressourcen","CSS Editor":"CSS-Editor","General":"Allgemein","Updates":"Updates","Sharing":"Teilen","Diagnostics":"Diagnose","Language":"Sprache","Current version":"Aktuelle Version","Settings Backup & Language":"Sicherung & Sprache","Settings import/export":"Einstellungen importieren/exportieren","Export settings":"Einstellungen exportieren","Import settings":"Einstellungen importieren","Reset to Default":"Zurücksetzen","Cancel":"Abbrechen","Apply":"Übernehmen","Changes preview instantly":"Änderungen sofort sichtbar","Customize your game experience":"Passe dein Spielerlebnis an","Search settings":"Einstellungen suchen","No matching settings. Try another term.":"Keine Treffer. Anderes Wort versuchen.","FPS Limiter":"FPS-Begrenzung","Unlimited / Native":"Unbegrenzt / Nativ","Activate Unlimited FPS":"Unbegrenzte FPS aktivieren","Enable experimental unlock":"Experimentelle Freigabe aktivieren","Experimental Unlimited FPS (Chromium)":"Experimentelle unbegrenzte FPS","Restart KS Client now":"KS Client jetzt neu starten","FPS unlock verification":"FPS-Freigabe prüfen","Observed browser animation rate":"Gemessene Animationsrate","Low":"Niedrig","Medium":"Mittel","High":"Hoch","Balanced":"Ausgeglichen","High Performance":"Hohe Leistung","Low Latency Mode":"Modus mit geringer Latenz","UI Animations":"Oberflächenanimationen","Show FPS":"FPS anzeigen","Custom Crosshair":"Eigenes Fadenkreuz","Enable custom crosshair":"Fadenkreuz aktivieren","Crosshair color":"Fadenkreuzfarbe","Shape":"Form","Size":"Größe","Color":"Farbe","Opacity":"Deckkraft","Brightness":"Helligkeit","Contrast":"Kontrast","Saturation":"Sättigung","Warmth":"Wärme","Optional break reminder":"Pausenerinnerung","Client theme":"Client-Design","Color palette":"Farbpalette","Background color":"Hintergrundfarbe","Text color":"Textfarbe","Font family":"Schriftart","Menu animations":"Menüanimationen","Automatic updates":"Automatische Updates","Check for updates":"Nach Updates suchen","Install update & restart":"Update installieren und neu starten","Automatically check for updates":"Automatisch nach Updates suchen","Download updates automatically":"Updates automatisch herunterladen","Update channel":"Update-Kanal","Borderless fullscreen":"Randloses Vollbild","Toggle fullscreen · F11":"Vollbild umschalten · F11","Open log folder":"Protokollordner öffnen"},"fr":{"Settings":"Paramètres","SETTINGS":"PARAMÈTRES","Graphics":"Graphismes","Display":"Affichage","Gameplay":"Jeu","Workshop":"Atelier","Controls":"Commandes","Interface":"Interface","Advanced":"Avancé","Performance":"Performances","Frame Stability":"Stabilité des images","Browser Graphics":"Graphismes du navigateur","Browser GPU Info":"Infos GPU du navigateur","Eye Comfort":"Confort visuel","Crosshair":"Réticule","Game Integration":"Intégration au jeu","Lobby":"Salon","Friends & Profiles":"Amis et profils","Weapon Studio":"Studio d'armes","Resource Swapper":"Remplacement de ressources","Plugins":"Extensions","Inventory & Market":"Inventaire et marché","Browser Controls":"Contrôles du navigateur","Appearance":"Apparence","Resources":"Ressources","CSS Editor":"Éditeur CSS","General":"Général","Updates":"Mises à jour","Sharing":"Partage","Diagnostics":"Diagnostics","Language":"Langue","Current version":"Version actuelle","Settings Backup & Language":"Sauvegarde et langue","Settings import/export":"Importer/exporter les paramètres","Export settings":"Exporter les paramètres","Import settings":"Importer les paramètres","Reset to Default":"Réinitialiser","Cancel":"Annuler","Apply":"Appliquer","Changes preview instantly":"Aperçu instantané","Customize your game experience":"Personnalisez votre jeu","Search settings":"Rechercher un paramètre","No matching settings. Try another term.":"Aucun résultat. Essayez un autre mot.","FPS Limiter":"Limiteur de FPS","Unlimited / Native":"Illimité / Natif","Activate Unlimited FPS":"Activer les FPS illimités","Enable experimental unlock":"Activer le déverrouillage expérimental","Experimental Unlimited FPS (Chromium)":"FPS illimités expérimentaux","Restart KS Client now":"Redémarrer KS Client","FPS unlock verification":"Vérification du déverrouillage FPS","Observed browser animation rate":"Fréquence d'animation mesurée","Low":"Faible","Medium":"Moyen","High":"Élevé","Balanced":"Équilibré","High Performance":"Performances élevées","Low Latency Mode":"Mode faible latence","UI Animations":"Animations de l'interface","Show FPS":"Afficher les FPS","Custom Crosshair":"Réticule personnalisé","Enable custom crosshair":"Activer le réticule","Crosshair color":"Couleur du réticule","Shape":"Forme","Size":"Taille","Color":"Couleur","Opacity":"Opacité","Brightness":"Luminosité","Contrast":"Contraste","Saturation":"Saturation","Warmth":"Chaleur","Optional break reminder":"Rappel de pause","Client theme":"Thème du client","Color palette":"Palette de couleurs","Background color":"Couleur d'arrière-plan","Text color":"Couleur du texte","Font family":"Police","Menu animations":"Animations du menu","Automatic updates":"Mises à jour automatiques","Check for updates":"Rechercher des mises à jour","Install update & restart":"Installer et redémarrer","Automatically check for updates":"Vérifier les mises à jour automatiquement","Download updates automatically":"Télécharger automatiquement les mises à jour","Update channel":"Canal de mise à jour","Borderless fullscreen":"Plein écran sans bordure","Toggle fullscreen · F11":"Activer le plein écran · F11","Open log folder":"Ouvrir les journaux"},"es":{"Settings":"Configuración","SETTINGS":"CONFIGURACIÓN","Graphics":"Gráficos","Display":"Pantalla","Gameplay":"Juego","Workshop":"Taller","Controls":"Controles","Interface":"Interfaz","Advanced":"Avanzado","Performance":"Rendimiento","Frame Stability":"Estabilidad de fotogramas","Browser Graphics":"Gráficos del navegador","Browser GPU Info":"Información de GPU","Eye Comfort":"Confort visual","Crosshair":"Mira","Game Integration":"Integración del juego","Lobby":"Sala","Friends & Profiles":"Amigos y perfiles","Weapon Studio":"Estudio de armas","Resource Swapper":"Intercambio de recursos","Plugins":"Complementos","Inventory & Market":"Inventario y mercado","Browser Controls":"Controles del navegador","Appearance":"Apariencia","Resources":"Recursos","CSS Editor":"Editor CSS","General":"General","Updates":"Actualizaciones","Sharing":"Compartir","Diagnostics":"Diagnóstico","Language":"Idioma","Current version":"Versión actual","Settings Backup & Language":"Copia de seguridad e idioma","Settings import/export":"Importar/exportar ajustes","Export settings":"Exportar ajustes","Import settings":"Importar ajustes","Reset to Default":"Restablecer","Cancel":"Cancelar","Apply":"Aplicar","Changes preview instantly":"Vista previa inmediata","Customize your game experience":"Personaliza tu juego","Search settings":"Buscar ajustes","No matching settings. Try another term.":"Sin resultados. Prueba otra palabra.","FPS Limiter":"Límite de FPS","Unlimited / Native":"Ilimitado / Nativo","Activate Unlimited FPS":"Activar FPS ilimitados","Enable experimental unlock":"Activar desbloqueo experimental","Experimental Unlimited FPS (Chromium)":"FPS ilimitados experimentales","Restart KS Client now":"Reiniciar KS Client","FPS unlock verification":"Verificar desbloqueo FPS","Observed browser animation rate":"Frecuencia de animación","Low":"Bajo","Medium":"Medio","High":"Alto","Balanced":"Equilibrado","High Performance":"Alto rendimiento","Low Latency Mode":"Modo de baja latencia","UI Animations":"Animaciones de interfaz","Show FPS":"Mostrar FPS","Custom Crosshair":"Mira personalizada","Enable custom crosshair":"Activar mira","Crosshair color":"Color de mira","Shape":"Forma","Size":"Tamaño","Color":"Color","Opacity":"Opacidad","Brightness":"Brillo","Contrast":"Contraste","Saturation":"Saturación","Warmth":"Calidez","Optional break reminder":"Recordatorio de descanso","Client theme":"Tema del cliente","Color palette":"Paleta de colores","Background color":"Color de fondo","Text color":"Color del texto","Font family":"Fuente","Menu animations":"Animaciones de menú","Automatic updates":"Actualizaciones automáticas","Check for updates":"Buscar actualizaciones","Install update & restart":"Instalar y reiniciar","Automatically check for updates":"Buscar actualizaciones automáticamente","Download updates automatically":"Descargar actualizaciones automáticamente","Update channel":"Canal de actualización","Borderless fullscreen":"Pantalla completa sin bordes","Toggle fullscreen · F11":"Alternar pantalla completa · F11","Open log folder":"Abrir carpeta de registros"},"pt":{"Settings":"Configurações","SETTINGS":"CONFIGURAÇÕES","Graphics":"Gráficos","Display":"Ecrã","Gameplay":"Jogo","Workshop":"Oficina","Controls":"Controlos","Interface":"Interface","Advanced":"Avançado","Performance":"Desempenho","Frame Stability":"Estabilidade dos fotogramas","Browser Graphics":"Gráficos do navegador","Browser GPU Info":"Informações da GPU","Eye Comfort":"Conforto visual","Crosshair":"Mira","Game Integration":"Integração do jogo","Lobby":"Lobby","Friends & Profiles":"Amigos e perfis","Weapon Studio":"Estúdio de armas","Resource Swapper":"Troca de recursos","Plugins":"Plugins","Inventory & Market":"Inventário e mercado","Browser Controls":"Controlos do navegador","Appearance":"Aparência","Resources":"Recursos","CSS Editor":"Editor CSS","General":"Geral","Updates":"Atualizações","Sharing":"Partilha","Diagnostics":"Diagnóstico","Language":"Idioma","Current version":"Versão atual","Settings Backup & Language":"Cópia e idioma","Settings import/export":"Importar/exportar definições","Export settings":"Exportar definições","Import settings":"Importar definições","Reset to Default":"Repor padrões","Cancel":"Cancelar","Apply":"Aplicar","Changes preview instantly":"Pré-visualização imediata","Customize your game experience":"Personaliza o teu jogo","Search settings":"Pesquisar definições","No matching settings. Try another term.":"Sem resultados. Tenta outra palavra.","FPS Limiter":"Limite de FPS","Unlimited / Native":"Ilimitado / Nativo","Activate Unlimited FPS":"Ativar FPS ilimitados","Enable experimental unlock":"Ativar desbloqueio experimental","Experimental Unlimited FPS (Chromium)":"FPS ilimitados experimentais","Restart KS Client now":"Reiniciar KS Client","FPS unlock verification":"Verificar desbloqueio FPS","Observed browser animation rate":"Frequência de animação","Low":"Baixo","Medium":"Médio","High":"Alto","Balanced":"Equilibrado","High Performance":"Alto desempenho","Low Latency Mode":"Modo de baixa latência","UI Animations":"Animações da interface","Show FPS":"Mostrar FPS","Custom Crosshair":"Mira personalizada","Enable custom crosshair":"Ativar mira","Crosshair color":"Cor da mira","Shape":"Forma","Size":"Tamanho","Color":"Cor","Opacity":"Opacidade","Brightness":"Brilho","Contrast":"Contraste","Saturation":"Saturação","Warmth":"Calor","Optional break reminder":"Lembrete de pausa","Client theme":"Tema do cliente","Color palette":"Paleta de cores","Background color":"Cor de fundo","Text color":"Cor do texto","Font family":"Tipo de letra","Menu animations":"Animações do menu","Automatic updates":"Atualizações automáticas","Check for updates":"Procurar atualizações","Install update & restart":"Instalar e reiniciar","Automatically check for updates":"Procurar atualizações automaticamente","Download updates automatically":"Transferir atualizações automaticamente","Update channel":"Canal de atualização","Borderless fullscreen":"Ecrã inteiro sem bordas","Toggle fullscreen · F11":"Alternar ecrã inteiro · F11","Open log folder":"Abrir pasta de registos"},"it":{"Settings":"Impostazioni","SETTINGS":"IMPOSTAZIONI","Graphics":"Grafica","Display":"Schermo","Gameplay":"Gioco","Workshop":"Laboratorio","Controls":"Controlli","Interface":"Interfaccia","Advanced":"Avanzate","Performance":"Prestazioni","Frame Stability":"Stabilità fotogrammi","Browser Graphics":"Grafica browser","Browser GPU Info":"Informazioni GPU","Eye Comfort":"Comfort visivo","Crosshair":"Mirino","Game Integration":"Integrazione gioco","Lobby":"Lobby","Friends & Profiles":"Amici e profili","Weapon Studio":"Studio armi","Resource Swapper":"Sostituzione risorse","Plugins":"Plugin","Inventory & Market":"Inventario e mercato","Browser Controls":"Controlli browser","Appearance":"Aspetto","Resources":"Risorse","CSS Editor":"Editor CSS","General":"Generale","Updates":"Aggiornamenti","Sharing":"Condivisione","Diagnostics":"Diagnostica","Language":"Lingua","Current version":"Versione attuale","Settings Backup & Language":"Backup e lingua","Settings import/export":"Importa/esporta impostazioni","Export settings":"Esporta impostazioni","Import settings":"Importa impostazioni","Reset to Default":"Ripristina","Cancel":"Annulla","Apply":"Applica","Changes preview instantly":"Anteprima immediata","Customize your game experience":"Personalizza il gioco","Search settings":"Cerca impostazioni","No matching settings. Try another term.":"Nessun risultato. Prova un altro termine.","FPS Limiter":"Limite FPS","Unlimited / Native":"Illimitato / Nativo","Activate Unlimited FPS":"Attiva FPS illimitati","Enable experimental unlock":"Abilita sblocco sperimentale","Experimental Unlimited FPS (Chromium)":"FPS illimitati sperimentali","Restart KS Client now":"Riavvia KS Client","FPS unlock verification":"Verifica sblocco FPS","Observed browser animation rate":"Frequenza animazione","Low":"Basso","Medium":"Medio","High":"Alto","Balanced":"Bilanciato","High Performance":"Prestazioni elevate","Low Latency Mode":"Modalità bassa latenza","UI Animations":"Animazioni interfaccia","Show FPS":"Mostra FPS","Custom Crosshair":"Mirino personalizzato","Enable custom crosshair":"Attiva mirino","Crosshair color":"Colore mirino","Shape":"Forma","Size":"Dimensione","Color":"Colore","Opacity":"Opacità","Brightness":"Luminosità","Contrast":"Contrasto","Saturation":"Saturazione","Warmth":"Calore","Optional break reminder":"Promemoria pausa","Client theme":"Tema del client","Color palette":"Tavolozza colori","Background color":"Colore sfondo","Text color":"Colore testo","Font family":"Tipo di carattere","Menu animations":"Animazioni menu","Automatic updates":"Aggiornamenti automatici","Check for updates":"Controlla aggiornamenti","Install update & restart":"Installa e riavvia","Automatically check for updates":"Controllo automatico aggiornamenti","Download updates automatically":"Scarica aggiornamenti automaticamente","Update channel":"Canale aggiornamenti","Borderless fullscreen":"Schermo intero senza bordi","Toggle fullscreen · F11":"Attiva schermo intero · F11","Open log folder":"Apri cartella log"},"ru":{"Settings":"Настройки","SETTINGS":"НАСТРОЙКИ","Graphics":"Графика","Display":"Экран","Gameplay":"Игра","Workshop":"Мастерская","Controls":"Управление","Interface":"Интерфейс","Advanced":"Дополнительно","Performance":"Производительность","Frame Stability":"Стабильность кадров","Browser Graphics":"Графика браузера","Browser GPU Info":"Информация о GPU","Eye Comfort":"Комфорт для глаз","Crosshair":"Прицел","Game Integration":"Интеграция с игрой","Lobby":"Лобби","Friends & Profiles":"Друзья и профили","Weapon Studio":"Оружейная студия","Resource Swapper":"Замена ресурсов","Plugins":"Плагины","Inventory & Market":"Инвентарь и рынок","Browser Controls":"Управление браузером","Appearance":"Внешний вид","Resources":"Ресурсы","CSS Editor":"Редактор CSS","General":"Общие","Updates":"Обновления","Sharing":"Обмен","Diagnostics":"Диагностика","Language":"Язык","Current version":"Текущая версия","Settings Backup & Language":"Резервная копия и язык","Settings import/export":"Импорт и экспорт настроек","Export settings":"Экспорт настроек","Import settings":"Импорт настроек","Reset to Default":"Сбросить","Cancel":"Отмена","Apply":"Применить","Changes preview instantly":"Предпросмотр сразу","Customize your game experience":"Настройте свою игру","Search settings":"Поиск настроек","No matching settings. Try another term.":"Ничего не найдено. Попробуйте другое слово.","FPS Limiter":"Ограничение FPS","Unlimited / Native":"Без ограничений / Стандарт","Activate Unlimited FPS":"Включить FPS без ограничений","Enable experimental unlock":"Включить экспериментальный режим","Experimental Unlimited FPS (Chromium)":"Экспериментальный FPS без ограничений","Restart KS Client now":"Перезапустить KS Client","FPS unlock verification":"Проверка снятия лимита FPS","Observed browser animation rate":"Частота анимации браузера","Low":"Низкий","Medium":"Средний","High":"Высокий","Balanced":"Сбалансированный","High Performance":"Высокая производительность","Low Latency Mode":"Режим низкой задержки","UI Animations":"Анимации интерфейса","Show FPS":"Показать FPS","Custom Crosshair":"Настраиваемый прицел","Enable custom crosshair":"Включить прицел","Crosshair color":"Цвет прицела","Shape":"Форма","Size":"Размер","Color":"Цвет","Opacity":"Непрозрачность","Brightness":"Яркость","Contrast":"Контраст","Saturation":"Насыщенность","Warmth":"Теплота","Optional break reminder":"Напоминание о перерыве","Client theme":"Тема клиента","Color palette":"Палитра цветов","Background color":"Цвет фона","Text color":"Цвет текста","Font family":"Шрифт","Menu animations":"Анимации меню","Automatic updates":"Автообновление","Check for updates":"Проверить обновления","Install update & restart":"Установить и перезапустить","Automatically check for updates":"Автоматически проверять обновления","Download updates automatically":"Автоматически загружать обновления","Update channel":"Канал обновлений","Borderless fullscreen":"Полный экран без рамок","Toggle fullscreen · F11":"Полный экран · F11","Open log folder":"Открыть папку журналов"},"zh":{"Settings":"设置","SETTINGS":"设置","Graphics":"图形","Display":"显示","Gameplay":"游戏","Workshop":"工坊","Controls":"控制","Interface":"界面","Advanced":"高级","Performance":"性能","Frame Stability":"帧稳定性","Browser Graphics":"浏览器图形","Browser GPU Info":"浏览器 GPU 信息","Eye Comfort":"护眼","Crosshair":"准星","Game Integration":"游戏集成","Lobby":"大厅","Friends & Profiles":"好友与资料","Weapon Studio":"武器工坊","Resource Swapper":"资源替换","Plugins":"插件","Inventory & Market":"背包与市场","Browser Controls":"浏览器控制","Appearance":"外观","Resources":"资源","CSS Editor":"CSS 编辑器","General":"常规","Updates":"更新","Sharing":"共享","Diagnostics":"诊断","Language":"语言","Current version":"当前版本","Settings Backup & Language":"设置备份与语言","Settings import/export":"导入/导出设置","Export settings":"导出设置","Import settings":"导入设置","Reset to Default":"恢复默认","Cancel":"取消","Apply":"应用","Changes preview instantly":"即时预览更改","Customize your game experience":"自定义游戏体验","Search settings":"搜索设置","No matching settings. Try another term.":"无结果，请换个关键词。","FPS Limiter":"FPS 限制","Unlimited / Native":"无限制 / 原生","Activate Unlimited FPS":"启用无限 FPS","Enable experimental unlock":"启用实验性解锁","Experimental Unlimited FPS (Chromium)":"实验性无限 FPS","Restart KS Client now":"立即重启 KS Client","FPS unlock verification":"FPS 解锁验证","Observed browser animation rate":"浏览器动画速率","Low":"低","Medium":"中","High":"高","Balanced":"平衡","High Performance":"高性能","Low Latency Mode":"低延迟模式","UI Animations":"界面动画","Show FPS":"显示 FPS","Custom Crosshair":"自定义准星","Enable custom crosshair":"启用自定义准星","Crosshair color":"准星颜色","Shape":"形状","Size":"大小","Color":"颜色","Opacity":"不透明度","Brightness":"亮度","Contrast":"对比度","Saturation":"饱和度","Warmth":"色温","Optional break reminder":"休息提醒","Client theme":"客户端主题","Color palette":"调色板","Background color":"背景颜色","Text color":"文本颜色","Font family":"字体","Menu animations":"菜单动画","Automatic updates":"自动更新","Check for updates":"检查更新","Install update & restart":"安装并重启","Automatically check for updates":"自动检查更新","Download updates automatically":"自动下载更新","Update channel":"更新频道","Borderless fullscreen":"无边框全屏","Toggle fullscreen · F11":"切换全屏 · F11","Open log folder":"打开日志文件夹"},"ja":{"Settings":"設定","SETTINGS":"設定","Graphics":"グラフィック","Display":"表示","Gameplay":"ゲーム","Workshop":"ワークショップ","Controls":"操作","Interface":"インターフェース","Advanced":"詳細","Performance":"パフォーマンス","Frame Stability":"フレーム安定性","Browser Graphics":"ブラウザー描画","Browser GPU Info":"ブラウザー GPU 情報","Eye Comfort":"目の快適さ","Crosshair":"クロスヘア","Game Integration":"ゲーム連携","Lobby":"ロビー","Friends & Profiles":"フレンドとプロフィール","Weapon Studio":"武器スタジオ","Resource Swapper":"リソース置換","Plugins":"プラグイン","Inventory & Market":"インベントリと市場","Browser Controls":"ブラウザー操作","Appearance":"外観","Resources":"リソース","CSS Editor":"CSS エディター","General":"一般","Updates":"更新","Sharing":"共有","Diagnostics":"診断","Language":"言語","Current version":"現在のバージョン","Settings Backup & Language":"設定バックアップと言語","Settings import/export":"設定のインポート・エクスポート","Export settings":"設定を書き出す","Import settings":"設定を読み込む","Reset to Default":"初期設定に戻す","Cancel":"キャンセル","Apply":"適用","Changes preview instantly":"変更をすぐにプレビュー","Customize your game experience":"ゲーム体験をカスタマイズ","Search settings":"設定を検索","No matching settings. Try another term.":"見つかりません。別の単語を試してください。","FPS Limiter":"FPS 上限","Unlimited / Native":"無制限 / 標準","Activate Unlimited FPS":"無制限 FPS を有効化","Enable experimental unlock":"実験的解除を有効化","Experimental Unlimited FPS (Chromium)":"実験的な無制限 FPS","Restart KS Client now":"KS Client を再起動","FPS unlock verification":"FPS 制限解除の確認","Observed browser animation rate":"ブラウザー描画頻度","Low":"低","Medium":"中","High":"高","Balanced":"バランス","High Performance":"高パフォーマンス","Low Latency Mode":"低遅延モード","UI Animations":"UI アニメーション","Show FPS":"FPS を表示","Custom Crosshair":"カスタムクロスヘア","Enable custom crosshair":"クロスヘアを有効化","Crosshair color":"クロスヘアの色","Shape":"形","Size":"サイズ","Color":"色","Opacity":"不透明度","Brightness":"明るさ","Contrast":"コントラスト","Saturation":"彩度","Warmth":"暖かさ","Optional break reminder":"休憩リマインダー","Client theme":"クライアントのテーマ","Color palette":"カラーパレット","Background color":"背景色","Text color":"文字色","Font family":"フォント","Menu animations":"メニューアニメーション","Automatic updates":"自動更新","Check for updates":"更新を確認","Install update & restart":"更新をインストールして再起動","Automatically check for updates":"自動更新チェック","Download updates automatically":"更新を自動ダウンロード","Update channel":"更新チャンネル","Borderless fullscreen":"ボーダーレス全画面","Toggle fullscreen · F11":"全画面切り替え · F11","Open log folder":"ログフォルダーを開く"}};
+  Object.assign(hu,{
+    'Reset to Default':'Alapértékek visszaállítása',
+    'Cancel':'Mégse','Apply':'Alkalmaz',
+    'Changes preview instantly':'A változások azonnal látszanak',
+    'Customize your game experience':'Szabd személyre a játékélményt',
+    'Search settings':'Beállítások keresése',
+    'SETTINGS':'BEÁLLÍTÁSOK',
+    'No matching settings. Try another term.':'Nincs találat. Próbálj másik kifejezést.'
+  });
   function L(input) {
     const str=String(input ?? '');
-    if(state.language!=='hu')return str;
+    if(state.language==='en')return str;
     const v=str.trim();
+    if(state.language!=='hu') {
+      const dict=extraLocales[state.language];
+      return dict && Object.hasOwn(dict,v) ? str.replace(v,dict[v]) : str;
+    }
     if(Object.hasOwn(hu,v))return str.replace(v,hu[v]);
     let m;
     if((m=/^Imported (\d+) settings\. Review Custom CSS before enabling it\.$/.exec(v)))
@@ -1768,7 +1787,7 @@
     return str;
   }
   function localizePanel(root) {
-    if (!root || state.language !== 'hu') return;
+    if (!root || state.language === 'en') return;
     const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
     let node;
     while((node=walker.nextNode())) {
@@ -1786,6 +1805,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.14',en:['Fixed the Discord opening indicator so it automatically disappears even when CEF does not send an external-browser reply.','Repaired CEF borderless fullscreen using a trusted native navigation command, a Chromium F11 keyboard handler and Windows UI-thread marshaling.','Expanded fixed FPS targets to 200, 240, 300 and 360; selecting any finite cap now disables persistent Chromium uncap flags and clearly requests restart to reduce uncapped GPU work.','Reduced expensive Settings GPU compositing by removing full-screen backdrop blur, capping graph canvas resolution and avoiding unnecessary client RAF callbacks while settings tabs are open.','Added German, French, Spanish, Portuguese, Italian, Russian, Simplified Chinese and Japanese to Settings; English fallback for rare technical strings, with Windows Setup and Uninstaller remaining English.','Preserved both engines, Kirka native login, user settings, Workshop Experimental, local profiles and verified GitHub releases.']},
     {v:'Beta 1.0.13',en:['Fixed the Settings and sidebar version labels by using the current build version instead of old hard-coded 1.0.5 and 1.0.9 strings.','Protected CEF JavaScript calls when Chromium has not initialized or its IBrowser has been disposed; no uncaught WinForms browser-null dialog after game navigation.','CEF Discord and manual GitHub Releases use fixed client-owned same-origin navigation commands intercepted by the native host, without relying on a potentially dropped JavaScript bridge. Electron sign-in and external links are unchanged.','Clarified engine selection: CEF may provide more FPS but can be less stable; Electron generally favors stability at potentially lower FPS. Actual performance varies.']},
     {v:'Beta 1.0.12',en:['Replaced KS-managed Electron OAuth popup overrides and provider hostname allowlists with the default native Chromium window.open and navigation behavior, following the simpler Redline model.','Removed the CEF account popup lifetime handler, Google/Firebase domain allowlist and authentication-chain tracking; normal HTTP(S) sign-in navigation now belongs to CEF. Kept browser sandboxing, safe renderer preferences, local-file blocking, game pointer lock and only the exact KS-owned Discord invite.','Preserved original Kirka Google, Discord and email login buttons, native login passthrough, HUD, Workshop Experimental, themes, both engines, saved profiles and auto/manual updates. Google may still independently reject embedded OAuth under its official policies.']},
     {v:'Beta 1.0.11',en:['Kirka first-party sign-in is now left untouched: before a game session exists, Electron and CEF skip all injected KS overlays, input listeners and WebGL instrumentation. This allows the original email/password and provider buttons to receive their own browser events.','After Kirka itself creates its game session, the client reloads once and restores the full KS HUD, Workshop, presets, cosmetics, performance features and both browser engines. No user-entered tokens or passwords are required by KS.','Only explicit Discord invitation links open the KS community: game provider buttons with a plain Discord label can no longer be hijacked. Added browser-click and account-gate regression tests; Google may still reject embedded OAuth under its own policy.']},
@@ -1845,12 +1865,12 @@
     $('ks-gear').setAttribute('aria-label',L('Open KS Client settings'));
     $('ks-panel').setAttribute('aria-label',L('KS Client Settings'));
     $('ks-close').setAttribute('aria-label',L('Close Settings'));
-    $('ks-brand-main').textContent=state.language==='hu'?'Beállítások':'Settings';
-    $('ks-brand-sub').textContent=state.language==='hu'?'Szabd személyre a játékélményt':'Customize your game experience';
-    $('ks-reset-main').textContent=state.language==='hu'?'↺  Alapértékek visszaállítása':'↺  Reset to Default';
-    $('ks-cancel').textContent=state.language==='hu'?'Mégse':'Cancel';
-    $('ks-apply').textContent=state.language==='hu'?'✓  Alkalmaz':'✓  Apply';
-    $('ks-autosave-status').textContent=state.language==='hu'?'A változások azonnal látszanak':'Changes preview instantly';
+    $('ks-brand-main').textContent=L('Settings');
+    $('ks-brand-sub').textContent=L('Customize your game experience');
+    $('ks-reset-main').textContent='↺  '+L('Reset to Default');
+    $('ks-cancel').textContent=L('Cancel');
+    $('ks-apply').textContent='✓  '+L('Apply');
+    $('ks-autosave-status').textContent=L('Changes preview instantly');
   }
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -1917,7 +1937,7 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', 'KS Client Beta 1.0.13 starts in Electron by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client '+CLIENT_LABEL+' starts in Electron by default. Switching engines restarts the application.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Choose CEF for potentially higher FPS, but it may be less stable. Choose Electron for potentially lower FPS, but generally more stable behavior. Actual FPS depends on your PC and game settings. Switching restarts KS Client; browser profiles may differ. Shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron" title="Electron: usually more stable, may run at lower FPS">Electron · Stable</button><button class="ks-btn" data-action="engine-cef" title="CEF: potentially higher FPS, may be less stable">CEF · Higher FPS (experimental)</button></div></div>` +
@@ -1931,9 +1951,8 @@
       case 'Sharing':
         return title('Settings Backup & Language','Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.') +
           `<div class="ks-card">` +
-          selectRow('Language','Choose the complete English or Hungarian KS Client interface.','language',[
-            {value:'en',label:'English'},{value:'hu',label:'Magyar'}
-          ]) +
+          selectRow('Language','Choose your Settings language. Less common advanced technical labels may remain in English. The Windows Setup and Uninstaller remain English.','language',
+            Object.entries(languageNames).map(([value,label])=>({value,label}))) +
           `<div class="ks-row"><div><div class="ks-label">Settings import/export</div><div class="ks-desc">Export a JSON backup, including crosshair presets and visual settings. Uploaded binary assets are excluded.</div></div><div class="ks-stack"><button class="ks-btn primary" data-action="export-settings">Export settings</button><button class="ks-btn" data-action="import-settings">Import settings</button></div></div>` +
           `<input id="ks-import-file" type="file" accept=".json,application/json" hidden>` +
           `<div class="ks-stat-details" id="ks-sharing-status">${esc(sharingStatus)}</div>` +
@@ -2001,7 +2020,11 @@
             { value: 120, label: '120 FPS' },
             { value: 144, label: '144 FPS' },
             { value: 165, label: '165 FPS' },
-            { value: 180, label: '180 FPS' }
+            { value: 180, label: '180 FPS' },
+            { value: 200, label: '200 FPS' },
+            { value: 240, label: '240 FPS' },
+            { value: 300, label: '300 FPS' },
+            { value: 360, label: '360 FPS' }
           ]) +
           `<div class="ks-row"><div><div class="ks-label">Activate Unlimited FPS</div><div class="ks-desc">Requests Chromium FPS unlocking and removes the KS JavaScript callback cap. Restart required; actual Kirka.io FPS is not guaranteed above monitor Hz.</div></div><button class="ks-btn primary" data-action="enable-unlimited-fps" ${!browserPrefsLoaded?'disabled':''}>Enable experimental unlock</button></div>` +
           `<div class="ks-row"><div><div class="ks-label">Experimental Unlimited FPS (Chromium)</div><div class="ks-desc">Attempts to remove Chromium rAF/vsync limits. Requires a restart and may cause tearing, higher CPU load or network input delays.</div></div><input type="checkbox" data-browser="uncapFps" ${browserPrefs.uncapFps?'checked':''} ${!browserPrefsLoaded?'disabled':''}></div>` +
@@ -2412,9 +2435,9 @@
     if (!canvas || !state.showGraph) return;
     const width = Math.max(250,Math.round(canvas.clientWidth));
     const height = Math.max(100,Math.round(canvas.clientHeight));
-    const dpr = Math.min(3,window.devicePixelRatio || 1);
-    canvas.width = Math.round(width*dpr);
-    canvas.height = Math.round(height*dpr);
+    const dpr = Math.min(1.5,window.devicePixelRatio || 1);
+    if(canvas.width!==Math.round(width*dpr))canvas.width=Math.round(width*dpr);
+    if(canvas.height!==Math.round(height*dpr))canvas.height=Math.round(height*dpr);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -2452,6 +2475,7 @@
     };
     if (!profiles[preset]) return;
     state={...state,...profiles[preset],smoothPreset:'Native',performancePreset:preset};
+    if(state.fpsLimit>0)disableChromiumUncapForCap();
     save();
     window.__KS_FRAME_PACER__?.setLimit(state.fpsLimit);
     notify('game-resolution',{preset:state.gameResolution});
@@ -2509,19 +2533,19 @@
     results.innerHTML=matching.length ? matching.map(name=>{
       const category=groups.find(g=>g.items.includes(name));
       return `<button type="button" class="ks-search-result" data-tab="${esc(name)}"><span>${esc(translateTab(name))}</span><span class="ks-search-path">${esc(translateTab(category?.key||''))}</span></button>`;
-    }).join('') : `<div class="ks-search-empty">${state.language==='hu'?'Nincs találat. Próbálj másik kifejezést.':'No matching settings. Try another term.'}</div>`;
+    }).join('') : `<div class="ks-search-empty">${L('No matching settings. Try another term.')}</div>`;
     categories.hidden=true;results.hidden=false;
   }
 
   function renderTab() {
     closeCustomSelect();
     const group=currentGroup();
-    $('ks-nav').innerHTML = `<div class="ks-sidebar-caption">${state.language==='hu'?'BEÁLLÍTÁSOK':'SETTINGS'}</div>`+
-      `<div id="ks-menu-search-wrap"><input id="ks-menu-search" type="search" autocomplete="off" spellcheck="false" aria-label="${state.language==='hu'?'Beállítások keresése':'Search settings'}" placeholder="${state.language==='hu'?'Keresés a beállításokban…':'Search settings…'}"></div>`+
+    $('ks-nav').innerHTML = `<div class="ks-sidebar-caption">${L('SETTINGS')}</div>`+
+      `<div id="ks-menu-search-wrap"><input id="ks-menu-search" type="search" autocomplete="off" spellcheck="false" aria-label="${L('Search settings')}" placeholder="${state.language==='hu'?'Keresés a beállításokban…':'Search settings…'}"></div>`+
       `<div id="ks-search-results" role="group" hidden></div>`+
       `<div id="ks-sidebar-groups">`+
       groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon" aria-hidden="true">${groupIcon(g.key)}</span><span>${translateTab(g.key)}</span>${g.key==='Workshop'?'<span class="ks-experimental-badge">EXPERIMENTAL</span>':''}</button>`).join('')+
-      `</div><div class="ks-sidebar-foot">KS CLIENT <span>${esc(CLIENT_LABEL.toUpperCase())}</span><div style="opacity:.7;margin-top:5px">F1 · ${state.language==='hu'?'Beállítások':'Settings'} &nbsp; F10 · HUD</div></div>`;
+      `</div><div class="ks-sidebar-foot">KS CLIENT <span>${esc(CLIENT_LABEL.toUpperCase())}</span><div style="opacity:.7;margin-top:5px">F1 · ${L('Settings')} &nbsp; F10 · HUD</div></div>`;
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
@@ -2656,6 +2680,7 @@
     if(target===undefined)return;
     state.smoothPreset=preset;state.fpsLimit=target;save();
     window.__KS_FRAME_PACER__?.setLimit(target);
+    if(target>0)disableChromiumUncapForCap();
     renderTab();apply();
   }
   const stabilitySamples=[];
@@ -2699,6 +2724,10 @@
 
   function apply() {
     $('ks-dimmer').classList.toggle('visible', open);
+    // Avoid a full-screen blur of the running WebGL surface: reduces GPU compositing.
+    $('ks-dimmer').style.backdropFilter='none';
+    $('ks-dimmer').style.webkitBackdropFilter='none';
+    $('ks-dimmer').style.background='rgba(0,0,0,.92)';
     $('ks-screen').classList.toggle('no-motion', !state.uiAnimations || state.lowLatency || state.reduceMotion);
     const scale = Math.max(1, Math.min(1.6, Number(state.uiScale)/100 || 1));
     $('ks-panel').style.setProperty('--ks-ui-scale', String(scale));
@@ -2955,6 +2984,15 @@
     }
   }
 
+  // Selecting a finite FPS limit removes persistent Chromium uncap flags.
+  // A normal restart is necessary to undo previously active native switches.
+  function disableChromiumUncapForCap() {
+    if(!(Number(state.fpsLimit)>0) || !browserPrefsLoaded || !browserPrefs.uncapFps)return;
+    browserPrefs={...browserPrefs,uncapFps:false};
+    browserPendingRestart=browserActive.uncapFps!==false;
+    browserStatus='Finite FPS limit selected. Chromium unlimited FPS disabled for next launch. Restart KS Client to reduce GPU work.';
+    notify('browser-save',{browser:browserPrefs});
+  }
   function setSetting(k, value) {
     if (!(k in defaults)) return;
     if (typeof defaults[k] === 'number') value = Number(value);
@@ -2983,7 +3021,7 @@
     // the exact named palette is still active.
     if (['customAccent','customBackground','customPanel','customText','customMuted'].includes(k))
       state.themePreset='Custom';
-    if(k==='fpsLimit') { value=Number(value); if (![0,60,120,144,165,180].includes(value))return; }
+    if(k==='fpsLimit') { value=Number(value); if (![0,60,120,144,165,180,200,240,300,360].includes(value))return; }
     if(k==='uiScale') {
       value=Math.max(100,Math.min(160,Math.round(Number(value)||100)));
       state.uiScale=value;save();
@@ -3007,7 +3045,7 @@
       }
     }
     state[k] = value;
-    if (k === 'fpsLimit') window.__KS_FRAME_PACER__?.setLimit(value);
+    if (k === 'fpsLimit') {window.__KS_FRAME_PACER__?.setLimit(value);if(value>0)disableChromiumUncapForCap();}
     save();
     if(k.startsWith('game'))window.__KS_GAME_EXTRAS__?.refresh?.();
     apply();
@@ -3048,7 +3086,7 @@
     if(typeof def==='string' && value.length>12000)return undefined;
     if(['color','customAccent','centerDotColor','centerDotOutlineColor','outlineColor','shadowColor'].includes(key) && !/^#[a-f0-9]{6}$/i.test(value))return undefined;
     if(key==='language' && !Object.hasOwn(languageNames,value))return undefined;
-    if(key==='fpsLimit' && ![0,60,120,144,165,180].includes(value))return undefined;
+    if(key==='fpsLimit' && ![0,60,120,144,165,180,200,240,300,360].includes(value))return undefined;
     if(key==='gameResolution' && !['native','720','1080','1440','2160'].includes(value))return undefined;
     if(key==='menuResolution' && !['native','720','1080','1440','2160'].includes(value))return undefined;
     if(key==='themePreset' && !Object.hasOwn(themeColors,value))return undefined;
@@ -3124,9 +3162,18 @@
     window.__KS_FRAME_PACER__?.setLimit(state.fpsLimit);
     renderTab();apply();
   });
-  function openCommunity() {
+  let communityNoticeTimer=null;
+  function showCommunityNotice(message,duration=4500) {
     const notice=$('ks-community-status');
-    if(notice){notice.hidden=false;notice.textContent=state.language==='hu'?'Discord meghívó megnyitása…':'Opening KS Discord in your default browser…';}
+    if(!notice)return;
+    if(communityNoticeTimer)clearTimeout(communityNoticeTimer);
+    notice.textContent=String(message||'').slice(0,260);
+    notice.hidden=false;
+    // CEF's fixed native-navigation fallback sends no reply: always dismiss.
+    communityNoticeTimer=setTimeout(()=>{notice.hidden=true;communityNoticeTimer=null;},duration);
+  }
+  function openCommunity() {
+    showCommunityNotice(state.language==='hu'?'Discord meghívó megnyitása…':'Opening KS Discord in your default browser…',2400);
     if(!openTrustedExternal('discord'))window.__KS_CLIENT__?.setCommunityStatus?.('Native client bridge unavailable. Copy https://discord.gg/cxP386yGjk into your browser.');
   }
   $('ks-discord-menu').addEventListener('click',openCommunity);
@@ -3203,7 +3250,8 @@
       state.fpsLimit=0;state.smoothPreset='Native';save();
       window.__KS_FRAME_PACER__?.setLimit(0);
     }
-    browserStatus = 'Saving browser settings…';
+    if(key==='uncapFps')browserPendingRestart=browserActive.uncapFps!==value;
+    browserStatus = key==='uncapFps' ? 'Chromium frame-rate launch flags changed. Restart KS Client to apply.' : 'Saving browser settings…';
     notify('browser-save',{browser:browserPrefs});
   });
 
@@ -3319,7 +3367,11 @@
     if (a === 'auth-import-session') { importKirkaSession(); return; }
     if (a === 'auth-help') { window.__KS_CLIENT__?.openAccountHelp?.(); return; }
     if (a === 'game-screenshot') notify('game-screenshot');
-    if (a === 'fullscreen') notify('fullscreen');
+    if (a === 'fullscreen') {
+      if(isGamePage && !window.__KS_NATIVE__?.post && (window.CefSharp?.PostMessage || (typeof activeEngine==='string' && activeEngine.toLowerCase().includes('cef'))))
+        location.assign('https://kirka.io/__ksclient_internal_toggle_fullscreen__');
+      else notify('fullscreen');
+    }
     if (a === 'check-gpu') checkGPU();
     if (a === 'browser-check-gpu') checkBrowserGPU();
     if (a === 'update-check') {
@@ -3405,7 +3457,7 @@
       nativeDisplayFPS = Math.round(displayFrames * 1000 / (ts-lastSample));
       displayFrames=0;lastSample=ts;
     }
-    if(ts-lastGraphSampleAt>=500) {
+    if(ts-lastGraphSampleAt>=1000) {
       lastGraphSampleAt=ts;
       if(state.fpsSource==='kirka-hud' && ts-gameHUDReadAt>900) {
         gameHUDValue=readGameHUDValue();gameHUDReadAt=ts;
@@ -3450,7 +3502,10 @@
       paintGraphs();
       updateStabilityDiagnostics();
     }
-    animationFrame(animate);
+    // Don't spin our own uncapped RAF observer behind unrelated Settings tabs.
+    if(open && selectedTab!=='Performance' && selectedTab!=='Frame Stability')
+      setTimeout(()=>animationFrame(animate),180);
+    else animationFrame(animate);
   }
   setInterval(()=>{if(open && selectedTab==='Diagnostics')notify('diagnostics-poll');},2000);
   setInterval(()=>{if(open && (selectedTab==='Performance'||selectedTab==='Frame Stability'))notify('fps-diagnostics');},1800);
@@ -3516,7 +3571,7 @@
       const allowed=['idle','checking','available','current','unavailable','error','downloading'];
       updateStatus={
         state:allowed.includes(status.state)?status.state:'error',
-        current:String(status.current||'Beta 1.0.12').slice(0,40),
+        current:String(status.current||CLIENT_LABEL).slice(0,40),
         version:String(status.version||'').slice(0,40),
         channel:String(status.channel||state.updateChannel).slice(0,12),
         message:String(status.message||'').slice(0,380),
@@ -3547,6 +3602,7 @@
         browserActive=active||browserPrefs;
         browserPrefsLoaded=true;
         browserPendingRestart=!!needsRestart;
+        if(state.fpsLimit>0)disableChromiumUncapForCap();
       }
       browserStatus=status || 'Applied on browser startup';
       if(browserGroups.has(selectedTab) || selectedTab==='Performance')renderTab();
@@ -3571,14 +3627,7 @@
     },
     setDiagnostics: d => {if(d && typeof d==='object'){diagnostics=d;updateDiagnosticsUI();}},
     setCrashStatus: s => {crashStatus=String(s);const el=$('ks-crash-status');if(el)el.textContent=L(crashStatus);},
-    setCommunityStatus: status => {
-      const notice=$('ks-community-status');
-      if(!notice)return;
-      notice.textContent=String(status||'').slice(0,260);
-      notice.hidden=false;
-      const marker=notice.textContent;
-      setTimeout(()=>{if(notice.textContent===marker)notice.hidden=true;},6500);
-    },
+    setCommunityStatus: status => {showCommunityNotice(status,5500);},
 
   };
 
