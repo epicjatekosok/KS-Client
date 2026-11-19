@@ -15,8 +15,15 @@ internal static class ClientCommunityLinks
     {
         if(!Uri.TryCreate(value,UriKind.Absolute,out var uri) ||
            !uri.Scheme.Equals(Uri.UriSchemeHttps,StringComparison.OrdinalIgnoreCase))return false;
-        return uri.Host.ToLowerInvariant() is "discord.gg" or "discord.com"
-            or "www.discord.com" or "discordapp.com" or "www.discordapp.com";
+        // A Discord OAuth page is NOT a community invitation. Previously every
+        // discord.com URL was redirected to KS's community invite, preventing
+        // Kirka's own Discord login popup from completing.
+        var host=uri.IdnHost.ToLowerInvariant();
+        var path=uri.AbsolutePath;
+        if(host=="discord.gg")return path.Length>1 && path.Trim('/').IndexOf('/')<0;
+        return (host is "discord.com" or "www.discord.com" or "discordapp.com" or "www.discordapp.com") &&
+            (path.StartsWith("/invite/",StringComparison.OrdinalIgnoreCase) ||
+             path.StartsWith("/channels/",StringComparison.OrdinalIgnoreCase));
     }
 
     internal static bool OpenInvite()
