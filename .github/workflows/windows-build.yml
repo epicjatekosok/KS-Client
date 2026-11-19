@@ -121,6 +121,7 @@ jobs:
           node tests/test_oauth_102.cjs
           node tests/test_auth_105.cjs
           node tests/test_auth_106.cjs
+          node tests/test_login_navigation_109.cjs
 
   offline-installer:
     if: github.event_name != 'pull_request'
