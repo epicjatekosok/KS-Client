@@ -10,7 +10,7 @@ def add(path,content=b'test'):
  path.write_bytes(content)
 def mark(folder,engine,filename):
  blob=(folder/filename).read_bytes()
- value={'version':'1.0.17','engine':engine,'exeName':filename,
+ value={'version':'1.0.18','engine':engine,'exeName':filename,
         'exeSha256':sha256(blob).hexdigest(),'runner':'windows','result':'PASS'}
  add(folder/'ks-smoke-pass.json',json.dumps(value).encode('utf8'))
 with TemporaryDirectory() as temp:
@@ -62,5 +62,5 @@ with TemporaryDirectory() as temp:
  mark(root/'runtime/CEF','CEF','KS.Cef.Client.exe')
  ok=run()
  assert ok.returncode==0,(ok.stdout,ok.stderr)
- assert (root/'KS-Client-beta-1.0.17-Portable.zip').is_file()
+ assert (root/'KS-Client-beta-1.0.18-Portable.zip').is_file()
  print('PASS: release requires both current Windows smoke markers')

@@ -1,5 +1,5 @@
 'use strict';
-// KS Client Beta 1.0.17: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.18: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'Beta 1.0.17';
+const APP_VERSION = 'Beta 1.0.18';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -17,7 +17,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.17.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.18.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -116,7 +116,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.17').slice(0,40),
+      current:String(payload.current||'1.0.18').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -197,9 +197,11 @@ function signalSwitchReady(){
     },250);
   }
 }
-const active=safeMode?{...DEFAULT_PREFS}:loadPrefs();
-let desired={...active};
-if(safeMode)savePrefs(active);
+const fixedMarker=path.join(ROOT,'electron-fixed-frame-target');
+let fixedTarget=fs.existsSync(fixedMarker);
+let desired=safeMode?{...DEFAULT_PREFS}:loadPrefs();
+const active={...desired,uncapFps:desired.uncapFps&&!fixedTarget};
+if(safeMode)savePrefs(desired);
 // Chromium flags MUST be set before app.whenReady. Experimental; not guaranteed to unlock game FPS.
 if(active.gpu==='disabled')app.disableHardwareAcceleration();
 if(active.angle==='d3d11')app.commandLine.appendSwitch('use-angle','d3d11');
@@ -248,7 +250,7 @@ let currentURL=GAME;
 let menuResolution='native';
 let gameResolution='native';
 const RES={720:[1280,720],1080:[1920,1080],1440:[2560,1440],2160:[3840,2160]};
-function needsRestart(){return active.gpu!==desired.gpu||active.angle!==desired.angle||active.uncapFps!==desired.uncapFps}
+function needsRestart(){return active.gpu!==desired.gpu||active.angle!==desired.angle||active.uncapFps!==(desired.uncapFps&&!fixedTarget)}
 function jsCall(name,...args){
   if(!win || win.isDestroyed() || !validURL(win.webContents.getURL()))return;
   const script=`window.__KS_CLIENT__?.${name}?.apply(window.__KS_CLIENT__, ${JSON.stringify(args)});`;
@@ -307,7 +309,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.17 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.18 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
@@ -449,6 +451,15 @@ function receiveMessage(event, raw){
     }
     case 'update-check':checkKSUpdate(['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta',raw.automatic===true,raw.autoDownload===true);break;
     case 'update-install':void installKSUpdate(['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta');break;
+    case 'frame-policy':{
+      if(typeof raw.enabled!=='boolean'||raw.enabled===fixedTarget)break;
+      try{
+        if(raw.enabled){fs.mkdirSync(ROOT,{recursive:true});fs.writeFileSync(fixedMarker,'1');}
+        else fs.rmSync(fixedMarker,{force:true});
+        fixedTarget=raw.enabled;browserConfig();
+      }catch(e){browserConfig('Could not save frame policy: '+e.message);}
+      break;
+    }
     case 'browser-config':browserConfig();break;
     case 'browser-save':{
       desired=normPrefs(raw.browser);
