@@ -14,8 +14,15 @@ const ALLOWED=Object.freeze({img:new Set(['.png','.jpg','.jpeg','.webp','.gif','
  ui:new Set(['.png','.jpg','.jpeg','.webp','.gif','.svg']),audio:new Set(['.mp3','.wav','.ogg']),
  fonts:new Set(['.woff','.woff2','.ttf','.otf']),
  media:new Set(['.mp3','.wav','.ogg']),css:new Set(['.css'])});
-function settings(){try{return JSON.parse(fs.readFileSync(SETTINGS,'utf8')).enabled===true}catch(_){return false}}
-function setEnabled(enabled){fs.mkdirSync(ROOT,{recursive:true});fs.writeFileSync(SETTINGS,JSON.stringify({enabled:enabled===true}),{mode:0o600});return settings()}
+let cachedEnabled=false,readAfter=0;
+const counts={served:0,unmatched:0,failed:0};
+function settings(){
+ if(Date.now()<readAfter)return cachedEnabled;
+ try{cachedEnabled=JSON.parse(fs.readFileSync(SETTINGS,'utf8')).enabled===true;}catch(_){cachedEnabled=false;}
+ readAfter=Date.now()+1000;
+ return cachedEnabled;
+}
+function setEnabled(enabled){fs.mkdirSync(ROOT,{recursive:true});fs.writeFileSync(SETTINGS,JSON.stringify({enabled:enabled===true}),{mode:0o600});readAfter=0;return settings()}
 function folder(){for(const sub of Object.keys(ALLOWED))fs.mkdirSync(path.join(FOLDER,sub),{recursive:true});return FOLDER}
 function resolve(request){
  try{
@@ -45,7 +52,7 @@ function scan(){
    else if(f.isFile()&&Object.hasOwn(TYPES,path.extname(p).toLowerCase())){count++;bytes+=fs.statSync(p).size}
   }
  }
- walk(FOLDER,0);return {count,bytes,folder:FOLDER,enabled:settings()};
+ walk(FOLDER,0);return {count,bytes,folder:FOLDER,enabled:settings(),...counts};
 }
 function registerSchemes(){
  protocol.registerSchemesAsPrivileged([{scheme:'ksclient-asset',privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:false,stream:true}}]);
@@ -57,17 +64,18 @@ function install(log=()=>{}){
   const mapped=original&&settings()?resolve(original):null;
   if(!mapped)return new Response('Not found',{status:404});
   try{
-   return new Response(fs.readFileSync(mapped.file),{status:200,headers:{
+   const bytes=await fs.promises.readFile(mapped.file);counts.served++;
+   return new Response(bytes,{status:200,headers:{
      'Content-Type':mapped.mime,'Access-Control-Allow-Origin':'https://kirka.io','Cache-Control':'no-store'
    }});
-  }catch(e){log('Local asset failed: '+e.message);return new Response('Not found',{status:404})}
+  }catch(e){counts.failed++;log('Local asset failed: '+e.message);return new Response('Not found',{status:404})}
  });
  session.defaultSession.webRequest.onBeforeRequest({
   urls:['https://kirka.io/assets/*','https://www.kirka.io/assets/*']
  },(details,done)=>{
   if(!settings()||!['image','media','stylesheet','font','xhr','other'].includes(details.resourceType))return done({});
   const match=resolve(details.url);
-  if(!match)return done({});
+  if(!match){counts.unmatched++;return done({});}
   const next='ksclient-asset://asset.local/?origin='+encodeURIComponent(details.url);
   done({redirectURL:next});
  });

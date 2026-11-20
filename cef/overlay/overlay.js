@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.14 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.15 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.14';
+  const CLIENT_VERSION='1.0.15';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -46,6 +46,9 @@
     fpsLimit: 0,
     smoothPreset: 'Native',
     showGraph: true,
+    limitSettingsFPS: true,
+    limitLobbyFPS: false,
+    limitUnfocusedFPS: false,
     eyeEnabled: false, eyePreset: 'Normal', eyeBrightness: 100, eyeContrast: 100, eyeSaturation: 100, eyeWarmth: 0, eyeSoftness: 0,
     breakReminderMinutes: 0,
     lowLatency: false,
@@ -106,7 +109,7 @@
   const frameHistory = [];
   let displayedGameFPS = 0;
   let displayedFrameMs = 0;
-  let measuredLabel = 'Browser animation ticks (not game GPU FPS)';
+  let measuredLabel = 'Waiting for page animation callbacks';
   // Named presets are complete visual palettes; they never touch gameplay settings.
   const themePalettes = Object.freeze({
     Amber:{accent:'#f0aa35',bg:'#0d1015',panel:'#171c23',text:'#edf0f6',muted:'#97a3b2'},
@@ -134,7 +137,7 @@
   const resetSections = Object.freeze({
     General: [],
     Display: ['menuResolution','gameResolution','uiScale','showFPS','fpsSource','fpsPosition'],
-    Performance: ['fpsLimit','smoothPreset','showGraph','lowLatency','performancePreset','uiAnimations'],
+    Performance: ['fpsLimit','smoothPreset','limitSettingsFPS','limitLobbyFPS','limitUnfocusedFPS','showGraph','lowLatency','performancePreset','uiAnimations'],
     'Frame Stability': [],
     'Game Integration':['gameKeystrokes','gameStats','gameKeysPosition','gameKeysScale','gameAutoMouseCapture','gameQuickJoin'],
     'Eye Comfort': ['eyeEnabled','eyePreset','eyeBrightness','eyeContrast','eyeSaturation','eyeWarmth','eyeSoftness','breakReminderMinutes'],
@@ -169,6 +172,20 @@
       channel:['alpha','beta','stable'].includes(state.updateChannel)?state.updateChannel:'beta'};
     const fingerprint=JSON.stringify(prefs);
     if(fingerprint!==lastSentUpdatePreferences && notify('update-config',prefs)) lastSentUpdatePreferences=fingerprint;
+  }
+  let latestWorkshopRequest=null,workshopTimeout=null;
+  function workshopNotify(type,payload={}){
+    if(!['resource-save','resource-scan'].includes(type))return notify(type,payload);
+    const requestId=Array.from(crypto.getRandomValues(new Uint32Array(4)),n=>n.toString(16).padStart(8,'0')).join('');
+    latestWorkshopRequest=requestId;
+    clearTimeout(workshopTimeout);
+    workshopTimeout=setTimeout(()=>{
+      if(latestWorkshopRequest===requestId){
+        latestWorkshopRequest=null;
+        window.__KS_CLIENT__?.setWorkshopStatus('The native resource swapper did not respond. Retry the operation.');
+      }
+    },6000);
+    return notify(type,{...payload,requestId});
   }
   function notify(type, payload = {}) {
     try {
@@ -284,7 +301,7 @@
     .ks-gear-icon { font-size: 20px; line-height: 1; }
     #ks-dimmer {
       display: none; pointer-events: auto; position: absolute; inset: 0;
-      background: rgba(0,0,0,.70); backdrop-filter: blur(6px);
+      background: rgba(0,0,0,.70); backdrop-filter: none;
     }
     #ks-dimmer.visible { display: flex; align-items: center; justify-content: center; }
     #ks-panel {
@@ -1557,6 +1574,14 @@
   "No local asset loaded. Add a file above.": "Nincs betöltött helyi erőforrás. Fent adj hozzá egy fájlt.",
   "Paces browser requestAnimationFrame callbacks. This can limit games using the main-thread rAF loop, but is not a GPU driver cap.": "A böngésző requestAnimationFrame hívásait ütemezi. Ez korlátozhatja az ezen alapuló játékokat, de nem videokártya-szintű FPS-limit.",
   "Disables KS Client menu blur and animations. This reduces interface overhead only, not game network latency.": "Kikapcsolja a KS Client menüelmosását és animációit. Csak a felület terhelését csökkenti, a hálózati késleltetést nem.",
+  "Limit lobby rendering":"Renderelés korlátozása az előszobában",
+  "Cap page animation callbacks at 60 in the visible lobby.":"A látható előszobában legfeljebb 60 animációs hívás másodpercenként.",
+  "Limit unfocused rendering":"Renderelés korlátozása inaktív ablakban",
+  "Cap page animation callbacks at 30 when another window has focus.":"Ha másik ablak aktív, legfeljebb 30 animációs hívás másodpercenként.",
+  "Reduce rendering in Settings":"Renderelés visszafogása a beállításokban",
+  "Limit page animation callbacks to 30 per second while browsing Settings. Frame Stability uses the gameplay limit while measuring.":"A beállításokban a lap animációi legfeljebb 30-szor futnak másodpercenként. A Képkockastabilitás lap a játékhoz megadott korlát mellett mér.",
+  "99th-percentile interval":"99. percentilis képkockaköz",
+  "Game WebGL draws/s":"Játék WebGL rajzolási hívásai/s",
   "Measured requestAnimationFrame callback rate, not presented GPU FPS.": "Mért requestAnimationFrame hívási gyakoriság, nem a GPU által megjelenített FPS.",
 
   "Tip: disable the default crosshair elements in Kirka.io settings to prevent a double crosshair.": "Tipp: kapcsold ki a Kirka.io beállításaiban az alap célkereszt elemeit, hogy ne látszódjon két célkereszt!",
@@ -1805,6 +1830,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.15',en:['Game views and visible HUD values now share one event source across both engines.','Settings can reduce animation work, and WebGL diagnostics run on demand.'],hu:['A két motor közös eseményforrásból olvassa a játék látható nézeteit és HUD-adatait.','A Settings csökkentheti az animációk terhelését, a WebGL-diagnosztika igény szerint fut.']},
     {v:'Beta 1.0.14',en:['Fixed the Discord opening indicator so it automatically disappears even when CEF does not send an external-browser reply.','Repaired CEF borderless fullscreen using a trusted native navigation command, a Chromium F11 keyboard handler and Windows UI-thread marshaling.','Expanded fixed FPS targets to 200, 240, 300 and 360; selecting any finite cap now disables persistent Chromium uncap flags and clearly requests restart to reduce uncapped GPU work.','Reduced expensive Settings GPU compositing by removing full-screen backdrop blur, capping graph canvas resolution and avoiding unnecessary client RAF callbacks while settings tabs are open.','Added German, French, Spanish, Portuguese, Italian, Russian, Simplified Chinese and Japanese to Settings; English fallback for rare technical strings, with Windows Setup and Uninstaller remaining English.','Preserved both engines, Kirka native login, user settings, Workshop Experimental, local profiles and verified GitHub releases.']},
     {v:'Beta 1.0.13',en:['Fixed the Settings and sidebar version labels by using the current build version instead of old hard-coded 1.0.5 and 1.0.9 strings.','Protected CEF JavaScript calls when Chromium has not initialized or its IBrowser has been disposed; no uncaught WinForms browser-null dialog after game navigation.','CEF Discord and manual GitHub Releases use fixed client-owned same-origin navigation commands intercepted by the native host, without relying on a potentially dropped JavaScript bridge. Electron sign-in and external links are unchanged.','Clarified engine selection: CEF may provide more FPS but can be less stable; Electron generally favors stability at potentially lower FPS. Actual performance varies.']},
     {v:'Beta 1.0.12',en:['Replaced KS-managed Electron OAuth popup overrides and provider hostname allowlists with the default native Chromium window.open and navigation behavior, following the simpler Redline model.','Removed the CEF account popup lifetime handler, Google/Firebase domain allowlist and authentication-chain tracking; normal HTTP(S) sign-in navigation now belongs to CEF. Kept browser sandboxing, safe renderer preferences, local-file blocking, game pointer lock and only the exact KS-owned Discord invite.','Preserved original Kirka Google, Discord and email login buttons, native login passthrough, HUD, Workshop Experimental, themes, both engines, saved profiles and auto/manual updates. Google may still independently reject embedded OAuth under its official policies.']},
@@ -2034,10 +2060,14 @@
           `<div class="ks-row"><div><div class="ks-label">Browser FPS unlock</div><div class="ks-desc">Your selected engine startup request</div></div><span class="ks-code">${browserActive.uncapFps ? L('Requested on startup') : L('Off / normal sync')}</span></div>`+
           (browserPendingRestart ? `<p class="ks-hint">${L('Restart KS Client now')}</p><button class="ks-btn primary" data-action="browser-restart">${L('Restart KS Client now')}</button>` : '') +
           `<p class="ks-hint">Unlimited here only removes the KS JavaScript cap. For above-monitor-Hz FPS enable Experimental Chromium Uncap below and restart.</p>`+
+          (browserActive.uncapFps && state.fpsLimit>0 ? `<p class="ks-hint">${state.language==='hu'?'A Chromium FPS-feloldása aktív. A normál szinkronhoz kapcsold ki, majd indítsd újra a klienst.':'Chromium unlock is active alongside your callback cap. For normal sync, turn off the experimental unlock and restart.'}</p>` : '') +
           selectRow('Smoothness profile','Choose a browser callback pacing target. It cannot guarantee the displayed GPU frame rate.','smoothPreset',[
             {value:'Native',label:'Native / no extra cap'},{value:'Comfort',label:'Comfort – 120 FPS'},{value:'Balanced',label:'Balanced – 144 FPS'},{value:'Smooth',label:'High Smoothness – 165 FPS'}]) +
           toggleRow('Low Latency Mode', 'Disables KS Client menu blur and animations. This reduces interface overhead only, not game network latency.', 'lowLatency') +
           toggleRow('UI Animations', 'Allow animations and blur in the KS Client interface.', 'uiAnimations') +
+          toggleRow('Reduce rendering in Settings', 'Limit page animation callbacks to 30 per second while browsing Settings. Frame Stability uses the gameplay limit while measuring.', 'limitSettingsFPS') +
+          toggleRow('Limit lobby rendering', 'Cap page animation callbacks at 60 in the visible lobby.', 'limitLobbyFPS') +
+          toggleRow('Limit unfocused rendering', 'Cap page animation callbacks at 30 when another window has focus.', 'limitUnfocusedFPS') +
           toggleRow('Real-time FPS & Frametime graphs', 'Show live sampled browser/game callback timing graphs while this tab is open.', 'showGraph') +
           `<div class="ks-row"><div><div class="ks-label">Measured callback rate</div><div class="ks-desc" id="ks-fps-source">${esc(measuredLabel)}</div></div><b class="ks-code" id="ks-current-gamefps">${displayedGameFPS} FPS</b></div>` +
           `<div class="ks-row"><div class="ks-label">Most recent callback interval</div><b class="ks-code" id="ks-current-ms">${displayedFrameMs.toFixed(1)} ms</b></div>` +
@@ -2049,6 +2079,7 @@
       case 'Diagnostics':
         return title('Advanced Diagnostics', 'Live measurements of KS Client and its Chromium/Electron/CEF child processes. Refreshes every two seconds.') +
           `<div class="ks-metric-grid">` +
+          `<div class="ks-metric"><div class="ks-metric-name">Game WebGL draws/s</div><div class="ks-metric-value" id="ks-game-draws">—</div></div>` +
           `<div class="ks-metric"><div class="ks-metric-name">Browser CPU</div><div class="ks-metric-value" id="ks-browser-cpu">—</div></div>` +
           `<div class="ks-metric"><div class="ks-metric-name">Browser RAM</div><div class="ks-metric-value" id="ks-browser-ram">—</div></div>` +
           `<div class="ks-metric"><div class="ks-metric-name">Browser Processes</div><div class="ks-metric-value" id="ks-browser-processes">—</div></div>` +
@@ -2070,6 +2101,7 @@
           `<div class="ks-stability-grid">`+
             `<div class="ks-stability-stat"><div class="ks-metric-name">Median frame interval</div><div class="ks-metric-value" id="ks-stability-median">—</div></div>`+
             `<div class="ks-stability-stat"><div class="ks-metric-name">95th-percentile interval</div><div class="ks-metric-value" id="ks-stability-p95">—</div></div>`+
+            `<div class="ks-stability-stat"><div class="ks-metric-name">99th-percentile interval</div><div class="ks-metric-value" id="ks-stability-p99">—</div></div>`+
             `<div class="ks-stability-stat"><div class="ks-metric-name">Browser interval jitter</div><div class="ks-metric-value" id="ks-stability-jitter">—</div></div>`+
             `<div class="ks-stability-stat"><div class="ks-metric-name">Long intervals</div><div class="ks-metric-value" id="ks-stability-stutter">—</div></div>`+
           `</div>`+
@@ -2420,6 +2452,8 @@
     const valid=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
     const cpu=value=>valid(value)?value.toFixed(1)+'%':'—';
     const ram=value=>valid(value)?Math.round(value)+' MB':'—';
+    const render=window.__KS_RENDER_TELEMETRY__?.getStatus();
+    set('ks-game-draws',render?.active && render.attached?String(render.drawsPerSecond):'—');
     set('ks-browser-cpu',cpu(d?.browserCPU));
     set('ks-client-cpu',cpu(d?.clientCPU));
     set('ks-browser-ram',ram(d?.browserRAM));
@@ -2475,7 +2509,6 @@
     };
     if (!profiles[preset]) return;
     state={...state,...profiles[preset],smoothPreset:'Native',performancePreset:preset};
-    if(state.fpsLimit>0)disableChromiumUncapForCap();
     save();
     window.__KS_FRAME_PACER__?.setLimit(state.fpsLimit);
     notify('game-resolution',{preset:state.gameResolution});
@@ -2538,6 +2571,8 @@
   }
 
   function renderTab() {
+    window.__KS_WORKSHOP__?.stopPlugin?.();
+    syncMeasurement();
     closeCustomSelect();
     const group=currentGroup();
     $('ks-nav').innerHTML = `<div class="ks-sidebar-caption">${L('SETTINGS')}</div>`+
@@ -2680,14 +2715,13 @@
     if(target===undefined)return;
     state.smoothPreset=preset;state.fpsLimit=target;save();
     window.__KS_FRAME_PACER__?.setLimit(target);
-    if(target>0)disableChromiumUncapForCap();
     renderTab();apply();
   }
   const stabilitySamples=[];
   function updateStabilityDiagnostics() {
     if(!open||selectedTab!=='Frame Stability')return;
     const m = id=>$(id);
-    if(stabilitySamples.length<25){for(const id of ['ks-stability-median','ks-stability-p95','ks-stability-jitter','ks-stability-stutter'])if(m(id))m(id).textContent=L('Not enough samples');}
+    if(stabilitySamples.length<25){for(const id of ['ks-stability-median','ks-stability-p95','ks-stability-p99','ks-stability-jitter','ks-stability-stutter'])if(m(id))m(id).textContent=L('Not enough samples');}
     else {
       const sorted=[...stabilitySamples].sort((a,b)=>a-b);
       const pct=f=>sorted[Math.min(sorted.length-1,Math.floor((sorted.length-1)*f))];
@@ -2695,6 +2729,7 @@
       const spikes=stabilitySamples.filter(v=>v>1.5*mid).length;
       if(m('ks-stability-median'))m('ks-stability-median').textContent=mid.toFixed(1)+' ms';
       if(m('ks-stability-p95'))m('ks-stability-p95').textContent=p95.toFixed(1)+' ms';
+      if(m('ks-stability-p99'))m('ks-stability-p99').textContent=pct(.99).toFixed(1)+' ms';
       if(m('ks-stability-jitter'))m('ks-stability-jitter').textContent=(p95-mid).toFixed(1)+' ms';
       if(m('ks-stability-stutter'))m('ks-stability-stutter').textContent=spikes+'/'+stabilitySamples.length;
     }
@@ -2722,7 +2757,9 @@
   },60000);
   $('ks-break-dismiss').addEventListener('click',()=>{$('ks-break-reminder').hidden=true;});
 
+  let crosshairSignature;
   function apply() {
+    syncMeasurement();
     $('ks-dimmer').classList.toggle('visible', open);
     // Avoid a full-screen blur of the running WebGL surface: reduces GPU compositing.
     $('ks-dimmer').style.backdropFilter='none';
@@ -2871,7 +2908,7 @@
     const logo = $('ks-brand-icon');
     const activeLogo = assetURLs.uiImage || DEFAULT_LOGO_DATA;
     logo.style.display = activeLogo ? 'block' : 'none';
-    if (activeLogo) logo.src = activeLogo;
+    if (activeLogo && logo.getAttribute('src')!==activeLogo) logo.src = activeLogo;
     const fpsNode = $('ks-fps');
     fpsNode.style.display = isGamePage && state.showHUD && state.showFPS && state.fpsSource !== 'kirka' && !state.minimalHUD ? 'block' : 'none';
     fpsNode.style.left = state.fpsPosition === 'top-left' ? '18px' : 'auto';
@@ -2887,19 +2924,23 @@
 
     const cross = $('ks-crosshair');
     cross.style.display = isGamePage && state.showHUD && state.crosshairEnabled ? 'block' : 'none';
-    const svgSize = crosshairExtent() * 2;
-    cross.innerHTML = `<svg width="${svgSize}" height="${svgSize}" xmlns="http://www.w3.org/2000/svg"></svg>`;
-    drawCrosshair(cross.querySelector('svg'), svgSize);
-
-    $('ks-dimmer').style.backdropFilter = (state.reduceMotion || state.lowLatency || !state.uiAnimations) ? 'none' : 'blur(6px)';
-
+    if(cross.style.display==='block'){
+      const signature=JSON.stringify(crosshairFields.map(key=>state[key]));
+      if(signature!==crosshairSignature){
+        const svgSize=crosshairExtent()*2;
+        cross.innerHTML=`<svg width="${svgSize}" height="${svgSize}" xmlns="http://www.w3.org/2000/svg"></svg>`;
+        drawCrosshair(cross.querySelector('svg'),svgSize);
+        crosshairSignature=signature;
+      }
+    }
     let custom = document.getElementById('ks-client-user-css');
     if (!custom) {
       custom = document.createElement('style');
       custom.id = 'ks-client-user-css';
       (document.head || document.body).appendChild(custom);
     }
-    custom.textContent = buildPageStyles();
+    const pageCSS=buildPageStyles();
+    if(custom.textContent!==pageCSS)custom.textContent=pageCSS;
     // Applies to the game's visible canvas only, never the KS overlay.
     // This is a postprocessing color/softness effect, NOT WebGL anti-aliasing.
     let eyeStyle=document.getElementById('ks-client-eye-filter');
@@ -2945,7 +2986,7 @@
     updateResourcesInUI();
   }
 
-  let settingsSnapshot=null;
+  let settingsSnapshot=null,priorFocus=null;
   function restoreSettingsSnapshot() {
     if(!settingsSnapshot)return;
     state={...defaults,...settingsSnapshot.state};
@@ -2962,7 +3003,10 @@
   function show(toggle) {
     const next=typeof toggle==='boolean'?toggle:!open;
     if(next && !open)settingsSnapshot={state:JSON.parse(JSON.stringify(state)),browser:{...browserPrefs}};
+    const opening=next&&!open,closing=!next&&open;
+    if(opening)priorFocus=document.activeElement;
     open=next;
+    if(!open)window.__KS_WORKSHOP__?.stopPlugin?.();
     try {
       if(open && document.pointerLockElement)document.exitPointerLock?.();
       if(open) {
@@ -2976,7 +3020,14 @@
         if(selectedTab==='Diagnostics'){notify('diagnostics-poll');notify('crash-status');}
       }
     } finally {
-      try{apply();}
+      try{
+        apply();
+        if(opening)$('ks-close')?.focus({preventScroll:true});
+        if(closing){
+          if(priorFocus?.isConnected && priorFocus!==host)priorFocus.focus({preventScroll:true});
+          priorFocus=null;
+        }
+      }
       catch(error){
         $('ks-dimmer')?.classList.toggle('visible',open);
         notify('client-error',{message:'Settings apply: '+String(error?.message||error).slice(0,160)});
@@ -2984,15 +3035,6 @@
     }
   }
 
-  // Selecting a finite FPS limit removes persistent Chromium uncap flags.
-  // A normal restart is necessary to undo previously active native switches.
-  function disableChromiumUncapForCap() {
-    if(!(Number(state.fpsLimit)>0) || !browserPrefsLoaded || !browserPrefs.uncapFps)return;
-    browserPrefs={...browserPrefs,uncapFps:false};
-    browserPendingRestart=browserActive.uncapFps!==false;
-    browserStatus='Finite FPS limit selected. Chromium unlimited FPS disabled for next launch. Restart KS Client to reduce GPU work.';
-    notify('browser-save',{browser:browserPrefs});
-  }
   function setSetting(k, value) {
     if (!(k in defaults)) return;
     if (typeof defaults[k] === 'number') value = Number(value);
@@ -3035,17 +3077,9 @@
       const selector=$('ks-body').querySelector('select[data-setting="eyePreset"]');
       if(selector) {selector.value='Custom';const choice=selector.options[selector.selectedIndex];const label=selector.parentNode.querySelector('.ks-select-value');if(choice&&label)label.textContent=choice.textContent;}
     }
-    if(k==='fpsLimit') {
-      state.smoothPreset='Native';
-      if(value===0 && browserPrefsLoaded && !browserPrefs.uncapFps){
-        browserPrefs={...browserPrefs,uncapFps:true};
-        browserPendingRestart=true;
-        browserStatus='Experimental Chromium FPS unlock requested. Restart to apply it.';
-        notify('browser-save',{browser:browserPrefs});
-      }
-    }
+    if(k==='fpsLimit')state.smoothPreset='Native';
     state[k] = value;
-    if (k === 'fpsLimit') {window.__KS_FRAME_PACER__?.setLimit(value);if(value>0)disableChromiumUncapForCap();}
+    if(k==='fpsLimit')window.__KS_FRAME_PACER__?.setLimit(value);
     save();
     if(k.startsWith('game'))window.__KS_GAME_EXTRAS__?.refresh?.();
     apply();
@@ -3246,10 +3280,6 @@
     if (!key || !browserPrefsLoaded || !Object.hasOwn(browserPrefs,key)) return;
     const value = e.target.type==='checkbox' ? e.target.checked : e.target.value;
     browserPrefs = {...browserPrefs,[key]:value};
-    if(key==='uncapFps' && value) {
-      state.fpsLimit=0;state.smoothPreset='Native';save();
-      window.__KS_FRAME_PACER__?.setLimit(0);
-    }
     if(key==='uncapFps')browserPendingRestart=browserActive.uncapFps!==value;
     browserStatus = key==='uncapFps' ? 'Chromium frame-rate launch flags changed. Restart KS Client to apply.' : 'Saving browser settings…';
     notify('browser-save',{browser:browserPrefs});
@@ -3264,13 +3294,13 @@
     if(['customAccent','customBackground','customPanel','customText','customMuted'].includes(k) && e.target.type==='color')renderTab();
   });
 
-  $('ks-body').addEventListener('click', e => {
+  $('ks-body').addEventListener('click', async e => {
     const el = e.target.closest('[data-action]');
     if (!el) return;
     const a = el.dataset.action;
     if(a.startsWith('wk-')) {
       try {
-        const handled=window.__KS_WORKSHOP__?.action(a,shadow,notify);
+        const handled=window.__KS_WORKSHOP__?.action(a,shadow,workshopNotify);
         if(handled) {
           if(!/^wk-plugin-(run|stop)-?/.test(a))renderTab();
           const value=window.__KS_WORKSHOP__?.getStatus();
@@ -3358,8 +3388,10 @@
         const u=new URL(raw);
         if(u.protocol!=='https:' || !['kirka.io','www.kirka.io'].includes(u.hostname) || !/^\/(games\/|hub\/ranked|servers\/)/.test(u.pathname))throw Error('Not a supported Kirka.io room link');
         if(!state.gameQuickJoin)throw Error('Quick join is disabled');
-        window.__KS_WORKSHOP__?.recordJoin(u.toString());
-        notify('game-join',{url:u.toString()});
+        if(u.username||u.password||u.port)throw Error('Invalid room address');
+        const sent=window.__KS_DEEP__ ? await window.__KS_DEEP__.join(u.href,false) : notify('game-join',{url:u.href});
+        if(!sent)throw Error(window.__KS_DEEP__?.getStatus().lastError||'Room action unavailable');
+        window.__KS_WORKSHOP__?.recordJoin(u.href);
         sharingStatus='Requested Kirka.io room join. Game page decides whether joining is allowed.';
       }catch(e){sharingStatus='Quick join: '+String(e.message||e);}
       const el=$('ks-extra-status');if(el)el.textContent=sharingStatus;
@@ -3413,6 +3445,7 @@
   });
 
   window.addEventListener('keydown', e => {
+    if(e.repeat && (e.key==='F1'||e.key==='F10')){e.preventDefault();e.stopImmediatePropagation();return;}
     if (e.key === 'F1') { e.preventDefault(); e.stopImmediatePropagation(); show(); }
     else if (e.key === 'F10') { e.preventDefault(); e.stopImmediatePropagation(); state.showHUD = !state.showHUD; save(); apply(); }
     else if (e.key === 'Escape' && open) { e.preventDefault(); e.stopImmediatePropagation(); restoreSettingsSnapshot();show(false); }
@@ -3436,7 +3469,7 @@
         const match=content.match(/(?:\bFPS\s*[:=]?\s*(\d{1,4})(?!\d))|(?:(\d{1,4})\s*FPS\b)/i);
         if(!match)continue;
         const v=Number(match[1]||match[2]);
-        if(v>=1 && v<=2000){value=v;break;}
+        if(v>=1 && v<=9999){value=v;break;}
       }
     } catch(_) { /* DOM/HTML FPS is optional. */ }
     return value;
@@ -3446,12 +3479,15 @@
   let displayFrames=0;
   let nativeDisplayFPS=0;
   function animate(ts) {
-    if (lastFrame) {
+    const slow=slowMeasurement();
+    measurementHandle=null;
+    if(!measureFrames())return;
+    if (!slow && lastFrame) {
       frameMs=ts-lastFrame;displayFrames++;
       // Only visible-page intervals, avoiding background-tab throttling spikes.
-      if(!document.hidden && frameMs>0 && frameMs<250) {stabilitySamples.push(frameMs);if(stabilitySamples.length>240)stabilitySamples.shift();}
+      if(!document.hidden && frameMs>0) {stabilitySamples.push(frameMs);if(stabilitySamples.length>240)stabilitySamples.shift();}
     }
-    lastFrame=ts;
+    lastFrame=slow?0:ts;
     if(!lastSample)lastSample=ts;
     if(ts-lastSample >= 1000) {
       nativeDisplayFPS = Math.round(displayFrames * 1000 / (ts-lastSample));
@@ -3469,14 +3505,14 @@
         callbackEl.textContent=Number.isFinite(sample) && sample>0
           ? sample+' callbacks/s (rAF, NOT GPU FPS)' : 'Waiting for requestAnimationFrame samples';
       }
-      if(isGamePage && measured && measured.completedFrames>3) {
+      if(isGamePage && measured && measured.estimatedCallbackFPS>0) {
         displayedGameFPS = measured.estimatedCallbackFPS;
         displayedFrameMs = measured.estimatedCallbackFrameMs;
         measuredLabel = 'Estimated game rAF callback rate (not presented GPU frames)';
       } else {
-        displayedGameFPS = nativeDisplayFPS;
-        displayedFrameMs = frameMs;
-        measuredLabel = 'Browser animation ticks (not game GPU FPS)';
+        displayedGameFPS = slow?0:nativeDisplayFPS;
+        displayedFrameMs = slow?0:frameMs;
+        measuredLabel = slow?'Waiting for page animation callbacks':'Browser animation ticks (not game GPU FPS)';
       }
       if(state.fpsSource==='kirka-hud') {
         if(gameHUDValue!==null) {
@@ -3494,21 +3530,71 @@
       }
       if(fpsHistory.length>60) fpsHistory.shift();
       if(frameHistory.length>60) frameHistory.shift();
-      $('ks-fps').textContent=state.fpsSource==='kirka-hud' ? (gameHUDValue!==null ? `Kirka ${gameHUDValue} FPS` : L('Kirka.io HUD FPS unavailable (possibly drawn on canvas)')) : `rAF ${displayedGameFPS} FPS · ${displayedFrameMs.toFixed(1)} ms`;
-      const fpsNode=$('ks-current-gamefps'); if(fpsNode)fpsNode.textContent=state.fpsSource==='kirka-hud'&&gameHUDValue===null?'—':displayedGameFPS+' FPS';
+      $('ks-fps').textContent=state.fpsSource==='kirka-hud' ? (gameHUDValue!==null ? `Kirka ${gameHUDValue} FPS` : L('Kirka.io HUD FPS unavailable (possibly drawn on canvas)')) : `${measured?.estimatedCallbackFPS>0?'Page rAF':'Browser tick'} ${displayedGameFPS} FPS · ${displayedFrameMs.toFixed(1)} ms`;
+      const fpsNode=$('ks-current-gamefps'); if(fpsNode)fpsNode.textContent=state.fpsSource==='kirka-hud'&&gameHUDValue===null?'—':(displayedGameFPS>0?displayedGameFPS+' FPS':'—');
       const kirkaNode=$('ks-kirka-fps-value');if(kirkaNode)kirkaNode.textContent=gameHUDValue!==null?gameHUDValue+' FPS':'—';
-      const msNode=$('ks-current-ms'); if(msNode)msNode.textContent=displayedFrameMs.toFixed(1)+' ms';
+      const msNode=$('ks-current-ms'); if(msNode)msNode.textContent=displayedFrameMs>0?displayedFrameMs.toFixed(1)+' ms':'—';
       const lbl=$('ks-fps-source'); if(lbl)lbl.textContent=L(measuredLabel);
       paintGraphs();
       updateStabilityDiagnostics();
     }
-    // Don't spin our own uncapped RAF observer behind unrelated Settings tabs.
-    if(open && selectedTab!=='Performance' && selectedTab!=='Frame Stability')
-      setTimeout(()=>animationFrame(animate),180);
-    else animationFrame(animate);
+    queueMeasurement();
   }
-  setInterval(()=>{if(open && selectedTab==='Diagnostics')notify('diagnostics-poll');},2000);
-  setInterval(()=>{if(open && (selectedTab==='Performance'||selectedTab==='Frame Stability'))notify('fps-diagnostics');},1800);
+  let measurementHandle=null,measurementTimer=false;
+  function slowMeasurement(){return open && selectedTab==='Performance' && state.limitSettingsFPS!==false;}
+  function queueMeasurement(){
+    measurementTimer=slowMeasurement();
+    measurementHandle=measurementTimer?setTimeout(()=>animate(performance.now()),1000):animationFrame(animate);
+  }
+  const cancelMeasurement=window.__KS_FRAME_PACER__?.nativeCancelAnimationFrame||window.cancelAnimationFrame.bind(window);
+  function measuringTab(){return open && ['Performance','Frame Stability'].includes(selectedTab);}
+  function measureFrames(){
+    return !document.hidden && (measuringTab() || (!open && isGamePage && state.showHUD && state.showFPS && !state.minimalHUD && state.fpsSource!=='kirka'));
+  }
+  let diagnosticTimer=null, diagnosticTopic='';
+  function syncDiagnosticsPoll(){
+    let topic='';
+    if(open && !document.hidden){
+      if(selectedTab==='Diagnostics')topic='diagnostics-poll';
+      if(measuringTab())topic='fps-diagnostics';
+    }
+    if(topic===diagnosticTopic)return;
+    clearInterval(diagnosticTimer);
+    diagnosticTopic=topic;
+    diagnosticTimer=topic?setInterval(()=>notify(topic),topic==='fps-diagnostics'?1800:2000):null;
+  }
+  function syncActivityLimit(){
+    const runtime=window.__KS_GAME_RUNTIME__;
+    const scene=runtime?.scene;
+    // A generic app root can also contain account or loading UI.
+    const lobby=state.limitLobbyFPS && scene==='lobby' && location.pathname==='/' &&
+      document.querySelector('.interface')?.getClientRects().length && !document.pointerLockElement;
+    const unfocused=state.limitUnfocusedFPS && !document.hasFocus() &&
+      ['lobby','match','results','profile','market','inventory','friends','servers'].includes(scene);
+    window.__KS_FRAME_PACER__?.setActivityLimit?.(unfocused?30:lobby?60:0);
+  }
+  function syncMeasurement(){
+    syncDiagnosticsPoll();
+    syncActivityLimit();
+    window.__KS_FRAME_PACER__?.setMenuLimited?.(open && selectedTab!=='Frame Stability' && state.limitSettingsFPS!==false);
+    window.__KS_RENDER_TELEMETRY__?.setActive?.(!document.hidden && open && selectedTab==='Diagnostics');
+    if(measurementHandle!==null && (!measureFrames() || measurementTimer!==slowMeasurement())){
+      if(measurementTimer)clearTimeout(measurementHandle);else cancelMeasurement(measurementHandle);
+      measurementHandle=null;
+      lastFrame=lastSample=displayFrames=lastGraphSampleAt=0;
+    }
+    if(measureFrames()){
+      if(measurementHandle===null)queueMeasurement();
+    }else{
+      measurementHandle=null;
+      lastFrame=lastSample=displayFrames=lastGraphSampleAt=0;
+      stabilitySamples.length=0;
+    }
+  }
+  document.addEventListener('visibilitychange',syncMeasurement);
+  window.addEventListener('focus',syncActivityLimit);
+  window.addEventListener('blur',syncActivityLimit);
+  window.__KS_GAME_RUNTIME__?.on('scene',syncActivityLimit);
   function showAccountHelpDialog() {
     // Google OAuth is restricted in embedded browsers. Offer a direct,
     // user-consented Kirka session handoff, not a misleading Settings redirect.
@@ -3602,14 +3688,17 @@
         browserActive=active||browserPrefs;
         browserPrefsLoaded=true;
         browserPendingRestart=!!needsRestart;
-        if(state.fpsLimit>0)disableChromiumUncapForCap();
       }
       browserStatus=status || 'Applied on browser startup';
       if(browserGroups.has(selectedTab) || selectedTab==='Performance')renderTab();
     },
-    setWorkshopStatus: response => {
+    setWorkshopStatus: (response,requestId) => {
+      if(requestId){
+        if(requestId!==latestWorkshopRequest)return;
+        clearTimeout(workshopTimeout);latestWorkshopRequest=null;
+      }
       const value=typeof response==='string'?response:(response && typeof response==='object'
-        ? ('Swapper: '+(response.count||0)+' files ('+Math.round((response.bytes||0)/1024)+' KiB). '+(response.enabled?'Enabled':'Disabled')):'No response');
+        ? ('Swapper: '+(response.count||0)+' files ('+Math.round((response.bytes||0)/1024)+' KiB). '+(response.enabled?'Enabled':'Disabled')+' · '+(response.served||0)+' local responses, '+(response.unmatched||0)+' unmatched requests'):'No response');
       window.__KS_WORKSHOP__?.setStatus(value);
       const node=$('ks-wk-status');
       if(node)node.textContent=value;
@@ -3693,7 +3782,7 @@
     renderTab();
     apply();
     loadLocalAssets();
-    requestAnimationFrame(animate);
+    syncMeasurement();
     notify('engine-info');
     notify('browser-config');
     // Native engines begin the automatic check as soon as their window opens.

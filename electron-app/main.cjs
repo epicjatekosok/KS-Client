@@ -1,5 +1,5 @@
 'use strict';
-// KS Client Beta 1.0.14: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.15: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {spawn,execFile}=require('node:child_process');
 const fs = require('node:fs');
@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 
-const APP_VERSION = 'Beta 1.0.14';
+const APP_VERSION = 'Beta 1.0.15';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -17,7 +17,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.14.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.15.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -116,7 +116,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.14').slice(0,40),
+      current:String(payload.current||'1.0.15').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -207,8 +207,7 @@ if(active.angle==='opengl')app.commandLine.appendSwitch('use-angle','gl');
 if(active.uncapFps){
   // Experimental Chromium startup hints: these do NOT override the game engine,
   // GPU driver, compositor, or physical monitor refresh limits.
-  for(const flag of ['disable-frame-rate-limit','disable-gpu-vsync','disable-renderer-backgrounding',
-    'disable-background-timer-throttling','disable-backgrounding-occluded-windows']){
+  for(const flag of ['disable-frame-rate-limit','disable-gpu-vsync']){
     app.commandLine.appendSwitch(flag);
   }
   log('Experimental FPS unlock requested on Electron startup');
@@ -282,6 +281,7 @@ function setGameResolution(preset){
 function installShortcuts(){
   win.webContents.on('before-input-event',(event,input)=>{
     if(input.type!=='keyDown')return;
+    if(input.isAutoRepeat && ['F1','F10','F11'].includes(input.key)){event.preventDefault();return;}
     if(input.key==='F11'){event.preventDefault();win.setFullScreen(!win.isFullScreen());}
     if(input.key==='F1'){event.preventDefault();runJS('window.__KS_CLIENT__?.toggle?.()')}
     if(input.key==='F10'){event.preventDefault();runJS('window.__KS_CLIENT__?.toggleHud?.()')}
@@ -296,7 +296,7 @@ function createWindow(){
   win=new BrowserWindow({title:'KS Client '+APP_VERSION+' — Electron',width:1280,height:800,minWidth:800,minHeight:500,
     autoHideMenuBar:true, backgroundColor:'#0d1015', icon:path.join(__dirname,'assets','ks-logo.png'),
     webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,nodeIntegration:false,contextIsolation:true,
-      webSecurity:true,devTools:true,backgroundThrottling:false,defaultFontFamily:{standard:'Segoe UI'}}});
+      webSecurity:true,devTools:true,backgroundThrottling:true,defaultFontFamily:{standard:'Segoe UI'}}});
   win.setMenu(null);
   // No game setWindowOpenHandler, did-create-window OAuth wrapper,
   // will-navigate interceptor or will-redirect interceptor. Electron 45
@@ -307,7 +307,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.14 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.15 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
@@ -472,7 +472,7 @@ function receiveMessage(event, raw){
       const requested=String(raw.url||'');
       try{
         const u=new URL(requested);
-        if(!validURL(u.toString(),true) || !/^\/(games\/|hub\/ranked|servers\/)/.test(u.pathname))throw Error('Invalid Kirka.io game link');
+        if(u.port||u.username||u.password||!validURL(u.toString(),true) || !/^\/(games\/|hub\/ranked|servers\/)/.test(u.pathname))throw Error('Invalid Kirka.io game link');
         navigate(u.toString());
       }catch(e){log('Quick join blocked: '+e.message);}
       break;
@@ -490,8 +490,10 @@ function receiveMessage(event, raw){
       break;
     }
     case 'resource-save':{
-      const enabled=SWAPPER.setEnabled(raw.enabled===true);
-      jsCall('setWorkshopStatus',enabled?'Resource swaps enabled. Reload the game to apply.':'Resource swaps disabled.');
+      try{
+        const enabled=SWAPPER.setEnabled(raw.enabled===true);
+        jsCall('setWorkshopStatus',enabled?'Resource swaps enabled. Reload the game to apply.':'Resource swaps disabled.',raw.requestId);
+      }catch{jsCall('setWorkshopStatus','Cannot save swapper configuration.',raw.requestId);}
       break;
     }
     case 'resource-folder':{
@@ -502,8 +504,8 @@ function receiveMessage(event, raw){
       break;
     }
     case 'resource-scan':{
-      const result=SWAPPER.scan();
-      jsCall('setWorkshopStatus',result.count+' local files ('+Math.round(result.bytes/1024)+' KiB). Swapper '+(result.enabled?'enabled':'disabled')+'.');
+      try{jsCall('setWorkshopStatus',SWAPPER.scan(),raw.requestId);}
+      catch{jsCall('setWorkshopStatus','Swapper scan failed.',raw.requestId);}
       break;
     }
     case 'fps-diagnostics':{
@@ -560,16 +562,16 @@ ipcMain.on('ks:message',(event,raw)=>{
 });
 ipcMain.on('ks:early-bundle',(event)=>{
   const source=event.senderFrame?.url||event.sender?.getURL?.()||'';
-  event.returnValue=(win&&event.sender===win.webContents&&validURL(source,true))?earlyGameJS:'';
+  event.returnValue=(win&&event.sender===win.webContents&&event.senderFrame===win.webContents.mainFrame&&validURL(source,true))?earlyGameJS:'';
 });
 // Retain individual channels for backward-compatible diagnostics and tools.
 ipcMain.on('ks:early-freeze',(event)=>{
   const source=event.senderFrame?.url||'';
-  event.returnValue=(win&&event.sender===win.webContents&&validURL(source,true))?freezeJS:'';
+  event.returnValue=(win&&event.sender===win.webContents&&event.senderFrame===win.webContents.mainFrame&&validURL(source,true))?freezeJS:'';
 });
 ipcMain.on('ks:early-graphics',(event)=>{
   const source=event.senderFrame?.url||'';
-  event.returnValue=(win&&event.sender===win.webContents&&validURL(source,true))?graphicsJS:'';
+  event.returnValue=(win&&event.sender===win.webContents&&event.senderFrame===win.webContents.mainFrame&&validURL(source,true))?graphicsJS:'';
 });
 ipcMain.on('ks:early-integration',(event)=>{
   const source=event.senderFrame?.url||'';
