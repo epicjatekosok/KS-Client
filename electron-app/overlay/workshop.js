@@ -56,6 +56,7 @@
    return obj;
  }
  let cfg=read();
+ let watchFriend=null;
  let status='Workshop features are local to this browser profile.';
  const value=id=>document.getElementById('ks-client-root')?.shadowRoot?.getElementById(id)?.value||'';
  const checked=id=>!!document.getElementById('ks-client-root')?.shadowRoot?.getElementById(id)?.checked;
@@ -132,7 +133,9 @@
    if(tab==='Friends & Profiles')return '<h2 class="ks-title">Friends & Profiles</h2><p class="ks-sub">Local labels and notes for profiles you actually see. No access to private friend lists or invented spectate links.</p>'+
      card('Create local player annotation',input('friend-nick','Visible nickname / player ID')+input('friend-note','Personal note')+
        input('friend-color','Tag color', '#f0aa35','color')+btn('friend-save','Save note'))+
-     card('Visible friend list','<p id="ks-live-friends"></p>')+
+     card('Visible friend list','<p id="ks-live-friends"></p>'+input('watch-name','Exact visible friend name',watchFriend?.name||'')+
+       btn('watch-friend','Watch for native Spectate (60 seconds)')+' '+btn('watch-cancel','Cancel')+
+       '<p class="ks-hint">Keep this panel open. The game must offer Spectate for this friend.</p>')+
      card('Visible profile details','<p class="ks-hint">'+escape(JSON.stringify(deepSnapshot().profile||{}).slice(0,700))+'</p>')+
      card('Saved annotations',cfg.friends.length?cfg.friends.map((f,i)=>'<div class="ks-row"><div><strong>'+escape(f.nick)+'</strong><div class="ks-desc">'+escape(f.note)+'</div></div>'+btn('friend-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved player notes.</p>')+notice;
    if(tab==='Inventory & Market')return '<h2 class="ks-title">Inventory / Market</h2><p class="ks-sub">Personal item favorites, notes and manually entered estimates. No trades, purchases or prices are fabricated.</p>'+
@@ -220,7 +223,13 @@
    const val=id=>ui.getElementById('ks-wk-'+id)?.value??'';
    const flag=id=>!!ui.getElementById('ks-wk-'+id)?.checked;
    const number=(id,min,max,def)=>clamp(val(id),min,max,def);
-   if(a==='gl-probe'){
+   if(a==='watch-friend'){
+     const name=trim(val('watch-name'),60);
+     watchFriend=name?{name,until:Date.now()+60000}:null;
+     status=name?'Waiting for the native Spectate control for '+name:'Enter the exact visible name.';
+   }else if(a==='watch-cancel'){
+     watchFriend=null;status='Friend spectate request cancelled.';
+   }else if(a==='gl-probe'){
      status=window.__KS_WEBGL_COSMETICS__?.matchVisiblePreview?.()||'Renderer unavailable.';
    }else if(a==='gl-use-probe'){
      const url=window.__KS_WEBGL_COSMETICS__?.matchedPreview?.();
@@ -362,6 +371,19 @@
    const panel=document.getElementById('ks-client-root')?.shadowRoot;
    const market=panel?.getElementById('ks-live-market');
    const friendsNode=panel?.getElementById('ks-live-friends');
+   if(watchFriend){
+     if(!friendsNode || !window.__KS_CLIENT__?.isSettingsOpen() || document.hidden || Date.now()>watchFriend.until){
+       watchFriend=null;status='Friend spectate request ended.';
+     }else{
+       const names=[...document.querySelectorAll('.friends .nickname,.friends .username,.friends .player-name')].filter(el=>
+         el.getClientRects().length && getComputedStyle(el).visibility==='visible' && trim(el.textContent,60)===watchFriend.name);
+       const row=names.length===1?names[0].closest('.friend,.friend-item,[data-friend-id],li'):null;
+       const buttons=row?[...row.querySelectorAll('button,[role="button"]')].filter(el=>
+         el.getClientRects().length && getComputedStyle(el).visibility==='visible' && !el.disabled &&
+         el.getAttribute('aria-disabled')!=='true' && /^(spectate|megfigyelés)$/i.test(trim(el.getAttribute('aria-label')||el.textContent,40))):[];
+       if(buttons.length===1){watchFriend=null;status='Requested spectating through Kirka.';buttons[0].click();}
+     }
+   }
    if(!document.hidden && window.__KS_CLIENT__?.isSettingsOpen() && (market||friendsNode)){
      const data=deepSnapshot();
      const node=market||friendsNode;
@@ -423,7 +445,7 @@
  window.addEventListener("pagehide",stopPlugin);
  window.__KS_GAME_RUNTIME__?.on("route",stopPlugin);
  function loop(){if(!document.hidden && Date.now()-lastUpdate>2200){lastUpdate=Date.now();refresh();}setTimeout(loop,1500);}
- window.__KS_WORKSHOP__=Object.freeze({render,action,refresh,stopPlugin,recordJoin,normalizeWorkshop,reloadProfile:()=>{stopPlugin();cfg=read();refresh();},getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
+ window.__KS_WORKSHOP__=Object.freeze({render,action,refresh,stopPlugin,cancelWatch:()=>{watchFriend=null;},recordJoin,normalizeWorkshop,reloadProfile:()=>{stopPlugin();cfg=read();refresh();},getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
   setStatus:message=>{status=trim(message,400);},getRoom:idx=>cfg.rooms[idx]||null});
  if(document.body){refresh();}else document.addEventListener('DOMContentLoaded',refresh,{once:true});
  loop();

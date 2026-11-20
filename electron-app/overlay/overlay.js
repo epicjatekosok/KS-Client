@@ -3675,6 +3675,7 @@
     window.__KS_FRAME_PACER__?.setActivityLimit?.(unfocused?30:lobby?60:0);
   }
   function syncMeasurement(){
+    if(document.hidden || !open || selectedTab!=='Friends & Profiles')window.__KS_WORKSHOP__?.cancelWatch?.();
     syncDiagnosticsPoll();
     syncActivityLimit();
     window.__KS_FRAME_PACER__?.setMenuLimited?.(open && selectedTab!=='Frame Stability' && state.limitSettingsFPS!==false);

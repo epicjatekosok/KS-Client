@@ -221,9 +221,15 @@ internal sealed class ClientForm : Form
                 var rawProbe=e.Message?.ToString() ?? "";
                 Program.Log("CEF bridge probe received: "+rawProbe[..Math.Min(128,rawProbe.Length)]);
                 if(rawProbe.Contains("ks-bridge-probe",StringComparison.Ordinal)) {
-                    if(IsHandleCreated)BeginInvoke((Action)(() => {
+                    if(IsHandleCreated)BeginInvoke((Action)(async () => {
+                        try{
+                            var png=await browser.CaptureScreenshotAsync();
+                            using var stream=new MemoryStream(png);
+                            using var screenshot=new Bitmap(stream);
+                            if(screenshot.Width<1 || screenshot.Height<1)throw new InvalidDataException("Empty CEF capture");
+                            Program.Log("CEF JavascriptMessageReceived bridge probe PASS");
+                        }catch(Exception ex){Program.Log("CEF capture probe failure: "+ex.Message);Environment.ExitCode=18;}
                         bridgeProbeTimeout?.Stop();
-                        Program.Log("CEF JavascriptMessageReceived bridge probe PASS");
                         Close();
                     }));
                 }
