@@ -108,7 +108,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client Beta 1.0.15 – CEF";
+        Text="KS Client Beta 1.0.16 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -221,9 +221,15 @@ internal sealed class ClientForm : Form
                 var rawProbe=e.Message?.ToString() ?? "";
                 Program.Log("CEF bridge probe received: "+rawProbe[..Math.Min(128,rawProbe.Length)]);
                 if(rawProbe.Contains("ks-bridge-probe",StringComparison.Ordinal)) {
-                    if(IsHandleCreated)BeginInvoke((Action)(() => {
+                    if(IsHandleCreated)BeginInvoke((Action)(async () => {
+                        try{
+                            var png=await browser.CaptureScreenshotAsync();
+                            using var stream=new MemoryStream(png);
+                            using var screenshot=new Bitmap(stream);
+                            if(screenshot.Width<1 || screenshot.Height<1)throw new InvalidDataException("Empty CEF capture");
+                            Program.Log("CEF JavascriptMessageReceived bridge probe PASS");
+                        }catch(Exception ex){Program.Log("CEF capture probe failure: "+ex.Message);Environment.ExitCode=18;}
                         bridgeProbeTimeout?.Stop();
-                        Program.Log("CEF JavascriptMessageReceived bridge probe PASS");
                         Close();
                     }));
                 }
@@ -550,7 +556,7 @@ internal sealed class ClientForm : Form
         engineSwitching=false;
         switchNonce=null;
     }
-    private void Receive(BridgeMsg m,string source)
+    private async void Receive(BridgeMsg m,string source)
     {
         if(!Trust(source)||!Trust(browser.Address))return;
         string type=m.Type ?? "";
@@ -559,7 +565,7 @@ internal sealed class ClientForm : Form
         {
             case "game": Go(Game);break;
             case "update-open-release":
-                // Retained for older overlays. Beta 1.0.15 uses the fixed
+                // Retained for older overlays. Beta 1.0.16 uses the fixed
                 // native request-command above to survive bridge races.
                 _=Task.Run(()=>ClientCommunityLinks.OpenPublicReleases());
                 break;
@@ -625,11 +631,9 @@ internal sealed class ClientForm : Form
                     var dir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),"KSClient");
                     Directory.CreateDirectory(dir);
                     var output=Path.Combine(dir,"KSClient-"+DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+".png");
-                    // Windows WinForms captures the visible browser rectangle.
-                    // Occluding windows can appear in the screenshot.
-                    using var shot=new Bitmap(Math.Max(1,browser.ClientSize.Width),Math.Max(1,browser.ClientSize.Height));
-                    using(var g=Graphics.FromImage(shot))g.CopyFromScreen(browser.PointToScreen(Point.Empty),Point.Empty,shot.Size);
-                    shot.Save(output,System.Drawing.Imaging.ImageFormat.Png);
+                    var png=await browser.CaptureScreenshotAsync();
+                    if(png==null || png.Length==0)throw new IOException("Empty browser capture");
+                    await File.WriteAllBytesAsync(output,png);
                     Reply("setGameExtraStatus","Screenshot saved: "+output);
                 }
                 catch(Exception ex){Reply("setGameExtraStatus","Screenshot failed: "+ex.Message);}

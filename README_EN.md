@@ -1,4 +1,4 @@
-# KS Client Beta 1.0.15
+# KS Client Beta 1.0.16
 
 [Shared game integration and frame pacing](RELEASE_BETA_115_EN.md)
 
@@ -149,3 +149,7 @@ For an A/B comparison, keep the display at the same resolution and refresh rate 
 5. Verify that audio, matchmaking, chat, login and mouse capture still work after closing Settings, switching focus and restoring the minimized client. Compare with the optional lobby and unfocused caps disabled and enabled. On a 180 Hz display, 5.56 ms is the nominal interval at 180 FPS.
 
 The in-client counter identifies page callbacks or browser ticks. For a separate driver-level comparison on NVIDIA, apply a Max Frame Rate profile only to the verified KS rendering executable. Record the driver's setting with the capture.
+
+### Desktop Discord activity
+
+To opt in, set the Windows user environment variable KS_DISCORD_APPLICATION_ID to the public application ID registered for your Discord activity and restart KS Client from its launcher. The launcher connects to the local Discord desktop application and displays the chosen engine. Closing the engine closes the pipe. Remove the variable to turn the integration off.
