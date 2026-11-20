@@ -8,13 +8,14 @@
   if (window.__KS_FRAME_PACER__) return;
   const nativeRAF = window.requestAnimationFrame.bind(window);
   const nativeCancelRAF = window.cancelAnimationFrame.bind(window);
-  const allowed = new Set([0, 60, 120, 144, 165, 180, 200, 240, 300, 360]);
+  // Common presets include 200, 240, 300 and 360. A custom integer uses the same scheduler.
+  const validLimit=n=>Number.isInteger(n) && n>=0 && n<=1000;
   const settingsKey = 'ksclient.settings.alpha';
   let target = 0;
   try {
     const saved = JSON.parse(localStorage.getItem(settingsKey) || '{}');
     const n = Number(saved.fpsLimit);
-    if (allowed.has(n)) target = n;
+    if (validLimit(n)) target = n;
   } catch (_) {}
   let menuLimited=false,wakeTimer=null,frameHandle=null;
   let activityLimit=0;
@@ -123,7 +124,7 @@
   Object.defineProperty(window, '__KS_FRAME_PACER__', { configurable: false, value: Object.freeze({
     setLimit(n) {
       n = Number(n);
-      if (!allowed.has(n)) return false;
+      if (!validLimit(n)) return false;
       if(target!==n){target=n;resetTiming();}
       return true;
     },

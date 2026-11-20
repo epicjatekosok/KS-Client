@@ -69,6 +69,15 @@ function profileSnapshot(){
  return {nickname:trim(panel.querySelector('.nickname,.username,.player-name')?.textContent,60)||null,
   visibleBadges:[...panel.querySelectorAll('[title],[aria-label]')].map(x=>trim(x.getAttribute('title')||x.getAttribute('aria-label'),50)).filter(Boolean).slice(0,12)};
 }
+function friendsSnapshot(){
+ const rows=document.querySelectorAll('.friends .nickname,.friends .username,.friends .player-name');
+ const names=new Set();
+ for(const row of rows){
+   if(shown(row)){const name=trim(row.textContent,60);if(name)names.add(name);}
+   if(names.size>=100)break;
+ }
+ return {names:[...names],source:'visible friends panel'};
+}
 function inventorySnapshot(){
  const rows=[...document.querySelectorAll('.inventory .item-card,.inventory-item,.inventory .item')].slice(0,150);
  const unique=new Set(),items=[];
@@ -97,7 +106,7 @@ function serverSnapshot(){
 }
 function getSnapshot(){
  return {scene:scene(),stats:{...stats},observed:{assists:seenAssists,headshotAchievements:seenHS,killfeedItems:seenKills},
-  profile:profileSnapshot(),inventory:inventorySnapshot(),market:marketSnapshot(),servers:serverSnapshot(),
+  profile:profileSnapshot(),friends:friendsSnapshot(),inventory:inventorySnapshot(),market:marketSnapshot(),servers:serverSnapshot(),
   render:window.__KS_WEBGL_COSMETICS__?.getStatus?.()||null,
   input:{pointerLocked:!!document.pointerLockElement},
   compatibility:window.__KS_GAME_RUNTIME__?.getStatus?.()?.compatibility||null,
