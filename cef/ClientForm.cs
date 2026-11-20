@@ -46,7 +46,7 @@ internal sealed class ClientForm : Form
             "&&!localStorage.getItem('token'))return;}catch(_){return;}\n"+
             script+"\n})();";
     }
-    private BrowserPrefs desired=Program.Active;
+    private BrowserPrefs desired=Program.Requested;
     private string menuResolution="native";
     private string gameResolution="native";
     private bool borderless=false;
@@ -108,7 +108,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client Beta 1.0.17 – CEF";
+        Text="KS Client Beta 1.0.18 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -364,7 +364,7 @@ internal sealed class ClientForm : Form
     }
     private void Reply(string method,params object[] args)
       => RunJS("window.__KS_CLIENT__?."+method+"?.apply(window.__KS_CLIENT__,"+JS(args)+");");
-    private bool NeedsRestart()=>Program.Active.Gpu!=desired.Gpu||Program.Active.Angle!=desired.Angle||Program.Active.UncapFps!=desired.UncapFps;
+    private bool NeedsRestart()=>Program.Active.Gpu!=desired.Gpu||Program.Active.Angle!=desired.Angle||Program.Active.UncapFps!=(desired.UncapFps && !Program.FixedTarget);
     private string UpdateLauncher() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","KS-Client.exe"));
     private async void CheckKSUpdate(string channel,bool automatic,bool prefetch)
     {
@@ -565,7 +565,7 @@ internal sealed class ClientForm : Form
         {
             case "game": Go(Game);break;
             case "update-open-release":
-                // Retained for older overlays. Beta 1.0.17 uses the fixed
+                // Retained for older overlays. Beta 1.0.18 uses the fixed
                 // native request-command above to survive bridge races.
                 _=Task.Run(()=>ClientCommunityLinks.OpenPublicReleases());
                 break;
@@ -592,6 +592,16 @@ internal sealed class ClientForm : Form
                 break;
             case "update-check":CheckKSUpdate(m.Channel=="stable"?"stable":m.Channel=="alpha"?"alpha":"beta",m.Automatic==true,m.AutoDownload==true);break;
             case "update-install":LaunchUpdateHelper("install",m.Channel=="stable"?"stable":m.Channel=="alpha"?"alpha":"beta");break;
+            case "frame-policy":
+                if(m.Enabled is bool fixedTarget && fixedTarget!=Program.FixedTarget){
+                    try{
+                        if(fixedTarget)File.WriteAllText(Program.FixedMarker,"1");
+                        else File.Delete(Program.FixedMarker);
+                        Program.FixedTarget=fixedTarget;
+                        ReportPrefs();
+                    }catch(Exception ex){ReportPrefs("Could not save frame policy: "+ex.Message);}
+                }
+                break;
             case "browser-config":ReportPrefs();break;
             case "browser-save":
                 if(m.Browser is null)return;

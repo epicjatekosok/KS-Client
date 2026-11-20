@@ -1,3 +1,7 @@
+# KS Client Beta 1.0.18
+
+[Fixed frame pacing and menu power controls](RELEASE_BETA_118_EN.md)
+
 # KS Client Beta 1.0.17
 
 [Native Friends and Servers search and an optional F2 screenshot shortcut](RELEASE_BETA_117_EN.md)
