@@ -17,107 +17,86 @@
     const n = Number(saved.fpsLimit);
     if (validLimit(n)) target = n;
   } catch (_) {}
-  let menuLimited=false,wakeTimer=null,frameHandle=null;
-  let activityLimit=0;
+  let menuLimited=false, activityLimit=0, wake=null, deadline=null, generation=0;
+  let completedFrames=0, nativeWakes=0, timerWakes=0, nextId=1, delivering=false;
+  let lastTime=null, frameMs=0, sampleStart=null, sampleCount=0, callbackFPS=0;
+  const queued=new Map();
+  const intervals=new Float64Array(240);
+  let sampling=false, count=0, cursor=0;
+
   function effectiveLimit(){
-    const cap=Math.min(target||Infinity,activityLimit||Infinity,menuLimited?30:Infinity);
-    return Number.isFinite(cap)?cap:0;
+    const limit=Math.min(target||Infinity,activityLimit||Infinity,menuLimited?30:Infinity);
+    return Number.isFinite(limit)?limit:0;
   }
-  let browserInterval=8, lastWake=-1, usedTimer=false;
-  let nativeWakes=0;
-  let nextId = 1;
-  const queued = new Map();
-  let lastFrameTimestamp = -1;
-  let permittedThisFrame = false;
-  let nextDueTimestamp = -Infinity;
-  let completedFrames = 0;
-  let completedAt = 0;
-  let lastCompletedAt = 0;
-  let callbackFPS = 0;
-  let callbackFrameMs = 0;
-  let lastSampleAt = 0;
-  let periodCount = 0;
-
-  function updateFrameMetrics(ts) {
-    if (completedAt === ts) return;
-    if (lastCompletedAt > 0) callbackFrameMs = ts - lastCompletedAt;
-    lastCompletedAt = ts;
-    completedAt = ts;
-    completedFrames++;
-    periodCount++;
-    if (lastSampleAt === 0) lastSampleAt = ts;
-    if (ts - lastSampleAt >= 1000) {
-      callbackFPS = Math.round(periodCount * 1000 / (ts - lastSampleAt));
-      periodCount = 0;
-      lastSampleAt = ts;
-    }
-  }
-
-  function shouldRun(ts) {
-    if (lastFrameTimestamp !== ts) {
-      lastFrameTimestamp = ts;
-      const cap=effectiveLimit();
-      if (!cap) permittedThisFrame = true;
-      else {
-        const period = 1000 / cap;
-        // Accumulate fractional timing so 144 on 180 Hz is ~144, not 90.
-        if (!Number.isFinite(nextDueTimestamp) || ts - nextDueTimestamp > period * 3) {
-          nextDueTimestamp = ts;
-        }
-        permittedThisFrame = ts + 0.45 >= nextDueTimestamp;
-        if (permittedThisFrame) nextDueTimestamp += period;
-      }
-    }
-    return permittedThisFrame;
-  }
-
   function cancelWake(){
-    if(wakeTimer!==null)clearTimeout(wakeTimer);
-    if(frameHandle!==null)nativeCancelRAF(frameHandle);
-    wakeTimer=frameHandle=null;
+    generation++;
+    if(wake?.kind==='native')nativeCancelRAF(wake.id);
+    if(wake?.kind==='timer')clearTimeout(wake.id);
+    if(wake?.kind==='task')wake.controller.abort();
+    wake=null;
   }
   function schedule(){
-    if(!queued.size||wakeTimer!==null||frameHandle!==null)return;
-    const request=()=>{wakeTimer=null;frameHandle=nativeRAF(deliver);};
-    // Learn the native interval only from consecutive, unslept frames.
-    // A fast unlocked clock needs much less lead time than a 60 Hz clock.
-    const lead=Math.min(17,Math.max(0.65,browserInterval));
-    const delay=effectiveLimit()?nextDueTimestamp-performance.now()-lead:0;
-    usedTimer=delay>=1;
-    if(usedTimer)wakeTimer=setTimeout(request,delay);
-    else request();
+    if(wake||delivering||!queued.size)return;
+    const cap=effectiveLimit(), token=generation;
+    if(!cap||document.hidden){
+      wake={kind:'native',id:nativeRAF(ts=>{
+        if(token!==generation)return;
+        nativeWakes++;deliver(ts);
+      })};
+      return;
+    }
+    // Only a game request arms this clock. A fixed deadline does not subscribe
+    // Chromium's compositor to a perpetual stream of unlocked begin-frames.
+    const now=performance.now(), period=1000/cap;
+    if(deadline===null)deadline=now+period;
+    const delay=Math.max(0,Math.ceil(deadline-now));
+    const run=()=>{
+      if(token!==generation)return;
+      const ts=performance.now();
+      // Skip missed deadlines after a stall. Never replay frames to catch up.
+      deadline+=Math.max(1,Math.floor((ts-deadline)/period)+1)*period;
+      timerWakes++;deliver(ts);
+    };
+    if(period<4 && window.scheduler?.postTask){
+      const controller=new AbortController();
+      wake={kind:'task',controller};
+      window.scheduler.postTask(run,{delay,signal:controller.signal}).catch(error=>{
+        if(error.name!=='AbortError')setTimeout(()=>{throw error},0);
+      });
+    }else wake={kind:'timer',id:setTimeout(run,delay)};
   }
   function deliver(ts){
-    frameHandle=null;
-    nativeWakes++;
-    const interval=ts-lastWake;
-    if(!usedTimer && lastWake>=0 && interval>0 && interval<=40)browserInterval=interval;
-    lastWake=ts;
-    if(shouldRun(ts)){
-      // New requests run on a later tick. Earlier callbacks may cancel later ones.
-      const batch=Array.from(queued.keys());
-      updateFrameMetrics(ts);
-      for(const id of batch){
-        const fn=queued.get(id);
-        if(!fn)continue;
-        queued.delete(id);
-        try{fn.call(window,ts);}catch(error){setTimeout(()=>{throw error},0);}
-      }
+    wake=null;delivering=true;
+    if(lastTime!==null){
+      frameMs=ts-lastTime;
+      if(sampling&&frameMs>0){intervals[cursor]=frameMs;cursor=(cursor+1)%intervals.length;count=Math.min(count+1,intervals.length);}
     }
-    schedule();
+    lastTime=ts;completedFrames++;
+    if(sampleStart===null){sampleStart=ts;sampleCount=0;}
+    else sampleCount++;
+    if(ts-sampleStart>=1000){
+      callbackFPS=Math.round(sampleCount*1000/(ts-sampleStart));sampleCount=0;sampleStart=ts;
+    }
+    // Requests created inside this batch belong to a later frame. Cancelled
+    // siblings are checked immediately before invocation.
+    for(const id of Array.from(queued.keys())){
+      const fn=queued.get(id);if(!fn)continue;
+      queued.delete(id);
+      try{fn.call(window,ts)}catch(error){setTimeout(()=>{throw error},0);}
+    }
+    delivering=false;schedule();
   }
   function resetTiming(){
-    cancelWake();lastWake=-1;nextDueTimestamp=-Infinity;lastFrameTimestamp=-1;
-    lastSampleAt=lastCompletedAt=periodCount=callbackFPS=callbackFrameMs=0;
-    schedule();
+    cancelWake();deadline=lastTime=sampleStart=null;
+    count=cursor=sampleCount=callbackFPS=frameMs=0;schedule();
   }
+  document.addEventListener('visibilitychange',resetTiming);
   function frameRequest(callback){
     if(typeof callback!=='function')throw new TypeError('callback must be a function');
     const id=nextId++;queued.set(id,callback);schedule();return id;
   }
   function frameCancel(id){
-    if(!queued.delete(id))return;
-    if(!queued.size)cancelWake();
+    if(queued.delete(id)&&!queued.size&&!delivering){cancelWake();deadline=null;}
   }
   Object.defineProperty(window, 'requestAnimationFrame', { configurable: true, writable: true, value: frameRequest });
   Object.defineProperty(window, 'cancelAnimationFrame', { configurable: true, writable: true, value: frameCancel });
@@ -136,12 +115,18 @@
     setMenuLimited(enabled){
       if(menuLimited!==Boolean(enabled)){menuLimited=Boolean(enabled);resetTiming();}
     },
+    setSampling(enabled){
+      if(sampling!==enabled){sampling=enabled;count=cursor=0;}
+    },
+    getIntervals(){
+      return Array.from({length:count},(_,i)=>intervals[(cursor-count+i+intervals.length)%intervals.length]);
+    },
     getStats() {
-      const recent=lastCompletedAt>0&&performance.now()-lastCompletedAt<1500;
+      const recent=lastTime!==null&&performance.now()-lastTime<1500;
       return {
-        target,effectiveLimit:effectiveLimit(),menuLimited,activityLimit,nativeWakes,
+        target,effectiveLimit:effectiveLimit(),menuLimited,activityLimit,nativeWakes,timerWakes,
         estimatedCallbackFPS: recent?callbackFPS:0,
-        estimatedCallbackFrameMs: recent?callbackFrameMs:0,
+        estimatedCallbackFrameMs: recent?frameMs:0,
         completedFrames,
         requestCount: queued.size,
         note: 'Best-effort requestAnimationFrame callback rate; not verified GPU FPS'
