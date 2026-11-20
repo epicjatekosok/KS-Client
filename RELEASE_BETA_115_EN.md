@@ -4,6 +4,9 @@
 - Settings can temporarily cap page animation callbacks at 30 per second. Closing Settings restores the selected gameplay cap. Frame Stability uses the gameplay cap and now includes the 99th percentile.
 - The FPS counter and WebGL draw telemetry sleep when unused. Diagnostics reports draw calls per second when it observes the game canvas. These measurements do not establish presented GPU FPS.
 - Workshop script previews end when their panel closes. Local asset swapping caches its enabled setting in both engines.
+- Selecting Unlimited in the FPS list removes the page callback cap. The experimental Chromium unlock is an independent startup option. Both engines allow normal background scheduling even with this option enabled.
+- Two optional Performance settings limit lobby callbacks to 60 and unfocused game callbacks to 30. Both start off. Active gameplay keeps the saved FPS target.
+- The pacer sleeps between deadlines on fast browser clocks. Hidden diagnostics stop polling and the crosshair redraws when its appearance changes.
 - Existing settings and Workshop profiles use their original storage keys. Installers and portable updates continue through the public Windows releases.
 
 ### Measuring displayed FPS on Windows

@@ -207,8 +207,7 @@ if(active.angle==='opengl')app.commandLine.appendSwitch('use-angle','gl');
 if(active.uncapFps){
   // Experimental Chromium startup hints: these do NOT override the game engine,
   // GPU driver, compositor, or physical monitor refresh limits.
-  for(const flag of ['disable-frame-rate-limit','disable-gpu-vsync','disable-renderer-backgrounding',
-    'disable-background-timer-throttling','disable-backgrounding-occluded-windows']){
+  for(const flag of ['disable-frame-rate-limit','disable-gpu-vsync']){
     app.commandLine.appendSwitch(flag);
   }
   log('Experimental FPS unlock requested on Electron startup');
@@ -297,7 +296,7 @@ function createWindow(){
   win=new BrowserWindow({title:'KS Client '+APP_VERSION+' — Electron',width:1280,height:800,minWidth:800,minHeight:500,
     autoHideMenuBar:true, backgroundColor:'#0d1015', icon:path.join(__dirname,'assets','ks-logo.png'),
     webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,nodeIntegration:false,contextIsolation:true,
-      webSecurity:true,devTools:true,backgroundThrottling:false,defaultFontFamily:{standard:'Segoe UI'}}});
+      webSecurity:true,devTools:true,backgroundThrottling:true,defaultFontFamily:{standard:'Segoe UI'}}});
   win.setMenu(null);
   // No game setWindowOpenHandler, did-create-window OAuth wrapper,
   // will-navigate interceptor or will-redirect interceptor. Electron 45

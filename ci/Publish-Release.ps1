@@ -79,7 +79,14 @@ try{
     if($assets.Count -ne 1 -or $assets[0].digest -notmatch '^sha256:[0-9a-f]{64}$'){
         throw "Anonymous API missing a fully uploaded, SHA256-digested Setup.exe"
     }
-    Write-Host "PASS: public feed anonymously readable; all release files and Setup SHA256 confirmed"
+    $publicSetup=$assets[0]
+    $localSHA=(Get-FileHash -Algorithm SHA256 -LiteralPath $setupName).Hash.ToLowerInvariant()
+    if($publicSetup.digest -ne ('sha256:'+$localSHA) -or $publicSetup.size -ne (Get-Item $setupName).Length){
+        throw 'Published Setup.exe differs from the verified CI build'
+    }
+    $headers=Invoke-WebRequest -Method Head -Uri $publicSetup.browser_download_url -TimeoutSec 60
+    if($headers.StatusCode -ne 200){throw 'Anonymous Setup.exe download check failed'}
+    Write-Host "PASS: anonymous Setup.exe download verified. SHA256: $localSHA"
 
     # This existing bridge was published for Beta 1.0.0. Never replace its
     # hash-verified setup with Beta 1.0.15 (older Alpha users keep their bridge).

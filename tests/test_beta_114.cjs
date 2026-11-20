@@ -1,5 +1,5 @@
 'use strict';
-// KS Beta 1.0.15 regression: finite FPS reverts browser uncap, external status
+// KS Beta 1.0.15 regression: independent FPS controls, external status
 // always clears, CEF fullscreen native command exists and Settings translations.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -29,21 +29,11 @@ assert(cef.includes('TopMost=oldTopMost'));
 assert(ui.includes('communityNoticeTimer'));
 assert(ui.includes('setCommunityStatus: status => {showCommunityNotice(status,5500);}'));
 assert(ui.includes('showCommunityNotice(state.language'));
-const start=ui.indexOf('  function disableChromiumUncapForCap() {');
-const end=ui.indexOf('  function setSetting(k, value)',start);
-assert(start>0&&end>start);
-const sent=[];
-const context={
- state:{fpsLimit:180},browserPrefsLoaded:true,
- browserPrefs:{gpu:'enabled',angle:'default',uncapFps:true},
- browserActive:{uncapFps:true},browserPendingRestart:false,browserStatus:'',
- notify:(type,payload)=>sent.push({type,payload})
-};
-vm.runInNewContext(ui.slice(start,end)+';disableChromiumUncapForCap();',context);
-assert.equal(context.browserPrefs.uncapFps,false);
-assert.equal(context.browserPendingRestart,true);
-assert.equal(sent[0].type,'browser-save');
-assert.equal(sent[0].payload.browser.uncapFps,false);
+for(const file of ['electron-app/main.cjs','cef/Program.cs']){
+  const source=read(file);
+  for(const flag of ['disable-renderer-backgrounding','disable-background-timer-throttling','disable-backgrounding-occluded-windows'])
+    assert(!source.includes(flag),file+' disables native background scheduling');
+}
 const localeMatch=ui.match(/const extraLocales=(\{[^;]+\});/);
 assert(localeMatch,'localized Settings table missing');
 const locales=JSON.parse(localeMatch[1]);
@@ -64,9 +54,9 @@ vm.runInNewContext(pacer,{window:win,location:{hostname:'kirka.io',protocol:'htt
  localStorage:{getItem:()=>null},performance:{now:()=>now},
  setTimeout:(fn,ms)=>(timers.set(++next,{fn,due:now+ms}),next),clearTimeout:id=>timers.delete(id)});
 const p=win.__KS_FRAME_PACER__;
-function advance(ticks){
+function advance(ticks,hz=180){
  for(let i=0;i<ticks;i++){
-   now+=1000/180;
+   now+=1000/hz;
    for(const [id,timer] of [...timers])if(timer.due<=now){timers.delete(id);timer.fn();}
    const batch=[...raf.values()];raf.clear();for(const fn of batch)fn(now);
  }
@@ -100,3 +90,20 @@ assert(Number.isInteger(nativeId) && nativeId!==publicId);
 win.cancelAnimationFrame(nativeId);
 advance(10);
 assert(stillRuns);
+
+p.setLimit(180);
+pending=win.requestAnimationFrame(game);
+const initialWakes=p.getStats().nativeWakes;
+deliveries=0;
+advance(25000,2500);
+const wakes=p.getStats().nativeWakes-initialWakes;
+assert(Math.abs(deliveries/10-180)<1);
+assert(wakes<6500,'Too many native wakes on the simulated unlocked clock: '+wakes);
+console.log('Simulated 2500 Hz, 180 cap: %d callbacks, %d native rAF wakes in 10 s',deliveries,wakes);
+for(const [activity,menu,expected] of [[60,false,60],[60,true,30],[30,false,30],[0,false,180]]){
+  p.setActivityLimit(activity);p.setMenuLimited(menu);
+  deliveries=0;advance(1800);
+  assert(Math.abs(deliveries/10-expected)<1);
+  assert.equal(p.getStats().target,180);
+}
+win.cancelAnimationFrame(pending);

@@ -17,7 +17,13 @@
     if (allowed.has(n)) target = n;
   } catch (_) {}
   let menuLimited=false,wakeTimer=null,frameHandle=null;
-  const effectiveLimit=()=>menuLimited?Math.min(target||30,30):target;
+  let activityLimit=0;
+  function effectiveLimit(){
+    const cap=Math.min(target||Infinity,activityLimit||Infinity,menuLimited?30:Infinity);
+    return Number.isFinite(cap)?cap:0;
+  }
+  let browserInterval=8, lastWake=-1, usedTimer=false;
+  let nativeWakes=0;
   let nextId = 1;
   const queued = new Map();
   let lastFrameTimestamp = -1;
@@ -72,12 +78,20 @@
   function schedule(){
     if(!queued.size||wakeTimer!==null||frameHandle!==null)return;
     const request=()=>{wakeTimer=null;frameHandle=nativeRAF(deliver);};
-    const delay=effectiveLimit()?nextDueTimestamp-performance.now()-9:0;
-    if(delay>4)wakeTimer=setTimeout(request,delay);
+    // Learn the native interval only from consecutive, unslept frames.
+    // A fast unlocked clock needs much less lead time than a 60 Hz clock.
+    const lead=Math.min(17,Math.max(0.65,browserInterval));
+    const delay=effectiveLimit()?nextDueTimestamp-performance.now()-lead:0;
+    usedTimer=delay>=1;
+    if(usedTimer)wakeTimer=setTimeout(request,delay);
     else request();
   }
   function deliver(ts){
     frameHandle=null;
+    nativeWakes++;
+    const interval=ts-lastWake;
+    if(!usedTimer && lastWake>=0 && interval>0 && interval<=40)browserInterval=interval;
+    lastWake=ts;
     if(shouldRun(ts)){
       // New requests run on a later tick. Earlier callbacks may cancel later ones.
       const batch=Array.from(queued.keys());
@@ -92,7 +106,7 @@
     schedule();
   }
   function resetTiming(){
-    cancelWake();nextDueTimestamp=-Infinity;lastFrameTimestamp=-1;
+    cancelWake();lastWake=-1;nextDueTimestamp=-Infinity;lastFrameTimestamp=-1;
     lastSampleAt=lastCompletedAt=periodCount=callbackFPS=callbackFrameMs=0;
     schedule();
   }
@@ -113,13 +127,18 @@
       if(target!==n){target=n;resetTiming();}
       return true;
     },
+    setActivityLimit(limit){
+      if(![0,30,60].includes(limit) || limit===activityLimit)return;
+      activityLimit=limit;
+      resetTiming();
+    },
     setMenuLimited(enabled){
       if(menuLimited!==Boolean(enabled)){menuLimited=Boolean(enabled);resetTiming();}
     },
     getStats() {
       const recent=lastCompletedAt>0&&performance.now()-lastCompletedAt<1500;
       return {
-        target,effectiveLimit:effectiveLimit(),menuLimited,
+        target,effectiveLimit:effectiveLimit(),menuLimited,activityLimit,nativeWakes,
         estimatedCallbackFPS: recent?callbackFPS:0,
         estimatedCallbackFrameMs: recent?callbackFrameMs:0,
         completedFrames,

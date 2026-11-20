@@ -137,3 +137,15 @@ Known limits: Kirka.io can change DOM selectors; gameplay pointer lock is only v
 
 ## Alpha 1.1.12 Workshop
 Weapon Studio provides local HTML weapon/inventory cosmetic previews (hue, brightness, saturation, Custom Skin Link and saved presets). Resource Swapper replaces only exact paths under `https://kirka.io/assets/{img,media,css}/...` with locally permitted image/audio/CSS files and is disabled by default. Put approved, owned assets at `Documents/KSClient/Swapper/assets/...`, enable and reload the game. Other network requests are untouched. JavaScript plugins manually run in a sandboxed, opaque preview, with a whitelisted cosmetic API. The browser and game logic, private cookies and arbitrary filesystem are not exposed. Room presets, profiles and inventory notes are local; no real trades or prices are requested. True in-game 3D WebGL skins, automated friend spectating and complete multiplayer game-state integration remain unverified, not advertised as working.
+
+### Checking performance on Windows 11
+
+For an A/B comparison, keep the display at the same resolution and refresh rate (for example 2560 × 1440 at 180 Hz). Keep the same game settings, driver profile, VRR, camera and scene. Restart after changing the experimental Chromium unlock. Record its startup status.
+
+1. Capture each engine separately with PresentMon. In Task Manager identify the presenting Electron or CEF process under the KS installation. Capture its PID, then select the game's swapchain. Exclude the launcher and loading window.
+2. Warm up the scene for 15 seconds. Record 60 seconds per run, three times each. Use Unlimited, 60, 120, 180 and 240. Repeat with Settings closed, open on a normal tab, Performance, and Frame Stability. Compare the lobby, active match, unfocused and minimized states separately.
+3. In the capture compare application submission intervals (FrameTime or MsBetweenPresents) and displayed intervals (DisplayedTime or MsBetweenDisplayChange). Exclude dropped frames from displayed timing. Record median, p95 and p99. A 180 Hz display can show up to 180 complete refreshes per second even when the application submits more.
+4. In parallel log GPU utilization and board power in watts at one-second intervals using HWiNFO, and the CPU usage and private working set for the KS process tree. Keep other GPU applications idle. Report unavailable sensors as unavailable. Compare median watts and frame-time percentiles between repeated runs.
+5. Verify that audio, matchmaking, chat, login and mouse capture still work after closing Settings, switching focus and restoring the minimized client. Compare with the optional lobby and unfocused caps disabled and enabled. On a 180 Hz display, 5.56 ms is the nominal interval at 180 FPS.
+
+The in-client counter identifies page callbacks or browser ticks. For a separate driver-level comparison on NVIDIA, apply a Max Frame Rate profile only to the verified KS rendering executable. Record the driver's setting with the capture.
