@@ -44,6 +44,15 @@ with sync_playwright() as p:
     assert page.evaluate("window.ksEvents.some(e=>e.type==='stats' && e.detail.kills===3)")
     assert page.evaluate("window.__KS_GAME_RUNTIME__.getStatus().compatibility.supported.match")
     assert page.evaluate("window.__KS_GAME_RUNTIME__.getStatus().compatibility.missing.length")==0
+    page.evaluate("""() => {
+      window.seenSnapshot=null;
+      window.__KS_GAME_RUNTIME__.on('stats',()=>window.seenSnapshot=window.__KS_GAME_RUNTIME__.getSnapshot().stats.kills);
+      document.querySelector('.cell-value').textContent='';
+      window.__KS_GAME_RUNTIME__.refresh();
+    }""")
+    assert page.evaluate("window.seenSnapshot===null && window.__KS_GAME_RUNTIME__.getSnapshot().stats.kills===null")
+    page.evaluate("document.querySelector('.game-interface').hidden=true;window.__KS_GAME_RUNTIME__.refresh()")
+    assert page.evaluate("window.__KS_GAME_RUNTIME__.scene==='loading'")
     # Browser SPA scene transitions detach scoped watchers, not leak them.
     page.evaluate("""() => {
       history.pushState({},'', '/');
@@ -73,6 +82,8 @@ with sync_playwright() as p:
       };
     }""")
     page.add_script_tag(content=scripts['render_telemetry.js'])
+    assert page.evaluate("window.gl.drawArrays===window.originalDraw")
+    page.evaluate("window.__KS_RENDER_TELEMETRY__.setActive(true)")
     assert page.evaluate("window.__KS_RENDER_TELEMETRY__?.getStatus().attached===1")
     page.evaluate("""() => {
       window.gl.drawArrays(4,0,3);window.gl.drawElements(4,6,0,0);
@@ -81,7 +92,7 @@ with sync_playwright() as p:
     }""")
     assert page.evaluate("window.__KS_RENDER_TELEMETRY__.getStatus().drawCalls")==2
     assert page.evaluate("window.__KS_RENDER_TELEMETRY__.getStatus().textureBinds")==1
-    assert page.evaluate("window.__KS_RENDER_TELEMETRY__.getStatus().framesObserved")==1
+    assert page.evaluate("window.__KS_RENDER_TELEMETRY__.getStatus().clearCalls")==1
     assert page.evaluate("window.glDraws")==2
     page.evaluate("window.__KS_RENDER_TELEMETRY__.stop()")
     assert page.evaluate("window.gl.drawArrays===window.originalDraw")

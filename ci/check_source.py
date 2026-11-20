@@ -113,3 +113,15 @@ assert 'proto.requestPointerLock=passThrough' in cef_probe
 assert 'overlay\\cef_input_probe.js' in (root/'ci/Build-CEF.ps1').read_text()
 assert 'tests/test_cef_input_117.py' in workflow
 print('PASS: KS 1.0.0 CEF focus, pointer-lock, and eye-filter source invariants')
+
+for shared in (root/'electron-app/overlay').glob('*.js'):
+ assert shared.read_bytes()==(root/'cef/overlay'/shared.name).read_bytes(),shared.name
+
+from io import StringIO
+import sys
+sys.path.insert(0,str(root/'tools'))
+from analyze_presentmon import summarize
+sample='Application,ProcessID,SwapChainAddress,DisplayedTime\n'
+sample+='electron.exe,42,0xab,5\nelectron.exe,42,0xab,15\nelectron.exe,42,0xab,NA\n'
+sample+='electron.exe,43,0xab,100\nelectron.exe,42,0xcd,200\n'
+assert summarize(StringIO(sample),42,'0xAB')==dict(samples=2,fps=100,p95_ms=15,p99_ms=15)

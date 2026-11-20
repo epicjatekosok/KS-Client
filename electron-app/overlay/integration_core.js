@@ -193,7 +193,7 @@
   });
 
   let observer=null, timer=null, queued=false, unsubscribeRuntime=null;
-  function schedule(){if(queued)return;queued=true;setTimeout(()=>{queued=false;if(document.body)refresh()},120)}
+  function schedule(){if(queued)return;queued=true;setTimeout(()=>{queued=false;if(status.started&&document.body&&!document.hidden)refresh()},120)}
   function start(){
     if(status.started||!document.body)return;
     status.started=true;
@@ -203,8 +203,8 @@
     observer.observe(document.body,{subtree:false,childList:true});
     window.addEventListener('popstate',schedule);
     window.addEventListener('hashchange',schedule);
-    unsubscribeRuntime=window.__KS_GAME_RUNTIME__?.on?.('scene',schedule)||null;
-    timer=setInterval(refresh,1200);
+    unsubscribeRuntime=window.__KS_GAME_RUNTIME__?.on?.('refresh',schedule)||null;
+    if(!unsubscribeRuntime)timer=setInterval(refresh,1200);
     refresh();
   }
   function stop(){
