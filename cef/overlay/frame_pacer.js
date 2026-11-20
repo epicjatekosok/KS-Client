@@ -101,7 +101,7 @@
     const id=nextId++;queued.set(id,callback);schedule();return id;
   }
   function frameCancel(id){
-    if(!queued.delete(id)){nativeCancelRAF(id);return;}
+    if(!queued.delete(id))return;
     if(!queued.size)cancelWake();
   }
   Object.defineProperty(window, 'requestAnimationFrame', { configurable: true, writable: true, value: frameRequest });

@@ -90,3 +90,13 @@ second=win.requestAnimationFrame(()=>assert.fail('cancelled callback delivered')
 advance(360);
 assert.equal(raf.size+timers.size,0);
 assert.equal(p.getStats().estimatedCallbackFPS,0);
+
+// An unknown public handle must not cancel the pacer's underlying native wake.
+p.setLimit(0);
+let stillRuns=false;
+const publicId=win.requestAnimationFrame(()=>{stillRuns=true;});
+const nativeId=[...raf.keys()][0];
+assert(Number.isInteger(nativeId) && nativeId!==publicId);
+win.cancelAnimationFrame(nativeId);
+advance(10);
+assert(stillRuns);
