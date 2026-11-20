@@ -67,6 +67,7 @@ with sync_playwright() as playwright:
      uniformMatrix4fv(_loc,_tr,data){window.__matrix=[...data];}
    };
    window.__mockGL=mock;
+   window.__matrixOriginal=mock.uniformMatrix4fv;
    HTMLCanvasElement.prototype.getContext=function(kind){return kind==='webgl'?mock:null;};
    localStorage.setItem('ksclient.webgl.v114',JSON.stringify({
      enabled:true,assetURL:'',skinURL:'',matrixSignature:'1.000,1.000,1.000,0.100,0.200,0.300',
