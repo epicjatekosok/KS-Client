@@ -9,7 +9,15 @@
   const proto = HTMLCanvasElement.prototype;
   const original = proto.getContext;
   const contexts = new WeakSet();
-  const known = new Map();
+  const known = new Set();
+  function liveContexts(){
+    const result=[];
+    for(const entry of known){
+      const gl=entry.gl.deref(),canvas=entry.canvas.deref();
+      if(gl && canvas)result.push([gl,{canvas,kind:entry.kind}]);else known.delete(entry);
+    }
+    return result;
+  }
   const subscribers = new Set();
   let selected = null;
   const seen = { webgl: 0, webgl2: 0, contextLost: 0, restored: 0, lastCanvas: '', notifications: 0, subscriberErrors: 0 };
@@ -25,7 +33,8 @@
   function track(canvas, kind, gl) {
     if (!gl || contexts.has(gl)) return;
     contexts.add(gl);
-    known.set(gl, { canvas, kind });
+    liveContexts();
+    known.add({gl:new WeakRef(gl),canvas:new WeakRef(canvas),kind});
     if (kind === 'webgl2') seen.webgl2++; else seen.webgl++;
     seen.lastCanvas = String(canvas.id || '(unnamed)').slice(0, 64);
     try {
@@ -75,7 +84,7 @@
       subscribers.add(callback);
       // Replay is crucial when native injection is later than game initialization;
       // replaying never calls getContext or creates additional GPU contexts.
-      for (const [gl, info] of known) publish(info.canvas, info.kind, gl, callback);
+      for (const [gl, info] of liveContexts()) publish(info.canvas, info.kind, gl, callback);
       return () => subscribers.delete(callback);
     },
     getStats: () => selected ? {
@@ -85,11 +94,11 @@
       contextType: selected.kind
     } : null,
     getStatus: () => ({ ...seen, installed: proto.getContext === wrappedGetContext,
-      mode: 'passive', trackedContexts: known.size, subscribers: subscribers.size }),
+      mode: 'passive', trackedContexts: liveContexts().length, subscribers: subscribers.size }),
     restore: () => {
       if (proto.getContext === wrappedGetContext) proto.getContext = original;
       subscribers.clear();
-      known.clear();
+      known.clear();selected=null;
     }
   });
   window.dispatchEvent(new Event('ks-render-observer-ready'));

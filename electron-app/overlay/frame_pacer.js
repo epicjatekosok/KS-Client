@@ -16,6 +16,14 @@
     const n = Number(saved.fpsLimit);
     if (allowed.has(n)) target = n;
   } catch (_) {}
+  let menuLimited=false,wakeTimer=null,frameHandle=null;
+  let activityLimit=0;
+  function effectiveLimit(){
+    const cap=Math.min(target||Infinity,activityLimit||Infinity,menuLimited?30:Infinity);
+    return Number.isFinite(cap)?cap:0;
+  }
+  let browserInterval=8, lastWake=-1, usedTimer=false;
+  let nativeWakes=0;
   let nextId = 1;
   const queued = new Map();
   let lastFrameTimestamp = -1;
@@ -47,9 +55,10 @@
   function shouldRun(ts) {
     if (lastFrameTimestamp !== ts) {
       lastFrameTimestamp = ts;
-      if (!target) permittedThisFrame = true;
+      const cap=effectiveLimit();
+      if (!cap) permittedThisFrame = true;
       else {
-        const period = 1000 / target;
+        const period = 1000 / cap;
         // Accumulate fractional timing so 144 on 180 Hz is ~144, not 90.
         if (!Number.isFinite(nextDueTimestamp) || ts - nextDueTimestamp > period * 3) {
           nextDueTimestamp = ts;
@@ -61,27 +70,53 @@
     return permittedThisFrame;
   }
 
-  function frameRequest(callback) {
-    if (typeof callback !== 'function') throw new TypeError('callback must be a function');
-    const id = nextId++;
-    const entry = { callback, nativeId: 0 };
-    queued.set(id, entry);
-    const deliver = ts => {
-      if (!queued.has(id)) return;
-      if (shouldRun(ts)) {
-        queued.delete(id);
-        updateFrameMetrics(ts);
-        entry.callback(ts);
-      } else {
-        entry.nativeId = nativeRAF(deliver);
-      }
-    };
-    entry.nativeId = nativeRAF(deliver);
-    return id;
+  function cancelWake(){
+    if(wakeTimer!==null)clearTimeout(wakeTimer);
+    if(frameHandle!==null)nativeCancelRAF(frameHandle);
+    wakeTimer=frameHandle=null;
   }
-  function frameCancel(id) {
-    const entry = queued.get(id);
-    if (entry) { nativeCancelRAF(entry.nativeId); queued.delete(id); }
+  function schedule(){
+    if(!queued.size||wakeTimer!==null||frameHandle!==null)return;
+    const request=()=>{wakeTimer=null;frameHandle=nativeRAF(deliver);};
+    // Learn the native interval only from consecutive, unslept frames.
+    // A fast unlocked clock needs much less lead time than a 60 Hz clock.
+    const lead=Math.min(17,Math.max(0.65,browserInterval));
+    const delay=effectiveLimit()?nextDueTimestamp-performance.now()-lead:0;
+    usedTimer=delay>=1;
+    if(usedTimer)wakeTimer=setTimeout(request,delay);
+    else request();
+  }
+  function deliver(ts){
+    frameHandle=null;
+    nativeWakes++;
+    const interval=ts-lastWake;
+    if(!usedTimer && lastWake>=0 && interval>0 && interval<=40)browserInterval=interval;
+    lastWake=ts;
+    if(shouldRun(ts)){
+      // New requests run on a later tick. Earlier callbacks may cancel later ones.
+      const batch=Array.from(queued.keys());
+      updateFrameMetrics(ts);
+      for(const id of batch){
+        const fn=queued.get(id);
+        if(!fn)continue;
+        queued.delete(id);
+        try{fn.call(window,ts);}catch(error){setTimeout(()=>{throw error},0);}
+      }
+    }
+    schedule();
+  }
+  function resetTiming(){
+    cancelWake();lastWake=-1;nextDueTimestamp=-Infinity;lastFrameTimestamp=-1;
+    lastSampleAt=lastCompletedAt=periodCount=callbackFPS=callbackFrameMs=0;
+    schedule();
+  }
+  function frameRequest(callback){
+    if(typeof callback!=='function')throw new TypeError('callback must be a function');
+    const id=nextId++;queued.set(id,callback);schedule();return id;
+  }
+  function frameCancel(id){
+    if(!queued.delete(id))return;
+    if(!queued.size)cancelWake();
   }
   Object.defineProperty(window, 'requestAnimationFrame', { configurable: true, writable: true, value: frameRequest });
   Object.defineProperty(window, 'cancelAnimationFrame', { configurable: true, writable: true, value: frameCancel });
@@ -89,20 +124,29 @@
     setLimit(n) {
       n = Number(n);
       if (!allowed.has(n)) return false;
-      target = n;
-      nextDueTimestamp = -Infinity;
+      if(target!==n){target=n;resetTiming();}
       return true;
     },
+    setActivityLimit(limit){
+      if(![0,30,60].includes(limit) || limit===activityLimit)return;
+      activityLimit=limit;
+      resetTiming();
+    },
+    setMenuLimited(enabled){
+      if(menuLimited!==Boolean(enabled)){menuLimited=Boolean(enabled);resetTiming();}
+    },
     getStats() {
+      const recent=lastCompletedAt>0&&performance.now()-lastCompletedAt<1500;
       return {
-        target,
-        estimatedCallbackFPS: callbackFPS,
-        estimatedCallbackFrameMs: callbackFrameMs,
+        target,effectiveLimit:effectiveLimit(),menuLimited,activityLimit,nativeWakes,
+        estimatedCallbackFPS: recent?callbackFPS:0,
+        estimatedCallbackFrameMs: recent?callbackFrameMs:0,
         completedFrames,
         requestCount: queued.size,
         note: 'Best-effort requestAnimationFrame callback rate; not verified GPU FPS'
       };
     },
+    nativeCancelAnimationFrame:nativeCancelRAF,
     nativeRequestAnimationFrame: nativeRAF
   }) });
 

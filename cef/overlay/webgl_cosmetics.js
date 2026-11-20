@@ -62,6 +62,7 @@ function install(gl,canvas){
  function matrix(location,transpose,data,offset,length){
    // Observe only the game's own canvas. Do not probe other 3D objects,
    // rewrite depth state, or transform anything without manual signature.
+   if(!cfg.enabled)return Reflect.apply(rawMatrix,this,arguments);
    if(data&&data.length>=16){
      try{
        const base=Number.isInteger(offset)?offset:0;
@@ -80,7 +81,7 @@ function install(gl,canvas){
        }
      }catch(_){}
    }
-   return origMatrix(location,transpose,data,offset,length);
+   return Reflect.apply(rawMatrix,this,arguments);
  }
  try{
   gl.texImage2D=tex;

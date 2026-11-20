@@ -9,7 +9,7 @@
   if(window.__KS_GAME_EXTRAS__)return;
   if(location.protocol!=='https:' || !['kirka.io','www.kirka.io'].includes(location.hostname))return;
   const KEY='ksclient.settings.alpha';
-  const match=()=>/^\/(games\/|hub\/ranked)/.test(location.pathname);
+  const match=()=>window.__KS_GAME_RUNTIME__ ? window.__KS_GAME_RUNTIME__.scene==='match' : /^\/(games\/|hub\/ranked)/.test(location.pathname);
   function settings(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(_){return {}}}
   let state=settings();
   const root=document.createElement('div');
@@ -92,6 +92,7 @@
     stats.style.display=state.gameStats && inGame() && !!stats.textContent?'block':'none';
   }
   function updateKeys(){
+    if(!state.gameKeystrokes)return;
     for(const el of keys.querySelectorAll('[data-code]'))el.classList.toggle('down',pressed.has(el.dataset.code));
   }
   document.addEventListener('keydown',e=>{if(!e.repeat)pressed.add(e.code);updateKeys();},true);
@@ -156,13 +157,13 @@
     }
     return '';
   }
-  let lastStats=0;
   function updateStats(){
     if(!domReady || !state.gameStats || !inGame()){stats.textContent='';stats.style.display='none';return;}
-    const kills=firstText(['.ui-cell.kill .cell-value','.kill-death .kill .cell-value']);
-    const deaths=firstText(['.ui-cell.death .cell-value','.kill-death .death .cell-value']);
-    const assists=firstText(['.ui-cell.assists .cell-value']);
-    const hs=firstText(['.ui-cell.hsp .cell-value','.hs-percentage']);
+    const shared=window.__KS_GAME_RUNTIME__?.getSnapshot().stats;
+    const kills=shared?(shared.kills==null?'':String(shared.kills)):firstText(['.ui-cell.kill .cell-value','.kill-death .kill .cell-value']);
+    const deaths=shared?(shared.deaths==null?'':String(shared.deaths)):firstText(['.ui-cell.death .cell-value','.kill-death .death .cell-value']);
+    const assists=shared?(shared.assists==null?'':String(shared.assists)):firstText(['.ui-cell.assists .cell-value']);
+    const hs=shared?(shared.headshotPercent==null?'':shared.headshotPercent+'%'):firstText(['.ui-cell.hsp .cell-value','.hs-percentage']);
     const shown=[];
     if(kills)shown.push('Kills: '+kills);
     if(deaths)shown.push('Deaths: '+deaths);
@@ -173,14 +174,16 @@
     stats.textContent=shown.join(' · ');
     stats.style.display=shown.length?'block':'none';
   }
-  function loop(ts){
-    if(ts-lastStats>1200){
-      lastStats=ts;
-      if(lastLocation!==location.pathname){lastLocation=location.pathname;assistsCount=0;headshotCount=0;}
-      updateObservers();
-      updateStats();refresh();
+  function tick(){
+    if(document.hidden)return;
+    if(lastLocation!==location.pathname){lastLocation=location.pathname;assistsCount=0;headshotCount=0;}
+    refresh();
+    if(!window.__KS_GAME_RUNTIME__ && match())updateObservers();
+    else {
+      observerA?.disconnect();observerK?.disconnect();
+      observedAchievements=null;observedKills=null;
     }
-    requestAnimationFrame(loop);
+    updateStats();
   }
   window.__KS_GAME_EXTRAS__=Object.freeze({refresh,getStatus:()=>({
     pointerLocked:nativeCursor(),game:match(),lockRequests,lockErrors,relativeMoves,
@@ -189,5 +192,14 @@
     stats:!!state.gameStats
   })});
   if(document.body)install();else document.addEventListener('DOMContentLoaded',install,{once:true});
-  requestAnimationFrame(loop);
+  if(window.__KS_GAME_RUNTIME__){
+    const runtime=window.__KS_GAME_RUNTIME__;
+    runtime.on('refresh',tick);
+    runtime.on('stats',updateStats);
+    runtime.on('route',()=>{assistsCount=headshotCount=0;lastLocation=location.pathname;});
+    runtime.on('match-view-leave',()=>{assistsCount=headshotCount=0;});
+    runtime.on('killfeed',e=>{if(e.detail.localHeadshot){headshotCount++;updateStats();}});
+    runtime.on('achievement',e=>{if(/\bassist\b/i.test(e.detail.text)){assistsCount++;updateStats();}});
+  }
+  else setInterval(tick,1200);
 })();

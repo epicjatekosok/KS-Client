@@ -23,16 +23,30 @@ internal static class KSResourceSwap
       ["media"]=new[]{".mp3",".wav",".ogg"},
       ["css"]=new[]{".css"}
     };
+    private static readonly object settingsLock=new();
+    private static long readAfter, served, unmatched;
+    private static bool cachedEnabled;
     internal static bool Enabled()
     {
-        try {using var doc=JsonDocument.Parse(File.ReadAllText(Settings));return doc.RootElement.TryGetProperty("enabled",out var state)&&state.ValueKind==JsonValueKind.True;}
-        catch{return false;}
+        lock(settingsLock){
+            if(Environment.TickCount64<readAfter)return cachedEnabled;
+            try{
+                using var doc=JsonDocument.Parse(File.ReadAllText(Settings));
+                cachedEnabled=doc.RootElement.TryGetProperty("enabled",out var state)&&state.ValueKind==JsonValueKind.True;
+            }catch{cachedEnabled=false;}
+            readAfter=Environment.TickCount64+1000;
+            return cachedEnabled;
+        }
     }
     internal static void SetEnabled(bool enabled)
     {
-        Directory.CreateDirectory(Program.Root);
-        File.WriteAllText(Settings,JsonSerializer.Serialize(new{enabled}));
+        lock(settingsLock){
+            Directory.CreateDirectory(Program.Root);
+            File.WriteAllText(Settings,JsonSerializer.Serialize(new{enabled}));
+            readAfter=0;
+        }
     }
+    internal static void Served()=>Interlocked.Increment(ref served);
     internal static string Folder()
     {
         foreach(var x in Types.Keys)Directory.CreateDirectory(Path.Combine(Assets,x));
@@ -53,11 +67,10 @@ internal static class KSResourceSwap
                 }catch{}
             }
         }
-        return new{count,bytes,enabled=Enabled(),folder=Assets};
+        return new{count,bytes,enabled=Enabled(),folder=Assets,served=Interlocked.Read(ref served),unmatched=Interlocked.Read(ref unmatched)};
     }
     internal static string? Match(string url, string initiator)
     {
-        if(!Enabled())return null;
         if(!Uri.TryCreate(url,UriKind.Absolute,out var uri)||uri.Scheme!="https"||
             (uri.Host!="kirka.io"&&uri.Host!="www.kirka.io")||uri.Port!=443)return null;
         if(!Uri.TryCreate(initiator,UriKind.Absolute,out var from)||from.Scheme!="https"||
@@ -65,23 +78,25 @@ internal static class KSResourceSwap
         var parts=uri.AbsolutePath.Split('/',StringSplitOptions.RemoveEmptyEntries)
             .Select(Uri.UnescapeDataString).ToArray();
         if(parts.Length<3||parts[0]!="assets"||!Types.TryGetValue(parts[1],out var allowed))return null;
+        if(!Enabled())return null;
         if(parts.Any(x=>x is "." or ".."||x.Contains('/')||x.Contains('\\')||x.Contains('\0')||x.Contains(':')))return null;
         var candidate=Path.GetFullPath(Path.Combine(new[]{Assets}.Concat(parts.Skip(1)).ToArray()));
         if(!candidate.StartsWith(Path.GetFullPath(Assets)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))return null;
-        // Resolve all existing path segments to prevent reparse-point escapes.
-        var part=Path.GetFullPath(Assets);
-        foreach(var segment in parts.Skip(1)){
-            part=Path.Combine(part,segment);
-            if(File.Exists(part)||Directory.Exists(part)){
-                var attr=File.GetAttributes(part);
-                if(attr.HasFlag(FileAttributes.ReparsePoint))return null;
-            }
-        }
-        var ext=Path.GetExtension(candidate);
-        if(!allowed.Contains(ext,StringComparer.OrdinalIgnoreCase))return null;
         try{
+            // Resolve all existing path segments to prevent reparse-point escapes.
+            var part=Path.GetFullPath(Assets);
+            foreach(var segment in parts.Skip(1)){
+                part=Path.Combine(part,segment);
+                if(File.Exists(part)||Directory.Exists(part)){
+                    var attr=File.GetAttributes(part);
+                    if(attr.HasFlag(FileAttributes.ReparsePoint))return null;
+                }
+            }
+            var ext=Path.GetExtension(candidate);
+            if(!allowed.Contains(ext,StringComparer.OrdinalIgnoreCase))return null;
             var f=new FileInfo(candidate);
-            if(!f.Exists||f.Attributes.HasFlag(FileAttributes.ReparsePoint)||f.Length<=0||f.Length>16*1024*1024)return null;
+            if(!f.Exists){Interlocked.Increment(ref unmatched);return null;}
+            if(f.Attributes.HasFlag(FileAttributes.ReparsePoint)||f.Length<=0||f.Length>16*1024*1024)return null;
             return candidate;
         }catch{return null;}
     }
@@ -94,7 +109,7 @@ internal sealed class KSResourceRequestHandler : CefSharp.Handler.ResourceReques
     internal KSResourceRequestHandler(string file){this.file=file;}
     protected override IResourceHandler GetResourceHandler(IWebBrowser chromiumWebBrowser,IBrowser browser,IFrame frame,IRequest request)
     {
-        try{return ResourceHandler.FromFilePath(file,KSResourceSwap.GetMime(file));}
+        try{var handler=ResourceHandler.FromFilePath(file,KSResourceSwap.GetMime(file));KSResourceSwap.Served();return handler;}
         catch{return ResourceHandler.ForErrorMessage("Local asset not available",System.Net.HttpStatusCode.NotFound);}
     }
 }

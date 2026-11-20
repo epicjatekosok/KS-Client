@@ -1,4 +1,4 @@
-"""Engine-independent KS Client 1.0.14 UI smoke test in local Chromium.
+"""Engine-independent KS Client 1.0.15 UI smoke test in local Chromium.
 Not a live test of Windows Electron, CEF, or FPS unlock.
 """
 from pathlib import Path
@@ -31,6 +31,7 @@ with sync_playwright() as play:
   assert page.evaluate("!!window.__KS_WORKSHOP__")
 
 
+  assert not errors,errors
   page.wait_for_function('!!window.__KS_CLIENT__')
   assert page.evaluate("window.__out.some(m=>m.type==='engine-info')")
   page.evaluate('window.__KS_CLIENT__.setEngineInfo("Electron")')
@@ -43,8 +44,7 @@ with sync_playwright() as play:
   body=page.locator('#ks-body').inner_text()
   assert 'Electron' in body,(width,body[:200])
   assert 'Checking new engine startup' in body
-  # A native configuration reply enables the FPS setting. The zero FPS cap
-  # must now request the experimental Chromium launch flags on next restart.
+  # Removing the page cap must preserve the independent Chromium startup preference.
   page.evaluate("""() => window.__KS_CLIENT__.setBrowserConfig(
     {gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false},
     {gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false},false,'')""")
@@ -54,7 +54,7 @@ with sync_playwright() as play:
     const select=document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-setting="fpsLimit"]');
     select.value='0'; select.dispatchEvent(new Event('change',{bubbles:true}));
   }""")
-  assert page.evaluate("window.__out.some(m=>m.type==='browser-save' && m.browser.uncapFps===true)")
+  assert not page.evaluate("window.__out.some(m=>m.type==='browser-save' && m.browser.uncapFps===true)")
   # The dedicated button also works when Unlimited is already selected.
   page.evaluate("""() => window.__KS_CLIENT__.setBrowserConfig(
     {gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false},
@@ -127,8 +127,8 @@ with sync_playwright() as play:
   assert page.locator('[data-setting="crosshairEnabled"]').count()==1
   page.locator('.ks-tab[data-group="Advanced"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
-  assert page.locator('.ks-release').first.inner_text().startswith('KS Client Beta 1.0.14')
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client Beta 1.0.15')
   assert not errors,(width,errors)
-  print('PASS 1.0.14 engine UI',width,height)
+  print('PASS 1.0.15 engine UI',width,height)
   page.close()
  browser.close()

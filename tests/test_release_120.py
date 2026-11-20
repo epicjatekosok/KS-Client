@@ -1,4 +1,4 @@
-"""KS Client alpha 1.0.14 — modern settings and fixed Discord invite contract."""
+"""KS Client alpha 1.0.15 — modern settings and fixed Discord invite contract."""
 from pathlib import Path
 r=Path(__file__).resolve().parents[1]
 a=(r/'electron-app/overlay/overlay.js').read_text(encoding='utf8')
@@ -22,6 +22,6 @@ assert 'ClientCommunityLinks.OpenInvite()' in c
 assert 'https://discord.gg/cxP386yGjk' in (r/'cef/ClientCommunityLinks.cs').read_text()
 assert "discord-community" not in "stats clan game fullscreen crash-status diagnostics-poll update-check update-install"
 for path in ('launcher/main_windows.go','installer/main_windows.go','electron-app/main.cjs','cef/Program.cs','ci/Publish-Release.ps1'):
- assert '1.0.14' in (r/path).read_text(),path
-assert 'RELEASE_BETA_114_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
-print('PASS: KS 1.0.14 modern searchable menu, subtle badge, strict Discord native bridge and preserved dual-engine settings')
+ assert '1.0.15' in (r/path).read_text(),path
+assert 'RELEASE_BETA_115_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
+print('PASS: KS 1.0.15 modern searchable menu, subtle badge, strict Discord native bridge and preserved dual-engine settings')

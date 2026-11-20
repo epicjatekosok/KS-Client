@@ -13,9 +13,9 @@ const safeRoom=v=>{
  /^\/(?:games\/|hub\/ranked|servers\/)/.test(u.pathname)?u.href:'';}catch(_){return ''}
 };
 const nativePost=message=>{try{
- if(window.__KS_NATIVE__?.post)window.__KS_NATIVE__.post(message);
- else if(window.CefSharp?.PostMessage)window.CefSharp.PostMessage(JSON.stringify(message));
- }catch(_){}};
+ if(window.__KS_NATIVE__?.post){window.__KS_NATIVE__.post(message);return true;}
+ if(window.CefSharp?.PostMessage){window.CefSharp.PostMessage(JSON.stringify(message));return true;}
+ }catch(_){}return false;};
 let lastError='',lastJoin='',joinMode='none',matchId='',stats={kills:null,deaths:null,assists:null,headshotPercent:null},seenKills=0,seenAssists=0,seenHS=0,viewState='';
 function scene(){return window.__KS_GAME_RUNTIME__?.getStatus?.()?.scene||window.__KS_INTEGRATION__?.getStatus()?.scene||'unknown';}
 function number(sel){const el=document.querySelector(sel);if(!el)return null;const n=Number(trim(el.textContent,16).replace('%',''));return Number.isFinite(n)&&n>=0?n:null}
@@ -62,9 +62,10 @@ function detachFeeds(){
  for(const watcher of observers.values())watcher.disconnect();
  observers.clear();
 }
+function shown(el){return !!el?.getClientRects().length && getComputedStyle(el).visibility==='visible';}
 function profileSnapshot(){
  const panel=document.querySelector('.profile-cont,.card-profile,.profile-page');
- if(!panel)return null;
+ if(!shown(panel))return null;
  return {nickname:trim(panel.querySelector('.nickname,.username,.player-name')?.textContent,60)||null,
   visibleBadges:[...panel.querySelectorAll('[title],[aria-label]')].map(x=>trim(x.getAttribute('title')||x.getAttribute('aria-label'),50)).filter(Boolean).slice(0,12)};
 }
@@ -72,24 +73,26 @@ function inventorySnapshot(){
  const rows=[...document.querySelectorAll('.inventory .item-card,.inventory-item,.inventory .item')].slice(0,150);
  const unique=new Set(),items=[];
  for(const row of rows){
+  if(!shown(row))continue;
   const name=trim(row.querySelector('.name,.item-name')?.textContent||row.querySelector('img')?.alt||row.getAttribute('title'),70);
   if(!name||unique.has(name))continue;
   unique.add(name);items.push(name);
  }
- return {visibleCount:items.length,items:items.slice(0,50),source:'visible inventory elements, not a market API'};
+ return {available:shown(document.querySelector('.inventory,.inventory-item')),visibleCount:items.length,items:items.slice(0,50),source:'visible inventory elements, not a market API'};
 }
 function marketSnapshot(){
  const rows=[...document.querySelectorAll('.market .listing,.market .item-card,.marketplace .listing,.market-card')].slice(0,100);
  const listings=[];
  for(const row of rows){
+  if(!shown(row))continue;
   const item=trim(row.querySelector('.name,.item-name')?.textContent||row.querySelector('img')?.alt||row.getAttribute('title'),70);
   const price=trim(row.querySelector('.price,.item-price,.cost')?.textContent,55);
   if(item&&price)listings.push({item,price,source:'visible market listing'});
  }
- return {visibleCount:listings.length,listings:listings.slice(0,50),note:'Read-only visible listings; not a quote or account valuation'};
+ return {available:shown(document.querySelector('.market,.marketplace,.market-card')),visibleCount:listings.length,listings:listings.slice(0,50),note:'Read-only visible listings; not a quote or account valuation'};
 }
 function serverSnapshot(){
- const rows=[...document.querySelectorAll('.server-item,.servers .list > *, .server')].slice(0,70);
+ const rows=[...document.querySelectorAll('.server-item,.servers .list > *, .server')].filter(shown).slice(0,70);
  return {visibleCount:rows.length,items:rows.map(el=>trim(el.textContent,90)).filter(Boolean).slice(0,25)};
 }
 function getSnapshot(){
@@ -137,12 +140,12 @@ async function join(value,spectate=false){
     const buttons=[...modal.querySelectorAll('button,.btn')].filter(el=>el.getClientRects().length);
     let button=spectate?buttons.find(x=>/spectat|watch|néz/i.test(trim(x.textContent,40))):buttons.find(x=>/\bjoin\b|csatlako/i.test(trim(x.textContent,40)));
     if(spectate&&!button){showError('This Kirka version has no visible native Spectate button');return false;}
-    if(!spectate&&!button)button=buttons.find(x=>x.classList.contains('btn'))||null;
+    if(button?.disabled)button=null;
     if(!button){showError('Native join button unavailable');return false;}
     button.click();emit(spectate?'spectate':'join',{room,through:'native Kirka dialog'});return true;
   }
   if(spectate){showError('Spectate needs Kirka native join modal; plain navigation would join as a player');return false;}
-  nativePost({type:'game-join',url:room});emit('join',{room,through:'validated native navigation'});return true;
+  if(!nativePost({type:'game-join',url:room})){showError('Room navigation unavailable');return false;}emit('join',{room,through:'validated native navigation'});return true;
  }catch(e){showError('Join UI unavailable: '+trim(e.message,120));return false}
  finally{joining=false}
 }
@@ -153,17 +156,18 @@ function addProfileNote(){
  note.textContent='KS Client: visible profile integration active';el.appendChild(note);
 }
 function addInventoryCount(){
- const el=document.querySelector('.inventory .items,.inventory .item-list,.inventory');if(!el||el.querySelector('[data-ks-deep-inventory]'))return;
- const note=document.createElement('div');note.dataset.ksDeepInventory='true';
+ const el=document.querySelector('.inventory .items,.inventory .item-list,.inventory');if(!el)return;
+ const note=el.querySelector('[data-ks-deep-inventory]')||document.createElement('div');note.dataset.ksDeepInventory='true';
  note.style.cssText='color:#e8b657;font:11px Segoe UI,Arial;margin:4px 0;pointer-events:none';
- const count=inventorySnapshot().visibleCount;note.textContent='KS Client: '+count+' visible inventory items (not account total)';
- el.prepend(note);
+ const count=inventorySnapshot().visibleCount;const label='KS Client: '+count+' visible inventory items (not account total)';
+ if(note.textContent!==label)note.textContent=label;
+ if(!note.isConnected)el.prepend(note);
 }
 let timer=null;
 function refresh(){
  const current=scene();
  if(matchId!==location.pathname){matchId=location.pathname;seenAssists=0;seenHS=0;seenKills=0;stats={kills:null,deaths:null,assists:null,headshotPercent:null};}
- if(current!==viewState){if(viewState==='match')detachFeeds();emit('scene',{from:viewState,to:current});viewState=current;}
+ if(current!==viewState){if(viewState==='match'){detachFeeds();seenAssists=seenKills=seenHS=0;stats={kills:null,deaths:null,assists:null,headshotPercent:null};}emit('scene',{from:viewState,to:current});viewState=current;}
  if(current==='match'){readStats();attachFeeds();}
  if(current==='profile')addProfileNote();
  if(current==='inventory')addInventoryCount();
@@ -174,7 +178,7 @@ window.__KS_DEEP__=Object.freeze({getSnapshot,getStatus:()=>({scene:scene(),last
 // lightweight timer because Kirka's SPA changes DOM without changing routes.
 if(window.__KS_GAME_RUNTIME__?.on){
  const shared=window.__KS_GAME_RUNTIME__;
- runtimeSubscriptions.push(shared.on('scene',refresh));
+ runtimeSubscriptions.push(shared.on('refresh',refresh));
  runtimeSubscriptions.push(shared.on('stats',event=>{stats={...event.detail};emit('stats',{...stats,source:'shared visible HUD'});}));
  runtimeSubscriptions.push(shared.on('killfeed',event=>{seenKills++;emit('killfeed',{source:'shared visible killfeed',message:event.detail.text});}));
  runtimeSubscriptions.push(shared.on('achievement',event=>{
@@ -183,5 +187,6 @@ if(window.__KS_GAME_RUNTIME__?.on){
    if(/\bheadshot\b/i.test(message)){seenHS++;emit('headshot',{source:'shared visible achievement',message});}
  }));
 }else unsubscribeScene=window.__KS_INTEGRATION__?.on?.('scene-change',refresh)||null;
-timer=setInterval(refresh,1300);if(document.body)refresh();else document.addEventListener('DOMContentLoaded',refresh,{once:true});
+if(!window.__KS_GAME_RUNTIME__)timer=setInterval(refresh,1300);
+if(document.body)refresh();else document.addEventListener('DOMContentLoaded',refresh,{once:true});
 })();

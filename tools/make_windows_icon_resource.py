@@ -6,12 +6,15 @@ The resulting .syso is understood by Go's Windows linker.
 from pathlib import Path
 import sys
 from PIL import Image
-import io, struct
+import io, struct, json
 
 root=Path(__file__).resolve().parents[1]
 variant=sys.argv[1] if len(sys.argv)>1 else 'launcher'
 assert variant in ('launcher','installer','uninstaller','engine-setup')
-targetName={'launcher':'KS-Client.exe','installer':'KS-Client-alpha-1.1.12-Setup.exe','uninstaller':'Uninstall-KS-Client.exe','engine-setup':'KS-Engine-Setup.exe'}[variant]
+release=json.loads((root/'electron-app'/'package.json').read_text())['version']
+major,minor,patch=map(int,release.split('-')[0].split('.'))
+file_version=f'{major}.{minor}.{patch}.0'
+targetName={'launcher':'KS-Client.exe','installer':f'KS-Client-beta-{major}.{minor}.{patch}-Setup.exe','uninstaller':'Uninstall-KS-Client.exe','engine-setup':'KS-Engine-Setup.exe'}[variant]
 desc={'launcher':'KS Client Launcher','installer':'KS Client Setup','uninstaller':'KS Client Uninstaller','engine-setup':'KS Client Browser Engine Setup'}[variant]
 image=Image.open(root/'resources'/'ks-logo.png').convert('RGBA')
 image.save(root/'resources'/'ks-logo.ico', format='ICO', sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
@@ -27,7 +30,7 @@ for n in range(count):
   groups.append(struct.pack('<BBBBHHIH',w,h,c,res,planes,bits,length,n+1))
 group=struct.pack('<HHH',0,1,count)+b''.join(groups)
 
-# VERSIONINFO displayed by Explorer: KS Client, alpha 1.1.12.
+# VERSIONINFO displayed by Explorer: current package version.
 def wstr(s):return s.encode('utf-16le')+b'\0\0'
 def align4(b):return b+b'\0'*((-len(b))%4)
 def vblock(key,value=b'',children=(),text=False):
@@ -35,8 +38,8 @@ def vblock(key,value=b'',children=(),text=False):
   start=align4(start)+value
   start=align4(start)+b''.join(children)
   return struct.pack('<H',len(start))+start[2:]
-fileinfo=struct.pack('<13I', 0xFEEF04BD,0x00010000,0x00010001,0x00070000,0x00010001,0x00070000,0x3f,0,0x40004,1,0,0,0)
-strings={'CompanyName':'KS Client', 'FileDescription':desc, 'FileVersion':'1.1.12.0', 'InternalName':'KS Client', 'OriginalFilename':targetName, 'ProductName':'KS Client', 'ProductVersion':'alpha 1.1.12', 'LegalCopyright':'Unofficial Kirka.io client'}
+fileinfo=struct.pack('<13I', 0xFEEF04BD,0x00010000,(major<<16)|minor,patch<<16,(major<<16)|minor,patch<<16,0x3f,0,0x40004,1,0,0,0)
+strings={'CompanyName':'KS Client', 'FileDescription':desc, 'FileVersion':file_version, 'InternalName':'KS Client', 'OriginalFilename':targetName, 'ProductName':'KS Client', 'ProductVersion':release, 'LegalCopyright':'Unofficial Kirka.io client'}
 stri=vblock('StringFileInfo',children=[vblock('040904B0',children=[vblock(k,wstr(v),text=True) for k,v in strings.items()])])
 trans=vblock('VarFileInfo',children=[vblock('Translation',struct.pack('<HH',0x409,1200))])
 version=vblock('VS_VERSION_INFO',fileinfo,[stri,trans])

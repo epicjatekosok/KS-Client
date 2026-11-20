@@ -4,7 +4,7 @@
 (() => {
   'use strict';
   if(location.protocol!=='https:' || !['kirka.io','www.kirka.io'].includes(location.hostname) || window.__KS_GAME_RUNTIME__)return;
-  const listeners=new Map(), last=new Map(), observerRoots=new Map(), observedFeed=new WeakSet();
+  const listeners=new Map(), observerRoots=new Map(), observedFeed=new WeakSet();
   const statsSelectors=Object.freeze({
     kills:'.ui-cell.kill .cell-value,.kill-death .kill .cell-value',
     deaths:'.ui-cell.death .cell-value,.kill-death .death .cell-value',
@@ -23,14 +23,50 @@
   });
   const safe=s=>String(s??'').replace(/\s+/g,' ').trim().slice(0,160);
   const pick=arr=>{for(const selector of arr){try{const el=document.querySelector(selector);if(el)return el}catch(_){}}return null};
-  const current=()=>{const url=location.pathname;return /^\/(?:games\/|hub\/ranked)/.test(url)?'match':
-    pick(['.desktop-game-interface','.game-interface canvas#game'])?'match':
-    pick(['.create-modal','.create-room','.create-game'])?'room-creation':
-    pick(ui.friends)?'friends':pick(ui.profile)?'profile':
-    pick(ui.inventory)?'inventory':pick(ui.market)?'market':
-    pick(ui.servers)?'servers':pick(ui.lobby)?'lobby':'loading'};
-  const number=s=>{const el=document.querySelector(s);if(!el)return null;const n=Number(safe(el.textContent).replace('%',''));return Number.isFinite(n)&&n>=0?n:null};
+  function visible(selectors){
+    for(const selector of selectors)for(const el of document.querySelectorAll(selector)){
+      if(el.getClientRects().length && getComputedStyle(el).visibility==='visible')return el;
+    }
+    return null;
+  }
+  function resultDialog(){
+    for(const panel of document.querySelectorAll('dialog[open],[role="dialog"]')){
+      if(!panel.getClientRects().length || panel.closest('#ks-client-root'))continue;
+      const heading=panel.querySelector('h1,h2,h3,[role="heading"]');
+      if(heading?.getClientRects().length && /^(match results|match complete|game over|mérkőzés eredménye|vége a játéknak)$/i.test(safe(heading.textContent)))return true;
+    }
+    return false;
+  }
+  function current(){
+    if(/^\/(?:games\/|hub\/ranked)/.test(location.pathname) && resultDialog())return 'results';
+    for(const [name,selectors] of [
+      ['room-creation',['.create-modal','.create-room','.create-game']],
+      ['friends',ui.friends],['profile',ui.profile],['inventory',ui.inventory],
+      ['market',ui.market],['servers',ui.servers],
+      ['match',['.desktop-game-interface','.game-interface canvas#game']]
+    ])if(visible(selectors))return name;
+    if(document.pointerLockElement?.id==='game')return 'match';
+    if(/^\/(?:games\/|hub\/ranked)/.test(location.pathname))return visible(['canvas#game'])?'match':'loading';
+    return visible(ui.lobby)?'lobby':'loading';
+  }
+  const number=selector=>{
+    const el=visible([selector]);
+    const value=el?safe(el.textContent).replace(/%$/,'').trim():'';
+    return /^\d+(?:\.\d+)?$/.test(value)?Number(value):null;
+  };
   const stats=()=>Object.fromEntries(Object.entries(statsSelectors).map(([key,selector])=>[key,number(selector)]));
+  let hudTargets=[],hudObserver=null,hudTimer=null;
+  function observeStats(){
+    const targets=scene==='match'?Object.values(statsSelectors).map(s=>visible([s])).filter(Boolean):[];
+    if(targets.length===hudTargets.length && targets.every((el,i)=>el===hudTargets[i]))return;
+    hudObserver?.disconnect();hudTargets=targets;
+    if(!targets.length)return;
+    hudObserver??=new MutationObserver(()=>{
+      if(hudTimer!==null||document.hidden)return;
+      hudTimer=setTimeout(()=>{hudTimer=null;if(started&&!document.hidden)update()},50);
+    });
+    for(const target of targets)hudObserver.observe(target,{subtree:true,childList:true,characterData:true});
+  }
   const emit=(name,detail)=>{
     const event=Object.freeze({type:name,at:Date.now(),detail});
     for(const fn of listeners.get(name)||[])try{fn(event)}catch(_){failures++}
@@ -59,22 +95,24 @@
     return {signature,supported,missing,diagnostics:missing.map(x=>'Kirka UI selector absent: '+x)};
   }
   function update(){
-    if(!document.body)return;
+    if(!document.body || document.hidden)return;
     checks++;
-    const next=current(),nextPath=location.pathname;
-    if(nextPath!==path){
-      const from=path;path=nextPath;last.clear();
-      if(from)emit('route',{from,to:path});
-    }
-    if(next!==scene){const from=scene;scene=next;changes++;last.clear();emit('scene',{from,to:scene});}
-    const nextCompat=capabilities(scene);
-    if(nextCompat.signature!==compatibility.signature){
-      compatibility=nextCompat;emit('compatibility',{...compatibility});
-    }
+    const previous=snapshot, previousSignature=compatibility.signature;
+    scene=current();path=location.pathname;
     const values=scene==='match'?stats():{kills:null,deaths:null,assists:null,headshotPercent:null};
-    if(JSON.stringify(values)!==JSON.stringify(snapshot.stats)&&scene==='match')emit('stats',{...values,source:'visible Kirka HUD'});
+    compatibility=capabilities(scene);
     snapshot={scene,stats:values,source:'visible DOM only',route:path};
+    observeStats();
     if(scene==='match')attachFeeds();else detachFeeds();
+    if(previous.route && path!==previous.route)emit('route',{from:previous.route,to:path});
+    if(scene!==previous.scene){
+      changes++;emit('scene',{from:previous.scene,to:scene});
+      if(scene==='match'||previous.scene==='match')emit(scene==='match'?'match-view-enter':'match-view-leave',{route:path,source:'visible game interface'});
+    }
+    if(previousSignature!==compatibility.signature)emit('compatibility',{...compatibility});
+    if(scene==='match' && JSON.stringify(values)!==JSON.stringify(previous.stats))
+      emit('stats',{...values,source:'visible Kirka HUD'});
+    emit('refresh',{scene});
   }
   function feed(node,kind){
     const prev=observerRoots.get(kind);
@@ -85,13 +123,22 @@
     const o=new MutationObserver(records=>{
       for(const mutation of records)for(const child of mutation.addedNodes){
         if(!(child instanceof Element))continue;
-        const items=child.matches('.kill-bar-item,.ach-item,.achievement')?[child]:
-          Array.from(child.querySelectorAll('.kill-bar-item,.ach-item,.achievement')).slice(0,20);
+        const selector='.kill-bar-item,.ach-item,.achievement,.slide-fade-enter-active';
+        const closest=child.closest(selector);
+        let items=closest?[closest]:Array.from(child.querySelectorAll(selector)).slice(0,20);
+        if(!items.length&&child.parentElement===node)items=[child];
         for(const item of items){
-          if(observedFeed.has(item))continue;
-          observedFeed.add(item);
+          if(observedFeed.has(item)||!item.getClientRects().length)continue;
           const title=safe(item.textContent);
-          if(title)emit(kind,{text:title,source:'visible DOM',kind});
+          if(!title)continue;
+          observedFeed.add(item);
+          const detail={text:title,source:'visible DOM',kind};
+          if(kind==='killfeed'){
+            const me=safe(document.querySelector('.team-section .nickname,.auth-user .username')?.textContent);
+            detail.localHeadshot=!!me && safe(item.querySelector('.killer-name')?.textContent)===me &&
+              !!item.querySelector('.skull,.svg-icon--__skull__');
+          }
+          emit(kind,detail);
         }
       }
     });
@@ -104,29 +151,46 @@
     if(started||!document.body)return;started=true;
     observer=new MutationObserver(()=>{
       // top-level only; HUD is observed only at targeted feed roots
-      if(!queued){queued=true;queueMicrotask(()=>{queued=false;update()});}
+      if(!queued){queued=true;queueMicrotask(()=>{queued=false;if(started&&!document.hidden)update()});}
     });
-    observer.observe(document.body,{childList:true,subtree:false});
     window.addEventListener('popstate',update);
     window.addEventListener('hashchange',update);
     window.addEventListener('ks-render-observer-ready',update);
     document.addEventListener('pointerlockchange',inputChange);
     document.addEventListener('pointerlockerror',inputError);
-    timer=setInterval(update,1100);update();
+    document.addEventListener('visibilitychange',onVisible);onVisible();
   }
   let queued=false;
+  function onVisible(){
+    clearInterval(timer);
+    timer=null;
+    if(document.hidden){
+      detachFeeds();
+      hudObserver?.disconnect();
+      hudTargets=[];
+      clearTimeout(hudTimer);
+      hudTimer=null;
+      observer?.disconnect();
+      return;
+    }
+    observer?.observe(document.body,{childList:true,subtree:false});
+    update();
+    timer=setInterval(update,1100);
+  }
   function inputChange(){emit('input',{locked:!!document.pointerLockElement,source:'native DOM pointerlockchange'});}
   function inputError(){emit('input-error',{locked:false,source:'native DOM pointerlockerror'});}
   function stop(){
+    document.removeEventListener('visibilitychange',onVisible);
     clearInterval(timer);timer=null;observer?.disconnect();observer=null;detachFeeds();
     window.removeEventListener('popstate',update);window.removeEventListener('hashchange',update);
     window.removeEventListener('ks-render-observer-ready',update);
     document.removeEventListener('pointerlockchange',inputChange);
     document.removeEventListener('pointerlockerror',inputError);
+    hudObserver?.disconnect();hudTargets=[];clearTimeout(hudTimer);hudTimer=null;
     started=false;
   }
   window.__KS_GAME_RUNTIME__=Object.freeze({
-    on,refresh:update,stop,
+    get scene(){return scene;},on,refresh:update,stop,
     getSnapshot:()=>({...snapshot,stats:{...snapshot.stats},compatibility:{...compatibility,supported:{...compatibility.supported},missing:[...compatibility.missing]}}),
     getStatus:()=>({started,scene,route:path,checks,changes,failures,feedWatchers:observerRoots.size,
       listeners:[...listeners].map(([key,v])=>({name:key,count:v.size})),
