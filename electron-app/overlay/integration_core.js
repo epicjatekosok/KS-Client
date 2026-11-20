@@ -23,8 +23,8 @@
     events.get(name).add(fn);
     return ()=>events.get(name)?.delete(fn);
   };
-  function register(name,detect,start){
-    modules.set(name,{detect,start,dispose:null,active:false});
+  function register(name,detect,start,findAnchor){
+    modules.set(name,{detect,start,findAnchor,dispose:null,active:false});
   }
   function scene(){
     const shared=window.__KS_GAME_RUNTIME__?.getStatus?.()?.scene;
@@ -46,7 +46,7 @@
       module.dispose=cleanup;
       module.active=true;
       module.selector={'hud-stats':'.script-ui .ui-row,.kill-death','room-link-drop':'.interface,.servers','friend-spectate':'.friends .list'}[name];
-      module.anchor=module.selector?document.querySelector(module.selector):null;
+      module.anchor=module.findAnchor?module.findAnchor():module.selector?document.querySelector(module.selector):null;
       delete status.errors[name];
     }catch(e){
       module.active=false;
@@ -63,7 +63,7 @@
     const next=scene();
     if(status.scene!==next){const before=status.scene;status.scene=next;status.lastChange=Date.now();emit('scene-change',{before,scene:next});}
     for(const [name,m] of modules){
-      if(m.active && m.anchor && m.anchor!==document.querySelector(m.selector))detach(name,m);
+      if(m.active && m.anchor && m.anchor!==(m.findAnchor?m.findAnchor():document.querySelector(m.selector)))detach(name,m);
       let wanted=false;
       try{wanted=Boolean(m.detect(next))}catch(e){status.errors[name]=String(e?.message||e).slice(0,180)}
       if(wanted)attach(name,m);else detach(name,m);
@@ -158,21 +158,91 @@
     return ()=>{target.removeEventListener('dragover',drag);target.removeEventListener('drop',drop)};
   });
 
+  // Attach controls beside the native list so Kirka keeps ownership of its rows and buttons.
+  const nativeLists={
+    friends:{list:'.friends .list',rows:'.friend',fields:'.nickname,.friend-id,.username,.player-name',
+      label:['Find a friend by name or ID','Barát keresése név vagy azonosító alapján']},
+    servers:{list:'.servers .list',rows:'.server,.server-item',
+      label:['Search rooms','Szobák keresése']}
+  };
+  function startListFilter(kind,list){
+    const spec=nativeLists[kind];
+    const hu=settings.language==='hu';
+    const bar=document.createElement('div');
+    bar.dataset.ksListFilter=kind;
+    bar.style.cssText='display:flex;align-items:center;gap:.6em;flex-wrap:wrap;padding:.35em;';
+    const search=document.createElement('input');
+    search.type='search';
+    search.maxLength=100;
+    search.placeholder=spec.label[Number(hu)];
+    search.setAttribute('aria-label',search.placeholder);
+    bar.append(search);
+    const unlocked=document.createElement('input');
+    if(kind==='servers'){
+      unlocked.type='checkbox';
+      const label=document.createElement('label');
+      label.append(unlocked,hu?' Zárolt szobák elrejtése':' Hide locked rooms');
+      bar.append(label);
+    }
+    const style=document.createElement('style');
+    style.textContent=spec.list+' [data-ks-search-miss]{display:none!important}';
+    bar.append(style);
+    list.before(bar);
+    const marked=new Set();
+    const normalize=value=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+    function clearMark(row){row.removeAttribute('data-ks-search-miss');marked.delete(row);}
+    function apply(){
+      const query=normalize(search.value);
+      for(const row of marked)if(!list.contains(row)||!row.matches(spec.rows))clearMark(row);
+      for(const row of list.querySelectorAll(spec.rows)){
+        const fields=spec.fields?Array.from(row.querySelectorAll(spec.fields),el=>el.textContent):[row.textContent];
+        const miss=(unlocked.checked&&row.classList.contains('is-locked'))||
+          (query&&!fields.some(value=>normalize(value).includes(query)));
+        if(miss&&!marked.has(row)){row.setAttribute('data-ks-search-miss','');marked.add(row);}
+        else if(!miss&&marked.has(row))clearMark(row);
+      }
+    }
+    const observer=new MutationObserver(apply);
+    function change(){
+      observer.disconnect();
+      if(search.value.trim()||unlocked.checked){
+        apply();
+        observer.observe(list,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class']});
+      }else for(const row of marked)clearMark(row);
+    }
+    search.addEventListener('input',change);
+    unlocked.addEventListener('change',change);
+    for(const type of ['keydown','keyup'])search.addEventListener(type,event=>event.stopPropagation());
+    return ()=>{observer.disconnect();for(const row of marked)clearMark(row);bar.remove();};
+  }
+  for(const [kind,spec] of Object.entries(nativeLists)){
+    const visibleList=()=>Array.from(document.querySelectorAll(spec.list)).find(el=>
+      el.getClientRects().length&&getComputedStyle(el).visibility==='visible');
+    register(kind+'-filter',scene=>scene===kind&&settings.gameListFilters!==false,
+      ()=>{const list=visibleList();if(list)return startListFilter(kind,list)},visibleList);
+  }
+
   // Only show a spectate shortcut when the existing friend UI exposes a valid
   // game link. No inferred/private links, no account API or auto-join.
   register('friend-spectate',s=>s==='friends',()=>{
     const list=document.querySelector('.friends .list');
     if(!list)return;
-    const tracked=new Set();
+    const tracked=new Map();
+    function roomFor(card){
+      const online=card.querySelector('.online');
+      if(!card.classList.contains('is-online')||!online||!/in game/i.test(online.textContent||''))return null;
+      const link=online.querySelector('a[href]')?.href ||
+        (online.textContent||'').match(/https:\/\/(?:www\.)?kirka\.io\/(?:games\/|hub\/ranked|servers\/)[^\s)]+/)?.[0];
+      return safeRoom(link);
+    }
     function scan(){
+      for(const [card,button] of tracked){
+        if(!list.contains(card)||!card.contains(button)||!roomFor(card)){
+          button.remove();tracked.delete(card);
+        }
+      }
       for(const card of list.querySelectorAll('.friend')){
-        if(card.querySelector('[data-ks-spectate]'))continue;
-        const online=card.querySelector('.online');
-        if(!card.classList.contains('is-online')||!online||!/in game/i.test(online.textContent||''))continue;
-        const link=online.querySelector('a[href]')?.href ||
-          (online.textContent||'').match(/https:\/\/(?:www\.)?kirka\.io\/(?:games\/|hub\/ranked|servers\/)[^\s)]+/)?.[0];
-        const url=safeRoom(link);
-        if(!url)continue;
+        if(tracked.has(card)||!roomFor(card))continue;
         const button=document.createElement('button');
         button.type='button';button.dataset.ksSpectate='1';button.textContent='Spectate';
         button.style.cssText='margin-left:8px;font:600 11px Segoe UI;color:#f0aa35;background:#141a25;border:1px solid #f0aa35;border-radius:4px;padding:4px 6px;cursor:pointer;';
@@ -180,15 +250,16 @@
           if(!e.isTrusted)return;
           e.stopPropagation();
           // Spectate must use Kirka's actual spectator action, never plain Join.
-          if(window.__KS_DEEP__?.join)window.__KS_DEEP__.join(url,true);
+          const current=roomFor(card);
+          if(current && list.contains(card))window.__KS_DEEP__?.join?.(current,true);
         });
-        online.insertAdjacentElement('afterend',button);tracked.add(button);
+        card.querySelector('.online').insertAdjacentElement('afterend',button);tracked.set(card,button);
       }
     }
     const observer=new MutationObserver(scan);
-    observer.observe(list,{childList:true,subtree:true});
+    observer.observe(list,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['href','class']});
     scan();
-    return ()=>{observer.disconnect();for(const el of tracked)el.remove()};
+    return ()=>{observer.disconnect();for(const el of tracked.values())el.remove()};
   });
 
   register('pointer-lock-diagnostics',s=>s==='match',()=>{
