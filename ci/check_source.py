@@ -124,4 +124,8 @@ from analyze_presentmon import summarize
 sample='Application,ProcessID,SwapChainAddress,DisplayedTime\n'
 sample+='electron.exe,42,0xab,5\nelectron.exe,42,0xab,15\nelectron.exe,42,0xab,NA\n'
 sample+='electron.exe,43,0xab,100\nelectron.exe,42,0xcd,200\n'
-assert summarize(StringIO(sample),42,'0xAB')==dict(samples=2,fps=100,p95_ms=15,p99_ms=15)
+assert summarize(StringIO(sample),42,'0xAB')==dict(samples=2,fps=100,p50_ms=10,p95_ms=15,p99_ms=15,application_fps=None)
+
+sample='Application,ProcessID,SwapChainAddress,DisplayedTime,FrameTime\n'
+sample+='electron.exe,42,0xab,5,2\nelectron.exe,42,0xab,15,2\nelectron.exe,42,0xab,NA,2\n'
+assert summarize(StringIO(sample),42,'0xAB')['application_fps']==500
