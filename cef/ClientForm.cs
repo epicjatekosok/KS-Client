@@ -108,7 +108,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client Beta 1.0.16 – CEF";
+        Text="KS Client Beta 1.0.17 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -565,7 +565,7 @@ internal sealed class ClientForm : Form
         {
             case "game": Go(Game);break;
             case "update-open-release":
-                // Retained for older overlays. Beta 1.0.16 uses the fixed
+                // Retained for older overlays. Beta 1.0.17 uses the fixed
                 // native request-command above to survive bridge races.
                 _=Task.Run(()=>ClientCommunityLinks.OpenPublicReleases());
                 break;

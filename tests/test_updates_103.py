@@ -27,6 +27,6 @@ for safety in ['validUpdateAsset','digestPattern','expectedURL','https://github.
                'CheckRedirect']:
  assert safety in native, safety
 assert 'v1.0.17-beta' in tests and 'v1.0.17-beta' in tests
-assert "v1.0.16-beta" in publish and "RELEASE_BETA_116_EN.md" in publish
+assert "v1.0.17-beta" in publish and "RELEASE_BETA_117_EN.md" in publish
 assert "epicjatekosok/KS-Client-Updates" in native
 print('PASS: Beta 1.0.7 bounded retry, longer UI deadline, exact SHA-256-pinned release selection')
