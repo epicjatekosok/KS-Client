@@ -44,8 +44,7 @@ with sync_playwright() as play:
   body=page.locator('#ks-body').inner_text()
   assert 'Electron' in body,(width,body[:200])
   assert 'Checking new engine startup' in body
-  # A native configuration reply enables the FPS setting. The zero FPS cap
-  # must now request the experimental Chromium launch flags on next restart.
+  # Removing the page cap must preserve the independent Chromium startup preference.
   page.evaluate("""() => window.__KS_CLIENT__.setBrowserConfig(
     {gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false},
     {gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false},false,'')""")
@@ -55,7 +54,7 @@ with sync_playwright() as play:
     const select=document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-setting="fpsLimit"]');
     select.value='0'; select.dispatchEvent(new Event('change',{bubbles:true}));
   }""")
-  assert page.evaluate("window.__out.some(m=>m.type==='browser-save' && m.browser.uncapFps===true)")
+  assert not page.evaluate("window.__out.some(m=>m.type==='browser-save' && m.browser.uncapFps===true)")
   # The dedicated button also works when Unlimited is already selected.
   page.evaluate("""() => window.__KS_CLIENT__.setBrowserConfig(
     {gpu:'enabled',angle:'default',devTools:false,contextMenu:false,uncapFps:false},

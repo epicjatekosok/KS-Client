@@ -95,7 +95,7 @@
     return {signature,supported,missing,diagnostics:missing.map(x=>'Kirka UI selector absent: '+x)};
   }
   function update(){
-    if(!document.body)return;
+    if(!document.body || document.hidden)return;
     checks++;
     const previous=snapshot, previousSignature=compatibility.signature;
     scene=current();path=location.pathname;
@@ -153,17 +153,30 @@
       // top-level only; HUD is observed only at targeted feed roots
       if(!queued){queued=true;queueMicrotask(()=>{queued=false;if(started&&!document.hidden)update()});}
     });
-    observer.observe(document.body,{childList:true,subtree:false});
     window.addEventListener('popstate',update);
     window.addEventListener('hashchange',update);
     window.addEventListener('ks-render-observer-ready',update);
     document.addEventListener('pointerlockchange',inputChange);
     document.addEventListener('pointerlockerror',inputError);
-    timer=setInterval(()=>{if(!document.hidden)update()},1100);
-    document.addEventListener('visibilitychange',onVisible);update();
+    document.addEventListener('visibilitychange',onVisible);onVisible();
   }
   let queued=false;
-  function onVisible(){if(!document.hidden)update();}
+  function onVisible(){
+    clearInterval(timer);
+    timer=null;
+    if(document.hidden){
+      detachFeeds();
+      hudObserver?.disconnect();
+      hudTargets=[];
+      clearTimeout(hudTimer);
+      hudTimer=null;
+      observer?.disconnect();
+      return;
+    }
+    observer?.observe(document.body,{childList:true,subtree:false});
+    update();
+    timer=setInterval(update,1100);
+  }
   function inputChange(){emit('input',{locked:!!document.pointerLockElement,source:'native DOM pointerlockchange'});}
   function inputError(){emit('input-error',{locked:false,source:'native DOM pointerlockerror'});}
   function stop(){

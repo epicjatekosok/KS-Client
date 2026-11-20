@@ -89,9 +89,6 @@ internal static class Program
             // EXPERIMENTAL: attempts to unlock Chromium scheduling. Not guaranteed.
             settings.CefCommandLineArgs.Add("disable-frame-rate-limit", "1");
             settings.CefCommandLineArgs.Add("disable-gpu-vsync", "1");
-            settings.CefCommandLineArgs.Add("disable-renderer-backgrounding", "1");
-            settings.CefCommandLineArgs.Add("disable-background-timer-throttling", "1");
-            settings.CefCommandLineArgs.Add("disable-backgrounding-occluded-windows", "1");
         }
         Log("FPS startup flags: requested="+Active.UncapFps+"; native Chromium switches appended="+Active.UncapFps);
         // Called by the installer after publishing; checks that the native CEF
