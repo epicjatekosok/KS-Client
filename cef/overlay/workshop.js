@@ -86,6 +86,7 @@
        btn('weapon-apply','Apply cosmetics')+' '+btn('weapon-reset','Clear cosmetics'))+
      card('3D Weapon Studio (experimental exact-match WebGL)',
        '<p class="ks-hint">Replaces a matching WebGL image texture. The exact Kirka /assets/ URL and a CORS-compatible replacement image are required. Viewmodel transforms require a manually selected matrix signature.</p>'+
+       btn('gl-probe','Identify visible weapon image')+' '+btn('gl-use-probe','Use observed texture')+
        input('gl-source','Original Kirka texture URL (exact HTTPS asset)',glCfg().assetURL||'')+
        input('gl-skin','Custom 3D Skin Link (HTTPS CORS image)',glCfg().skinURL||'')+
        input('gl-hue','Texture hue 0–360',glCfg().hue??0,'number')+
@@ -219,7 +220,15 @@
    const val=id=>ui.getElementById('ks-wk-'+id)?.value??'';
    const flag=id=>!!ui.getElementById('ks-wk-'+id)?.checked;
    const number=(id,min,max,def)=>clamp(val(id),min,max,def);
-   if(a==='freeze-save'){
+   if(a==='gl-probe'){
+     status=window.__KS_WEBGL_COSMETICS__?.matchVisiblePreview?.()||'Renderer unavailable.';
+   }else if(a==='gl-use-probe'){
+     const url=window.__KS_WEBGL_COSMETICS__?.matchedPreview?.();
+     if(!url){status='No matching game texture upload observed.';return true;}
+     const config=glCfg();config.assetURL=url;config.enabled=false;config.matrixSignature='';
+     localStorage.setItem(WG,JSON.stringify(config));window.dispatchEvent(new Event('ks-webgl-settings'));
+     status='Exact texture URL copied. Review and apply the cosmetic settings.';
+   }else if(a==='freeze-save'){
      localStorage.setItem(ADV,JSON.stringify({freezeGuard:flag('freeze-on')}));
      status='Frame-yield setting saved. Reload Kirka to apply safely.';
    }else if(a==='gl-apply'){
