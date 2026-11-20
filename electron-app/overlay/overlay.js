@@ -107,7 +107,7 @@
   const frameHistory = [];
   let displayedGameFPS = 0;
   let displayedFrameMs = 0;
-  let measuredLabel = slow?'Waiting for page animation callbacks':'Browser animation ticks (not game GPU FPS)';
+  let measuredLabel = 'Waiting for page animation callbacks';
   // Named presets are complete visual palettes; they never touch gameplay settings.
   const themePalettes = Object.freeze({
     Amber:{accent:'#f0aa35',bg:'#0d1015',panel:'#171c23',text:'#edf0f6',muted:'#97a3b2'},

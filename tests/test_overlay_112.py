@@ -31,6 +31,7 @@ with sync_playwright() as play:
   assert page.evaluate("!!window.__KS_WORKSHOP__")
 
 
+  assert not errors,errors
   page.wait_for_function('!!window.__KS_CLIENT__')
   assert page.evaluate("window.__out.some(m=>m.type==='engine-info')")
   page.evaluate('window.__KS_CLIENT__.setEngineInfo("Electron")')
