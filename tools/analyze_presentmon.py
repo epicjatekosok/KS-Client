@@ -2,6 +2,7 @@
 import argparse
 import csv
 import math
+from statistics import median
 from pathlib import Path, PureWindowsPath
 
 
@@ -42,7 +43,7 @@ def summarize(stream, pid, swapchain):
     def percentile(fraction):
         return durations[math.ceil(len(durations) * fraction) - 1]
     return dict(samples=len(durations), fps=1000 * len(durations) / sum(durations),
-                p50_ms=percentile(.50), p95_ms=percentile(.95), p99_ms=percentile(.99),
+                p50_ms=median(durations), p95_ms=percentile(.95), p99_ms=percentile(.99),
                 application_fps=1000 * len(submissions) / sum(submissions) if submissions else None)
 
 
