@@ -28,7 +28,7 @@ function attach(gl,canvas) {
  wrap('drawArraysInstanced',()=>draw('drawArrays',true));
  wrap('drawElementsInstanced',()=>draw('drawElements',true));
  wrap('bindTexture',()=>{status.textureBinds++});
- wrap('clear',()=>{status.clearCalls++;status.framesObserved++});
+ wrap('clear',()=>{status.clearCalls++});
  wrap('uniformMatrix4fv',args=>{
    status.matrixUpdates++;
    const data=args[2],offset=Number.isInteger(args[3])?args[3]:0;

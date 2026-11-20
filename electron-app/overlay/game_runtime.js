@@ -29,7 +29,16 @@
     }
     return null;
   }
+  function resultDialog(){
+    for(const panel of document.querySelectorAll('dialog[open],[role="dialog"]')){
+      if(!panel.getClientRects().length || panel.closest('#ks-client-root'))continue;
+      const heading=panel.querySelector('h1,h2,h3,[role="heading"]');
+      if(heading?.getClientRects().length && /^(match results|match complete|game over|mérkőzés eredménye|vége a játéknak)$/i.test(safe(heading.textContent)))return true;
+    }
+    return false;
+  }
   function current(){
+    if(/^\/(?:games\/|hub\/ranked)/.test(location.pathname) && resultDialog())return 'results';
     for(const [name,selectors] of [
       ['room-creation',['.create-modal','.create-room','.create-game']],
       ['friends',ui.friends],['profile',ui.profile],['inventory',ui.inventory],
@@ -46,6 +55,18 @@
     return /^\d+(?:\.\d+)?$/.test(value)?Number(value):null;
   };
   const stats=()=>Object.fromEntries(Object.entries(statsSelectors).map(([key,selector])=>[key,number(selector)]));
+  let hudTargets=[],hudObserver=null,hudTimer=null;
+  function observeStats(){
+    const targets=scene==='match'?Object.values(statsSelectors).map(s=>visible([s])).filter(Boolean):[];
+    if(targets.length===hudTargets.length && targets.every((el,i)=>el===hudTargets[i]))return;
+    hudObserver?.disconnect();hudTargets=targets;
+    if(!targets.length)return;
+    hudObserver??=new MutationObserver(()=>{
+      if(hudTimer!==null||document.hidden)return;
+      hudTimer=setTimeout(()=>{hudTimer=null;if(started&&!document.hidden)update()},50);
+    });
+    for(const target of targets)hudObserver.observe(target,{subtree:true,childList:true,characterData:true});
+  }
   const emit=(name,detail)=>{
     const event=Object.freeze({type:name,at:Date.now(),detail});
     for(const fn of listeners.get(name)||[])try{fn(event)}catch(_){failures++}
@@ -81,6 +102,7 @@
     const values=scene==='match'?stats():{kills:null,deaths:null,assists:null,headshotPercent:null};
     compatibility=capabilities(scene);
     snapshot={scene,stats:values,source:'visible DOM only',route:path};
+    observeStats();
     if(scene==='match')attachFeeds();else detachFeeds();
     if(previous.route && path!==previous.route)emit('route',{from:previous.route,to:path});
     if(scene!==previous.scene){
@@ -101,13 +123,22 @@
     const o=new MutationObserver(records=>{
       for(const mutation of records)for(const child of mutation.addedNodes){
         if(!(child instanceof Element))continue;
-        const items=child.matches('.kill-bar-item,.ach-item,.achievement')?[child]:
-          Array.from(child.querySelectorAll('.kill-bar-item,.ach-item,.achievement')).slice(0,20);
+        const selector='.kill-bar-item,.ach-item,.achievement,.slide-fade-enter-active';
+        const closest=child.closest(selector);
+        let items=closest?[closest]:Array.from(child.querySelectorAll(selector)).slice(0,20);
+        if(!items.length&&child.parentElement===node)items=[child];
         for(const item of items){
-          if(observedFeed.has(item))continue;
-          observedFeed.add(item);
+          if(observedFeed.has(item)||!item.getClientRects().length)continue;
           const title=safe(item.textContent);
-          if(title)emit(kind,{text:title,source:'visible DOM',kind});
+          if(!title)continue;
+          observedFeed.add(item);
+          const detail={text:title,source:'visible DOM',kind};
+          if(kind==='killfeed'){
+            const me=safe(document.querySelector('.team-section .nickname,.auth-user .username')?.textContent);
+            detail.localHeadshot=!!me && safe(item.querySelector('.killer-name')?.textContent)===me &&
+              !!item.querySelector('.skull,.svg-icon--__skull__');
+          }
+          emit(kind,detail);
         }
       }
     });
@@ -142,6 +173,7 @@
     window.removeEventListener('ks-render-observer-ready',update);
     document.removeEventListener('pointerlockchange',inputChange);
     document.removeEventListener('pointerlockerror',inputError);
+    hudObserver?.disconnect();hudTargets=[];clearTimeout(hudTimer);hudTimer=null;
     started=false;
   }
   window.__KS_GAME_RUNTIME__=Object.freeze({

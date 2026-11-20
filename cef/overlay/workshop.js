@@ -320,7 +320,8 @@
    wrap.replaceChildren(frame);
    status='Sandbox plugin running locally; no Kirka.io access granted.';
  }
- let style=null, observer=null, lastUpdate=0;
+ let style=null,lastUpdate=0;
+ const decorated=new Map();
  function refresh(){
    if(!document.body)return;
    if(!style){style=document.createElement('style');style.id='ks-workshop-cosmetics';document.head.appendChild(style);}
@@ -341,19 +342,37 @@
    }else for(const img of document.querySelectorAll('[data-ks-workshop-original]')){
      img.src=img.dataset.ksWorkshopOriginal;delete img.dataset.ksWorkshopOriginal;delete img.dataset.ksWorkshopSkin;
    }
-   for(const item of cfg.friends){
-     const selectors=['.friend .nickname','.profile .nickname','.player-cont .nickname'];
-     for(const el of document.querySelectorAll(selectors.join(','))){
-       if(trim(el.textContent,55).toLowerCase()!==item.nick.toLowerCase())continue;
-       el.style.textShadow='0 0 5px '+item.color;
-       if(item.note)el.title='KS note: '+item.note;
-     }
+   const next=new Map();
+   const friends=new Map(cfg.friends.map(item=>[item.nick.toLowerCase(),item]));
+   if(friends.size)for(const el of document.querySelectorAll('.friend .nickname,.profile .nickname,.player-cont .nickname')){
+     const item=friends.get(trim(el.textContent,55).toLowerCase());
+     if(item)next.set(el,{textShadow:'0 0 5px '+item.color,...(item.note?{title:'KS note: '+item.note}:{})});
    }
-   for(const item of cfg.inventory.filter(x=>x.favorite)){
-     for(const el of document.querySelectorAll('.inventory .item-card,.inventory .item,.inventory-item')){
-       const title=trim(el.getAttribute('title')||el.querySelector('img')?.alt||el.querySelector('.name')?.textContent,80);
-       if(title&&title.toLowerCase()===item.item.toLowerCase())el.style.outline='2px solid #f0aa35';
+   const favorites=new Set(cfg.inventory.filter(x=>x.favorite).map(x=>x.item.toLowerCase()));
+   if(favorites.size)for(const el of document.querySelectorAll('.inventory .item-card,.inventory .item,.inventory-item')){
+     const title=trim(el.getAttribute('title')||el.querySelector('img')?.alt||el.querySelector('.name')?.textContent,80);
+     if(favorites.has(title.toLowerCase()))next.set(el,{outline:'2px solid #f0aa35'});
+   }
+   for(const [el,fields] of decorated){
+     for(const [key,record] of Object.entries(fields)){
+       if(next.get(el)?.[key]!==undefined)continue;
+       const target=key==='title'?el:el.style;
+       if(target[key]===record.applied)target[key]=record.original;
+       delete fields[key];
      }
+     if(!Object.keys(fields).length)decorated.delete(el);
+   }
+   for(const [el,values] of next){
+     const fields=decorated.get(el)||{};
+     for(const [key,value] of Object.entries(values)){
+       const target=key==='title'?el:el.style;
+       const prev=fields[key];
+       if(prev?.value===value && target[key]===prev.applied)continue;
+       const original=prev && target[key]===prev.applied?prev.original:target[key];
+       target[key]=value;
+       fields[key]={original,value,applied:target[key]};
+     }
+     decorated.set(el,fields);
    }
  }
  window.addEventListener("pagehide",stopPlugin);

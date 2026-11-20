@@ -167,7 +167,7 @@ let timer=null;
 function refresh(){
  const current=scene();
  if(matchId!==location.pathname){matchId=location.pathname;seenAssists=0;seenHS=0;seenKills=0;stats={kills:null,deaths:null,assists:null,headshotPercent:null};}
- if(current!==viewState){if(viewState==='match')detachFeeds();emit('scene',{from:viewState,to:current});viewState=current;}
+ if(current!==viewState){if(viewState==='match'){detachFeeds();seenAssists=seenKills=seenHS=0;stats={kills:null,deaths:null,assists:null,headshotPercent:null};}emit('scene',{from:viewState,to:current});viewState=current;}
  if(current==='match'){readStats();attachFeeds();}
  if(current==='profile')addProfileNote();
  if(current==='inventory')addInventoryCount();

@@ -3577,8 +3577,8 @@
     }
   }
   document.addEventListener('visibilitychange',syncMeasurement);
-  setInterval(()=>{if(open && selectedTab==='Diagnostics')notify('diagnostics-poll');},2000);
-  setInterval(()=>{if(open && (selectedTab==='Performance'||selectedTab==='Frame Stability'))notify('fps-diagnostics');},1800);
+  setInterval(()=>{if(!document.hidden && open && selectedTab==='Diagnostics')notify('diagnostics-poll');},2000);
+  setInterval(()=>{if(!document.hidden && open && (selectedTab==='Performance'||selectedTab==='Frame Stability'))notify('fps-diagnostics');},1800);
   function showAccountHelpDialog() {
     // Google OAuth is restricted in embedded browsers. Offer a direct,
     // user-consented Kirka session handoff, not a misleading Settings redirect.
