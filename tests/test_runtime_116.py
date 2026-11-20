@@ -58,6 +58,18 @@ with sync_playwright() as p:
       window.__KS_GAME_RUNTIME__.refresh();
     }""")
     assert page.evaluate("window.__KS_GAME_RUNTIME__.scene==='results'")
+    # Visible HUD text updates must not broadcast a full scene refresh.
+    page.evaluate("""() => {
+      document.querySelector('[role=dialog]').remove();
+      document.querySelector('.game-interface').hidden=false;
+      window.__KS_GAME_RUNTIME__.refresh();
+      window.refreshEvents=0;
+      window.releaseRefresh=window.__KS_GAME_RUNTIME__.on('refresh',()=>refreshEvents++);
+      document.querySelector('.cell-value').textContent='7';
+    }""")
+    page.wait_for_function("window.__KS_GAME_RUNTIME__.getSnapshot().stats.kills===7")
+    assert page.evaluate('refreshEvents') <= 1
+    page.evaluate('releaseRefresh()')
     # Browser SPA scene transitions detach scoped watchers, not leak them.
     page.evaluate("""() => {
       history.pushState({},'', '/');

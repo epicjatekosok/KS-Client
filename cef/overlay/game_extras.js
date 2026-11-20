@@ -95,7 +95,7 @@
     if(!state.gameKeystrokes)return;
     for(const el of keys.querySelectorAll('[data-code]'))el.classList.toggle('down',pressed.has(el.dataset.code));
   }
-  document.addEventListener('keydown',e=>{if(!e.repeat)pressed.add(e.code);updateKeys();},true);
+  document.addEventListener('keydown',e=>{if(!e.repeat){pressed.add(e.code);updateKeys();}},true);
   document.addEventListener('keyup',e=>{pressed.delete(e.code);updateKeys();},true);
   window.addEventListener('blur',()=>{pressed.clear();updateKeys();},true);
   document.addEventListener('pointerlockchange',()=>{
@@ -171,7 +171,8 @@
     if(hs)shown.push('HS: '+hs);
     if(assistsCount && !assists)shown.push('Assists: '+assistsCount);
     if(headshotCount)shown.push('HS: '+headshotCount+(kills&&Number(kills)>0?' ('+Math.round(100*headshotCount/Number(kills))+'%)':''));
-    stats.textContent=shown.join(' · ');
+    const text=shown.join(' · ');
+    if(stats.textContent!==text)stats.textContent=text;
     stats.style.display=shown.length?'block':'none';
   }
   function tick(){

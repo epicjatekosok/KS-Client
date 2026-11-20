@@ -63,7 +63,13 @@
     if(!targets.length)return;
     hudObserver??=new MutationObserver(()=>{
       if(hudTimer!==null||document.hidden)return;
-      hudTimer=setTimeout(()=>{hudTimer=null;if(started&&!document.hidden)update()},50);
+      hudTimer=setTimeout(()=>{hudTimer=null;if(started&&!document.hidden && scene==='match' && location.pathname===path){
+        const values=stats();
+        if(Object.keys(statsSelectors).some(key=>values[key]!==snapshot.stats[key])){
+          snapshot={...snapshot,stats:values};
+          emit('stats',{...values,source:'visible Kirka HUD'});
+        }
+      }},50);
     });
     for(const target of targets)hudObserver.observe(target,{subtree:true,childList:true,characterData:true});
   }

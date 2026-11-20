@@ -83,6 +83,10 @@ with sync_playwright() as playwright:
  assert page.evaluate("window.__KS_WEBGL_COSMETICS__.getStatus().contexts===1")
  assert page.evaluate("window.__KS_WEBGL_COSMETICS__.getStatus().matrixTransforms===1")
  assert page.evaluate("Math.abs(window.__matrix[12]-.35)<.000001")
+ page.evaluate("""() => {
+   localStorage.removeItem('ksclient.webgl.v114');window.__KS_WEBGL_COSMETICS__.refresh();
+ }""")
+ assert page.evaluate('window.__mockGL.uniformMatrix4fv===window.__matrixOriginal')
  page.add_script_tag(content=scripts["freeze_guard.js"])
  assert page.evaluate("window.__KS_FREEZE_GUARD__.getStatus().enabled===false")
  assert not errors,errors
