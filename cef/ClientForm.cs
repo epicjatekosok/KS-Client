@@ -54,6 +54,7 @@ internal sealed class ClientForm : Form
     private FormBorderStyle oldBorder;
     private FormWindowState oldWindowState;
     private bool oldTopMost;
+    private long nextFullscreenToggle;
     // The same non-secret updater preferences are used by Electron, CEF and the game Settings.
     private sealed record NativeUpdatePreferences(bool Automatic,bool AutoDownload,string Channel);
     private static readonly string UpdaterPreferencesPath=Path.Combine(
@@ -107,7 +108,7 @@ internal sealed class ClientForm : Form
     internal ClientForm(bool switchProbe = false, bool bridgeProbe = false)
     {
         this.bridgeProbe=bridgeProbe;
-        Text="KS Client Beta 1.0.14 – CEF";
+        Text="KS Client Beta 1.0.15 – CEF";
         MinimumSize=new Size(800,500);
         Size=new Size(1280,800);
         StartPosition=FormStartPosition.CenterScreen;
@@ -434,6 +435,9 @@ internal sealed class ClientForm : Form
     }
     private void ToggleFull()
     {
+        var now=Environment.TickCount64;
+        if(now<nextFullscreenToggle)return;
+        nextFullscreenToggle=now+180;
         if(!borderless)
         {
             oldBounds=Bounds;oldBorder=FormBorderStyle;oldWindowState=WindowState;oldTopMost=TopMost;
@@ -555,7 +559,7 @@ internal sealed class ClientForm : Form
         {
             case "game": Go(Game);break;
             case "update-open-release":
-                // Retained for older overlays. Beta 1.0.14 uses the fixed
+                // Retained for older overlays. Beta 1.0.15 uses the fixed
                 // native request-command above to survive bridge races.
                 _=Task.Run(()=>ClientCommunityLinks.OpenPublicReleases());
                 break;
@@ -609,7 +613,7 @@ internal sealed class ClientForm : Form
             case "crash-status":Reply("setCrashStatus","CEF log: "+Program.LogPath);break;
             case "game-join":
                 if(Uri.TryCreate(m.Url,UriKind.Absolute,out var targetUrl)
-                    && Trust(targetUrl.ToString(),gameOnly:true)
+                    && targetUrl.IsDefaultPort && targetUrl.UserInfo.Length==0 && Trust(targetUrl.ToString(),gameOnly:true)
                     && (targetUrl.AbsolutePath.StartsWith("/games/",StringComparison.Ordinal)
                     || targetUrl.AbsolutePath.StartsWith("/hub/ranked",StringComparison.Ordinal)
                     || targetUrl.AbsolutePath.StartsWith("/servers/",StringComparison.Ordinal)))
@@ -633,12 +637,12 @@ internal sealed class ClientForm : Form
             case "resource-save":
                 try{
                     KSResourceSwap.SetEnabled(m.Enabled==true);
-                    Reply("setWorkshopStatus",m.Enabled==true ? "Resource swaps enabled. Reload game to apply." : "Resource swaps disabled.");
-                }catch(Exception ex){Reply("setWorkshopStatus","Cannot save swapper configuration: "+ex.Message);}
+                    Reply("setWorkshopStatus",m.Enabled==true ? "Resource swaps enabled. Reload game to apply." : "Resource swaps disabled.",m.RequestId ?? "");
+                }catch(Exception ex){Reply("setWorkshopStatus","Cannot save swapper configuration: "+ex.Message,m.RequestId ?? "");}
                 break;
             case "resource-scan":
-                try{var r=KSResourceSwap.Scan();Reply("setWorkshopStatus",r);}
-                catch(Exception ex){Reply("setWorkshopStatus","Swapper scan failed: "+ex.Message);}
+                try{var r=KSResourceSwap.Scan();Reply("setWorkshopStatus",r,m.RequestId ?? "");}
+                catch(Exception ex){Reply("setWorkshopStatus","Swapper scan failed: "+ex.Message,m.RequestId ?? "");}
                 break;
             case "resource-folder":
                 try{var folder=KSResourceSwap.Folder();Process.Start(new ProcessStartInfo{
@@ -682,6 +686,7 @@ internal sealed class BridgeMsg
     public string? Type {get;set;}
     public string? Preset {get;set;}
     public string? Url {get;set;}
+    public string? RequestId {get;set;}
     public bool? Enabled {get;set;}
     public string? Section {get;set;}
     public string? Message {get;set;}
@@ -807,7 +812,7 @@ internal sealed class ClientFullscreenKeyboardHandler : CefSharp.Handler.Keyboar
         KeyType type, int windowsKeyCode, int nativeKeyCode, CefEventFlags modifiers,
         bool isSystemKey, ref bool isKeyboardShortcut)
     {
-        if(windowsKeyCode==(int)Keys.F11 && type==KeyType.RawKeyDown){toggle();return true;}
+        if(windowsKeyCode==(int)Keys.F11 && type==KeyType.RawKeyDown){if((nativeKeyCode & (1<<30))==0)toggle();return true;}
         return false;
     }
 }

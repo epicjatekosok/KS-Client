@@ -183,9 +183,13 @@
    const url=kirkaURL(value);if(!url)return false;
    cfg.history=[{url,time:new Date().toISOString()},...cfg.history.filter(x=>x.url!==url)].slice(0,20);save();return true;
  }
- function goRoom(url,notify){
+ async function goRoom(url,notify,ui,spectate=false){
    const safe=kirkaURL(url);if(!safe){status='Invalid Kirka.io link';return}
-   recordJoin(safe);notify('game-join',{url:safe});status='Navigation requested: '+safe;
+   const deep=window.__KS_DEEP__;
+   const accepted=deep?await deep.join(safe,spectate):!spectate && /^\/(games\/|hub\/ranked|servers\/)/.test(new URL(safe).pathname) && notify('game-join',{url:safe});
+   if(accepted){recordJoin(safe);status=spectate?'Spectate requested.':'Room navigation requested.';}
+   else status=deep?.getStatus().lastError||'Room action unavailable.';
+   const node=ui.getElementById('ks-wk-status');if(node)node.textContent=status;
  }
  function action(a,ui,notify){
    if(!a.startsWith('wk-'))return false;
@@ -248,13 +252,13 @@
    }else if(a.startsWith('room-use-')){
      const r=cfg.rooms[Number(a.slice(9))];if(r)applyLobby(r);
    }else if(a.startsWith('room-join-')){
-     const r=cfg.rooms[Number(a.slice(10))];if(r)goRoom(r.url,notify);
+     const r=cfg.rooms[Number(a.slice(10))];if(r)void goRoom(r.url,notify,ui);
    }else if(a.startsWith('room-spectate-')){
      const r=cfg.rooms[Number(a.slice('room-spectate-'.length))];
-     if(r&&window.__KS_DEEP__?.join){window.__KS_DEEP__.join(r.url,true);status='Kirka Spectate action requested';}
+     if(r&&window.__KS_DEEP__?.join)void goRoom(r.url,notify,ui,true);
      else status='Spectate requires an available Kirka native join modal.';
    }else if(a.startsWith('room-delete-')){cfg.rooms.splice(Number(a.slice(12)),1);save();}
-   else if(a.startsWith('history-use-')){const h=cfg.history[Number(a.slice(12))];if(h)goRoom(h.url,notify);}
+   else if(a.startsWith('history-use-')){const h=cfg.history[Number(a.slice(12))];if(h)void goRoom(h.url,notify,ui);}
    else if(a.startsWith('history-delete-')){cfg.history.splice(Number(a.slice(15)),1);save();}
    else if(a==='friend-save'){
      const nick=trim(val('friend-nick'),55);if(!nick){status='A nickname is required.';return true}
@@ -269,15 +273,17 @@
    else return false;
    return true;
  }
- let pluginListener=null,pluginCSS=null;
+ let pluginListener=null,pluginCSS=null,pluginFrame=null;
  function stopPlugin(){
    if(pluginListener){window.removeEventListener('message',pluginListener);pluginListener=null;}
+   pluginFrame?.remove();pluginFrame=null;
    pluginCSS?.remove();pluginCSS=null;
  }
  function runPlugin(plugin,ui){
    stopPlugin();
    const wrap=ui.getElementById('ks-wk-plugin-preview');if(!wrap)return;
    const frame=document.createElement('iframe');
+   pluginFrame=frame;
    frame.setAttribute('sandbox','allow-scripts');
    frame.setAttribute('title','Isolated local plugin preview');
    frame.style.cssText='width:100%;height:150px;border:1px solid #8b6327;border-radius:6px;background:#111;';
@@ -289,7 +295,7 @@
    const presets={hud:'.script-ui',chat:'#chat',killfeed:'.kill-bar-cont',inventory:'.inventory'};
    let calls=0;
    pluginListener=e=>{
-     if(e.source!==frame.contentWindow||!isObject(e.data)||e.data.ksWorkshopPlugin!==1||++calls>80)return;
+     if(e.origin!=='null'||!frame.isConnected||e.source!==frame.contentWindow||!isObject(e.data)||e.data.ksWorkshopPlugin!==1||++calls>80)return;
      if(e.data.action==='snapshot'&&Number.isSafeInteger(e.data.id)&&e.data.id>0&&e.data.id<=100){
        const data=deepSnapshot();
        const safe={scene:data.scene||'unknown',stats:data.stats||{},observed:data.observed||{},
@@ -320,11 +326,12 @@
    if(!style){style=document.createElement('style');style.id='ks-workshop-cosmetics';document.head.appendChild(style);}
    const w=cfg.weapon;
    const filter='hue-rotate('+w.hue+'deg) saturate('+(w.saturation/100)+') brightness('+(w.brightness/100)+')';
-   style.textContent=(w.enabled?'.inventory img,.weapons img,.weapon-icon img,.weapon-preview img,.item-card img{filter:'+filter+'!important;}':'')+
+   const css=(w.enabled?'.inventory img,.weapons img,.weapon-icon img,.weapon-preview img,.item-card img{filter:'+filter+'!important;}':'')+
     (cfg.killfeedColors?'.kill-bar-cont .kill-bar-item.blue{color:#73ccff}.kill-bar-cont .kill-bar-item.red{color:#ff7777}':'')+
     (cfg.gameHudTheme==='compact'?'.script-ui .ui-row{transform:scale(.92);transform-origin:top right}':'')+
     (cfg.gameHudTheme==='amber'?'.script-ui .ui-cell{filter:sepia(.35)}':'')+
     (cfg.gameHudTheme==='ice'?'.script-ui .ui-cell{filter:hue-rotate(120deg)}':'');
+   if(style.textContent!==css)style.textContent=css;
    if(w.enabled && w.skinURL) {
      for(const img of document.querySelectorAll('.weapon-preview img,.inventory .weapon-icon img,.weapon-card img')){
        if(img.dataset.ksWorkshopSkin===w.skinURL)continue;
@@ -349,8 +356,10 @@
      }
    }
  }
- function loop(){if(Date.now()-lastUpdate>2200){lastUpdate=Date.now();refresh();}setTimeout(loop,1500);}
- window.__KS_WORKSHOP__=Object.freeze({render,action,refresh,recordJoin,getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
+ window.addEventListener("pagehide",stopPlugin);
+ window.__KS_GAME_RUNTIME__?.on("route",stopPlugin);
+ function loop(){if(!document.hidden && Date.now()-lastUpdate>2200){lastUpdate=Date.now();refresh();}setTimeout(loop,1500);}
+ window.__KS_WORKSHOP__=Object.freeze({render,action,refresh,stopPlugin,recordJoin,getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
   setStatus:message=>{status=trim(message,400);},getRoom:idx=>cfg.rooms[idx]||null});
  if(document.body){refresh();}else document.addEventListener('DOMContentLoaded',refresh,{once:true});
  loop();
