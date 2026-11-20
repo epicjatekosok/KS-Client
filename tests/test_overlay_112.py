@@ -1,4 +1,4 @@
-"""Engine-independent KS Client 1.0.18 UI smoke test in local Chromium.
+"""Engine-independent KS Client 1.0.19 UI smoke test in local Chromium.
 Not a live test of Windows Electron, CEF, or FPS unlock.
 """
 from pathlib import Path
@@ -96,7 +96,12 @@ with sync_playwright() as play:
   assert page.locator('.ks-subtab[data-tab="Performance"]').count()==1
   assert page.locator('.ks-subtab[data-tab="Frame Stability"]').count()==1
   page.locator('.ks-tab[data-group="Display"]').click()
-  assert page.locator('.ks-subtab[data-tab="Eye Comfort"]').count()==1
+  page.locator('.ks-subtab[data-tab="Eye Comfort"]').click()
+  page.locator('[data-setting="comfortStillMenus"]').check()
+  page.locator('[data-setting="comfortReading"]').check()
+  assert page.locator('#ks-screen.no-motion.comfort-reading').count()==1
+  page.locator('[data-setting="comfortStillMenus"]').uncheck()
+  page.locator('[data-setting="comfortReading"]').uncheck()
   page.locator('.ks-tab[data-group="Workshop"]').click()
   assert page.locator('.ks-subtab[data-tab="Weapon Studio"]').count()==1
   assert page.locator('.ks-subtab[data-tab="Resource Swapper"]').count()==1
@@ -127,8 +132,8 @@ with sync_playwright() as play:
   assert page.locator('[data-setting="crosshairEnabled"]').count()==1
   page.locator('.ks-tab[data-group="Advanced"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
-  assert page.locator('.ks-release').first.inner_text().startswith('KS Client Beta 1.0.18')
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client Beta 1.0.19')
   assert not errors,(width,errors)
-  print('PASS 1.0.18 engine UI',width,height)
+  print('PASS 1.0.19 engine UI',width,height)
   page.close()
  browser.close()

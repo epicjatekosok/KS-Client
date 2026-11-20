@@ -79,8 +79,9 @@
     }
     // Requests created inside this batch belong to a later frame. Cancelled
     // siblings are checked immediately before invocation.
-    for(const id of Array.from(queued.keys())){
-      const fn=queued.get(id);if(!fn)continue;
+    const lastId=nextId-1;
+    for(const [id,fn] of queued){
+      if(id>lastId)break;
       queued.delete(id);
       try{fn.call(window,ts)}catch(error){setTimeout(()=>{throw error},0);}
     }
