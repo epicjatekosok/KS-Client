@@ -7,8 +7,11 @@ internal static class Program
 {
     internal static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KSClient");
     internal static readonly string PrefsPath = Path.Combine(Root,"browser-settings.json");
-    internal static readonly string LogPath = Path.Combine(Root,"cef-1.0.17.log");
+    internal static readonly string LogPath = Path.Combine(Root,"cef-1.0.18.log");
     internal static BrowserPrefs Active = BrowserPrefs.Default();
+    internal static readonly string FixedMarker=Path.Combine(Root,"cef-fixed-frame-target");
+    internal static bool FixedTarget;
+    internal static BrowserPrefs Requested=BrowserPrefs.Default();
     internal static string? SwitchToken;
     internal static bool SwitchProbe;
     private static System.Windows.Forms.Timer? probeTimer;
@@ -63,8 +66,10 @@ internal static class Program
         CefSharpSettings.RuntimeStyle = alloyFallback ? CefRuntimeStyle.Alloy : CefRuntimeStyle.Chrome;
         Log("CEF runtime style: "+(alloyFallback?"Alloy fallback":"Chrome")+
             "; native Chromium pointer lock and cursor handling enabled");
-        Active = (safe || selfTest) ? BrowserPrefs.Default() : BrowserPrefs.Load();
-        if (safe && !selfTest) Active.Save();
+        Requested = (safe || selfTest) ? BrowserPrefs.Default() : BrowserPrefs.Load();
+        FixedTarget = File.Exists(FixedMarker);
+        Active = Requested with {UncapFps=Requested.UncapFps && !FixedTarget};
+        if (safe && !selfTest) Requested.Save();
         ApplicationConfiguration.Initialize();
         var settings = new global::CefSharp.WinForms.CefSettings
         {
@@ -116,7 +121,7 @@ internal static class Program
         {
             Log("CEF startup failure: " + e);
             if (selfTest) Environment.ExitCode = 1;
-            else MessageBox.Show(e.Message,"KS Client Beta 1.0.17 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
+            else MessageBox.Show(e.Message,"KS Client Beta 1.0.18 - CEF", MessageBoxButtons.OK,MessageBoxIcon.Error);
         }
         finally { if (global::CefSharp.Cef.IsInitialized == true) global::CefSharp.Cef.Shutdown(); }
     }

@@ -1,5 +1,5 @@
 'use strict';
-// KS Beta 1.0.17 regression: independent FPS controls, external status
+// KS Beta 1.0.18 regression: independent FPS controls, external status
 // always clears, CEF fullscreen native command exists and Settings translations.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -13,7 +13,7 @@ const pacer=read('electron-app/overlay/frame_pacer.js');
 const cef=read('cef/ClientForm.cs');
 const workflow=read('.github/workflows/windows-build.yml');
 assert.equal(ui,cefUI);
-assert(ui.includes("const CLIENT_VERSION='1.0.17'"));
+assert(ui.includes("const CLIENT_VERSION='1.0.18'"));
 for(const cap of [200,240,300,360]){
   assert(ui.includes("{ value: "+cap+", label: '"+cap+" FPS' }"),'missing option '+cap);
   assert(pacer.includes(cap),'missing pacer cap '+cap);
@@ -44,27 +44,32 @@ assert(ui.includes('Object.entries(languageNames).map'));
 assert(!read('installer/main_windows.go').includes('extraLocales'));
 assert(!read('uninstaller/main_windows.go').includes('extraLocales'));
 assert(workflow.includes('node tests/test_beta_114.cjs'));
-console.log('PASS Beta 1.0.17: fixed FPS caps, Settings GPU work, CEF fullscreen, Discord timer and 8 additional Settings languages');
+console.log('PASS Beta 1.0.18: fixed FPS caps, Settings GPU work, CEF fullscreen, Discord timer and 8 additional Settings languages');
 
 // Simulate a 180 Hz browser clock, including timeout wakeups, cancellation and menu transitions.
 let now=0,next=0;
 const raf=new Map(),timers=new Map();
 const win={requestAnimationFrame:fn=>(raf.set(++next,fn),next),cancelAnimationFrame:id=>raf.delete(id)};
 vm.runInNewContext(pacer,{window:win,location:{hostname:'kirka.io',protocol:'https:'},
- localStorage:{getItem:()=>null},performance:{now:()=>now},
+ document:{hidden:false,addEventListener(){}},localStorage:{getItem:()=>null},performance:{now:()=>now},
  setTimeout:(fn,ms)=>(timers.set(++next,{fn,due:now+ms}),next),clearTimeout:id=>timers.delete(id)});
 const p=win.__KS_FRAME_PACER__;
 function advance(ticks,hz=180){
  for(let i=0;i<ticks;i++){
-   now+=1000/hz;
-   for(const [id,timer] of [...timers])if(timer.due<=now){timers.delete(id);timer.fn();}
+   const vsync=now+1000/hz;
+   for(;;){
+     const first=[...timers].sort((a,b)=>a[1].due-b[1].due)[0];
+     if(!first||first[1].due>vsync)break;
+     timers.delete(first[0]);now=first[1].due;first[1].fn();
+   }
+   now=vsync;
    const batch=[...raf.values()];raf.clear();for(const fn of batch)fn(now);
  }
 }
 let deliveries=0,pending;
 function game(){deliveries++;pending=win.requestAnimationFrame(game);}
 pending=win.requestAnimationFrame(game);
-for(const [cap,expected] of [[60,60],[144,144],[180,180],[240,180],[0,180]]){
+for(const [cap,expected] of [[60,60],[144,144],[180,180],[240,240],[0,180]]){
  p.setLimit(cap);deliveries=0;advance(1800);
  assert(Math.abs(deliveries/10-expected)<1,JSON.stringify({cap,deliveries}));
 }
@@ -98,7 +103,9 @@ deliveries=0;
 advance(25000,2500);
 const wakes=p.getStats().nativeWakes-initialWakes;
 assert(Math.abs(deliveries/10-180)<1);
-assert(wakes<6500,'Too many native wakes on the simulated unlocked clock: '+wakes);
+assert.equal(wakes,0,'fixed mode requested native unlocked frames');
+p.setLimit(180);deliveries=0;advance(1440,144);
+assert(Math.abs(deliveries/10-180)<1,'180 game frames on a simulated 144 Hz display');
 console.log('Simulated 2500 Hz, 180 cap: %d callbacks, %d native rAF wakes in 10 s',deliveries,wakes);
 for(const [activity,menu,expected] of [[60,false,60],[60,true,30],[30,false,30],[0,false,180]]){
   p.setActivityLimit(activity);p.setMenuLimited(menu);
