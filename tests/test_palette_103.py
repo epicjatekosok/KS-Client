@@ -1,4 +1,4 @@
-"""Beta 1.0.16 UI regression: complete palettes and advanced visual-only extras."""
+"""Beta 1.0.17 UI regression: complete palettes and advanced visual-only extras."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -45,7 +45,7 @@ with sync_playwright() as p:
       version:root.querySelector('#ks-badge').textContent};
    }""")
   before=data()
-  assert before['version']=='KS · 1.0.16',before
+  assert before['version']=='KS · 1.0.17',before
   assert before['paletteTiles']==13,before
   original={key:before['saved'][key] for key in
     ['gameStats','gameAutoMouseCapture','showFPS','fpsLimit','uiScale','gameQuickJoin']}
@@ -104,5 +104,5 @@ with sync_playwright() as p:
   assert data()['saved']['customPanel']=='#253040'
   assert not errors,(engine,errors)
   page.close()
-  print('PASS: Beta 1.0.16 13 palettes + extra appearance without changing gameplay',engine)
+  print('PASS: Beta 1.0.17 13 palettes + extra appearance without changing gameplay',engine)
  browser.close()

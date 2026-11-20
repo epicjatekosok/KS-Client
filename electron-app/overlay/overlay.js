@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.16 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.17 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.16';
+  const CLIENT_VERSION='1.0.17';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -59,7 +59,7 @@
     menuImageEnabled: true, menuSelector: '', uiImageSelector: '', menuSoundEnabled: false,
     minimalHUD: false, minimalSelectors: '', customCrosshairPresets: [],
     language: 'en',
-    gameKeystrokes: false, gameStats: true,
+    gameKeystrokes: false, gameStats: true, gameListFilters: true, gameScreenshotKey: false,
     gameAutoMouseCapture: true, gameQuickJoin: true,
     gameKeysPosition:'bottom-left', gameKeysScale:100,
     autoCheckUpdates: true, autoDownloadUpdates: true, updateChannel: 'beta'
@@ -139,7 +139,7 @@
     Display: ['menuResolution','gameResolution','uiScale','showFPS','fpsSource','fpsPosition'],
     Performance: ['fpsLimit','smoothPreset','limitSettingsFPS','limitLobbyFPS','limitUnfocusedFPS','showGraph','lowLatency','performancePreset','uiAnimations'],
     'Frame Stability': [],
-    'Game Integration':['gameKeystrokes','gameStats','gameKeysPosition','gameKeysScale','gameAutoMouseCapture','gameQuickJoin'],
+    'Game Integration':['gameKeystrokes','gameStats','gameKeysPosition','gameKeysScale','gameAutoMouseCapture','gameQuickJoin','gameListFilters','gameScreenshotKey'],
     'Eye Comfort': ['eyeEnabled','eyePreset','eyeBrightness','eyeContrast','eyeSaturation','eyeWarmth','eyeSoftness','breakReminderMinutes'],
     Crosshair: [...crosshairFields,'previewBackground','customCrosshairPresets'],
     Appearance: ['themePreset','customAccent','customBackground','customPanel','customText','customMuted','themeSurface','themeGlow','themeRadius','themePattern','themeDensity','fontFamily','fontSize','uiAnimations'],
@@ -1830,6 +1830,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.17',en:['Search the native Friends and Servers lists. Hide locked rooms or enable F2 screenshots in Game Integration.'],hu:['Keresés a játék saját barát- és szobalistájában. A zárolt szobák szűrése és az F2-es képernyőmentés is elérhető.']},
     {v:'Beta 1.0.16',en:['Transfer Workshop profiles and media between engines. Inspect observed asset paths, friends and listings. CEF screenshots capture the game surface.'],hu:['A Workshop-profil és a médiafájlok átvihetők a motorok között. Megnézhetők az észlelt fájlok, barátok és hirdetések. A CEF a játék felületéről ment képet.']},
     {v:'Beta 1.0.15',en:['Game views and visible HUD values now share one event source across both engines.','Settings can reduce animation work, and WebGL diagnostics run on demand.'],hu:['A két motor közös eseményforrásból olvassa a játék látható nézeteit és HUD-adatait.','A Settings csökkentheti az animációk terhelését, a WebGL-diagnosztika igény szerint fut.']},
     {v:'Beta 1.0.14',en:['Fixed the Discord opening indicator so it automatically disappears even when CEF does not send an external-browser reply.','Repaired CEF borderless fullscreen using a trusted native navigation command, a Chromium F11 keyboard handler and Windows UI-thread marshaling.','Expanded fixed FPS targets to 200, 240, 300 and 360; selecting any finite cap now disables persistent Chromium uncap flags and clearly requests restart to reduce uncapped GPU work.','Reduced expensive Settings GPU compositing by removing full-screen backdrop blur, capping graph canvas resolution and avoiding unnecessary client RAF callbacks while settings tabs are open.','Added German, French, Spanish, Portuguese, Italian, Russian, Simplified Chinese and Japanese to Settings; English fallback for rare technical strings, with Windows Setup and Uninstaller remaining English.','Preserved both engines, Kirka native login, user settings, Workshop Experimental, local profiles and verified GitHub releases.']},
@@ -2024,6 +2025,8 @@
           `</div><div class="ks-card"><h3 class="ks-section-heading">Optional game HUD</h3>`+
           toggleRow('Read-only game stats','Display kills, deaths, assists and headshot indicators where Kirka.io exposes them as HTML.','gameStats')+
           `</div><div class="ks-card"><h3 class="ks-section-heading">Convenience tools</h3>`+
+          toggleRow('Search game lists','Show search controls inside the Kirka Friends and Servers lists.','gameListFilters')+
+          toggleRow('F2 screenshot','Save a PNG while playing or browsing the lobby. Disabled while typing or using Settings.','gameScreenshotKey')+
           toggleRow('Quick join links','Allow joining a validated Kirka.io game link through the built-in navigator.','gameQuickJoin')+
           `<div class="ks-row"><div><div class="ks-label">Join a Kirka.io room URL</div><input id="ks-join-link" class="ks-input" placeholder="https://kirka.io/games/..." maxlength="400"><button class="ks-btn" data-action="quick-join">Join</button></div>`+
           `<div class="ks-row"><div><div class="ks-label">Screenshot</div><div class="ks-desc">Save the browser surface as a PNG in Pictures/KSClient.</div></div><button class="ks-btn" data-action="game-screenshot">Save screenshot</button></div>`+
@@ -3085,6 +3088,7 @@
     state[k] = value;
     if(k==='fpsLimit')window.__KS_FRAME_PACER__?.setLimit(value);
     save();
+    if(k==='gameListFilters')window.__KS_INTEGRATION__?.refresh?.();
     if(k.startsWith('game'))window.__KS_GAME_EXTRAS__?.refresh?.();
     apply();
     const preview = $('ks-preview-svg');
@@ -3546,6 +3550,13 @@
   });
 
   window.addEventListener('keydown', e => {
+    if(e.key==='F2' && state.gameScreenshotKey && isGamePage && !open && e.isTrusted &&
+        !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey && !e.isComposing &&
+        !e.composedPath().some(el=>el instanceof HTMLElement&&(el.isContentEditable||el.matches('input,textarea,select,[role="textbox"]')))){
+      e.preventDefault();e.stopImmediatePropagation();
+      if(!e.repeat)notify('game-screenshot');
+      return;
+    }
     if(e.repeat && (e.key==='F1'||e.key==='F10')){e.preventDefault();e.stopImmediatePropagation();return;}
     if (e.key === 'F1') { e.preventDefault(); e.stopImmediatePropagation(); show(); }
     else if (e.key === 'F10') { e.preventDefault(); e.stopImmediatePropagation(); state.showHUD = !state.showHUD; save(); apply(); }

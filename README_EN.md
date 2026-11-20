@@ -1,4 +1,4 @@
-# KS Client Beta 1.0.16
+# KS Client Beta 1.0.17
 
 [Shared game integration and frame pacing](RELEASE_BETA_115_EN.md)
 
