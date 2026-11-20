@@ -361,10 +361,10 @@
    if(!style){style=document.createElement('style');style.id='ks-workshop-cosmetics';document.head.appendChild(style);}
    const panel=document.getElementById('ks-client-root')?.shadowRoot;
    const market=panel?.getElementById('ks-live-market');
-   const friends=panel?.getElementById('ks-live-friends');
-   if(!document.hidden && window.__KS_CLIENT__?.isSettingsOpen() && (market||friends)){
+   const friendsNode=panel?.getElementById('ks-live-friends');
+   if(!document.hidden && window.__KS_CLIENT__?.isSettingsOpen() && (market||friendsNode)){
      const data=deepSnapshot();
-     const node=market||friends;
+     const node=market||friendsNode;
      const lines=market?data.market?.listings?.map(x=>x.item+' — '+x.price):data.friends?.names;
      const summary=lines?.length?lines.join(' · '):'No visible entries on this game screen.';
      if(node.textContent!==summary)node.textContent=summary;
