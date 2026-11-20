@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.15 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.16 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.15';
+  const CLIENT_VERSION='1.0.16';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -1830,6 +1830,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.16',en:['Transfer Workshop profiles and media between engines. Inspect observed asset paths, friends and listings. CEF screenshots capture the game surface.'],hu:['A Workshop-profil és a médiafájlok átvihetők a motorok között. Megnézhetők az észlelt fájlok, barátok és hirdetések. A CEF a játék felületéről ment képet.']},
     {v:'Beta 1.0.15',en:['Game views and visible HUD values now share one event source across both engines.','Settings can reduce animation work, and WebGL diagnostics run on demand.'],hu:['A két motor közös eseményforrásból olvassa a játék látható nézeteit és HUD-adatait.','A Settings csökkentheti az animációk terhelését, a WebGL-diagnosztika igény szerint fut.']},
     {v:'Beta 1.0.14',en:['Fixed the Discord opening indicator so it automatically disappears even when CEF does not send an external-browser reply.','Repaired CEF borderless fullscreen using a trusted native navigation command, a Chromium F11 keyboard handler and Windows UI-thread marshaling.','Expanded fixed FPS targets to 200, 240, 300 and 360; selecting any finite cap now disables persistent Chromium uncap flags and clearly requests restart to reduce uncapped GPU work.','Reduced expensive Settings GPU compositing by removing full-screen backdrop blur, capping graph canvas resolution and avoiding unnecessary client RAF callbacks while settings tabs are open.','Added German, French, Spanish, Portuguese, Italian, Russian, Simplified Chinese and Japanese to Settings; English fallback for rare technical strings, with Windows Setup and Uninstaller remaining English.','Preserved both engines, Kirka native login, user settings, Workshop Experimental, local profiles and verified GitHub releases.']},
     {v:'Beta 1.0.13',en:['Fixed the Settings and sidebar version labels by using the current build version instead of old hard-coded 1.0.5 and 1.0.9 strings.','Protected CEF JavaScript calls when Chromium has not initialized or its IBrowser has been disposed; no uncaught WinForms browser-null dialog after game navigation.','CEF Discord and manual GitHub Releases use fixed client-owned same-origin navigation commands intercepted by the native host, without relying on a potentially dropped JavaScript bridge. Electron sign-in and external links are unchanged.','Clarified engine selection: CEF may provide more FPS but can be less stable; Electron generally favors stability at potentially lower FPS. Actual performance varies.']},
@@ -1980,6 +1981,7 @@
           selectRow('Language','Choose your Settings language. Less common advanced technical labels may remain in English. The Windows Setup and Uninstaller remain English.','language',
             Object.entries(languageNames).map(([value,label])=>({value,label}))) +
           `<div class="ks-row"><div><div class="ks-label">Settings import/export</div><div class="ks-desc">Export a JSON backup, including crosshair presets and visual settings. Uploaded binary assets are excluded.</div></div><div class="ks-stack"><button class="ks-btn primary" data-action="export-settings">Export settings</button><button class="ks-btn" data-action="import-settings">Import settings</button></div></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Portable KS profile</div><div class="ks-desc">Transfer Workshop entries, scripts, settings and uploaded images, fonts and audio between engines. Each engine keeps its own game login.</div></div><div class="ks-stack"><button class="ks-btn" data-action="export-profile">Export profile</button><button class="ks-btn" data-action="import-profile">Import profile</button></div></div><input id="ks-profile-file" type="file" accept=".json" hidden>` +
           `<input id="ks-import-file" type="file" accept=".json,application/json" hidden>` +
           `<div class="ks-stat-details" id="ks-sharing-status">${esc(sharingStatus)}</div>` +
           `</div><p class="ks-hint">Export leaves out local image/audio/font files. Imported CSS stays disabled until you review and enable it.</p>`;
@@ -2024,7 +2026,7 @@
           `</div><div class="ks-card"><h3 class="ks-section-heading">Convenience tools</h3>`+
           toggleRow('Quick join links','Allow joining a validated Kirka.io game link through the built-in navigator.','gameQuickJoin')+
           `<div class="ks-row"><div><div class="ks-label">Join a Kirka.io room URL</div><input id="ks-join-link" class="ks-input" placeholder="https://kirka.io/games/..." maxlength="400"><button class="ks-btn" data-action="quick-join">Join</button></div>`+
-          `<div class="ks-row"><div><div class="ks-label">Screenshot</div><div class="ks-desc">Electron saves a PNG of the current game window. CEF captures the visible window area; overlapping windows may be included.</div></div><button class="ks-btn" data-action="game-screenshot">Save screenshot</button></div>`+
+          `<div class="ks-row"><div><div class="ks-label">Screenshot</div><div class="ks-desc">Save the browser surface as a PNG in Pictures/KSClient.</div></div><button class="ks-btn" data-action="game-screenshot">Save screenshot</button></div>`+
           `<p class="ks-hint">Deep integration: ${esc(JSON.stringify(window.__KS_DEEP__?.getStatus?.()||{}).slice(0,360))}</p>`+
           `<p class="ks-hint">KS Game Runtime 2.0 (shared scene + events): ${esc(JSON.stringify(window.__KS_GAME_RUNTIME__?.getStatus?.()||{}).slice(0,680))}</p>`+
           `<p class="ks-hint">Kirka UI compatibility fingerprint (not an official game version): ${esc(window.__KS_GAME_RUNTIME__?.getStatus?.()?.compatibility?.signature||'Not available')}</p>`+
@@ -2050,8 +2052,10 @@
             { value: 200, label: '200 FPS' },
             { value: 240, label: '240 FPS' },
             { value: 300, label: '300 FPS' },
-            { value: 360, label: '360 FPS' }
+            { value: 360, label: '360 FPS' },
+            ...([0,60,120,144,165,180,200,240,300,360].includes(state.fpsLimit)?[]:[{value:state.fpsLimit,label:state.fpsLimit+' FPS'}])
           ]) +
+          `<label class="ks-row">Custom callback limit (1–1000, 0 = Unlimited)<input class="ks-input" type="number" min="0" max="1000" step="1" data-custom-cap value="${Number(state.fpsLimit)||0}"></label>` +
           `<div class="ks-row"><div><div class="ks-label">Activate Unlimited FPS</div><div class="ks-desc">Requests Chromium FPS unlocking and removes the KS JavaScript callback cap. Restart required; actual Kirka.io FPS is not guaranteed above monitor Hz.</div></div><button class="ks-btn primary" data-action="enable-unlimited-fps" ${!browserPrefsLoaded?'disabled':''}>Enable experimental unlock</button></div>` +
           `<div class="ks-row"><div><div class="ks-label">Experimental Unlimited FPS (Chromium)</div><div class="ks-desc">Attempts to remove Chromium rAF/vsync limits. Requires a restart and may cause tearing, higher CPU load or network input delays.</div></div><input type="checkbox" data-browser="uncapFps" ${browserPrefs.uncapFps?'checked':''} ${!browserPrefsLoaded?'disabled':''}></div>` +
           `<div class="ks-row"><div><div class="ks-label">FPS unlock verification</div><div class="ks-desc">Reports native startup requests, NOT measured Kirka.io GPU FPS.</div></div><span class="ks-code" id="ks-fps-native-diag">${esc(fpsDiagnosticText())}</span></div>`+
@@ -3063,7 +3067,7 @@
     // the exact named palette is still active.
     if (['customAccent','customBackground','customPanel','customText','customMuted'].includes(k))
       state.themePreset='Custom';
-    if(k==='fpsLimit') { value=Number(value); if (![0,60,120,144,165,180,200,240,300,360].includes(value))return; }
+    if(k==='fpsLimit') { value=Number(value); if ((!Number.isInteger(value)||value<0||value>1000))return; }
     if(k==='uiScale') {
       value=Math.max(100,Math.min(160,Math.round(Number(value)||100)));
       state.uiScale=value;save();
@@ -3095,6 +3099,94 @@
 
 
   const backupFormat = 'ksclient-settings';
+  const workshopKey='ksclient.workshop.v1';
+  const graphicsKey='ksclient.webgl.v114';
+  const advancedKey='ksclient.advanced.v114';
+  const assetTypes={
+    menuBackground:['image/png','image/jpeg','image/webp'],uiImage:['image/png','image/jpeg','image/webp'],
+    menuSound:['audio/mpeg','audio/wav','audio/ogg','audio/mp4'],localFont:['font/woff','font/woff2']
+  };
+  const assetLimit=k=>k==='menuSound'?3000000:k==='localFont'?1500000:5000000;
+  async function exportProfile(){
+    const workshop=window.__KS_WORKSHOP__;
+    if(!workshop)throw Error('Open the Workshop on Kirka before exporting.');
+    const media={};
+    for(const key of assetKeys){
+      const file=await assetOp('readonly',key);
+      if(!file){media[key]=null;continue;}
+      const data=await new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=()=>resolve(reader.result.split(',')[1]);
+        reader.onerror=()=>reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      const type=key==='localFont'?(/\.woff2$/i.test(file.name)?'font/woff2':'font/woff'):file.type;
+      media[key]={type,name:file.name||key,data};
+    }
+    const payload={format:'ksclient-profile',schemaVersion:1,
+      settings:Object.fromEntries(Object.keys(defaults).map(k=>[k,state[k]])),
+      workshop:workshop.getConfig(),graphics:JSON.parse(localStorage.getItem(graphicsKey)||'{}'),
+      advanced:{freezeGuard:JSON.parse(localStorage.getItem(advancedKey)||'{}')?.freezeGuard===true},media};
+    const url=URL.createObjectURL(new Blob([JSON.stringify(payload)],{type:'application/json'}));
+    const link=document.createElement('a');link.href=url;link.download='KS-Client-'+CLIENT_VERSION+'-profile.json';
+    document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }
+  async function importProfile(file){
+    if(!file || file.size>22000000)throw Error('Profile exceeds the 22 MB limit.');
+    const doc=JSON.parse(await file.text());
+    const object=x=>x && typeof x==='object' && !Array.isArray(x);
+    if(doc?.format!=='ksclient-profile'||doc.schemaVersion!==1||
+       ![doc.settings,doc.workshop,doc.media,doc.graphics,doc.advanced].every(object))throw Error('Invalid profile.');
+    const wk=window.__KS_WORKSHOP__;
+    if(!wk)throw Error('Open the Workshop on Kirka before importing.');
+    const restored={...state};
+    for(const key of Object.keys(defaults)){
+      const value=checkImportValue(key,doc.settings[key]);
+      if(value!==undefined)restored[key]=value;
+    }
+    restored.customCSSEnabled=false;
+    const media={};
+    for(const key of assetKeys){
+      if(doc.media[key]===null){media[key]=null;continue;}
+      const item=doc.media[key];
+      if(!object(item)||!assetTypes[key].includes(item.type)||typeof item.data!=='string'||
+         !item.data.length || item.data.length>4*Math.ceil(assetLimit(key)/3))throw Error('Invalid media: '+key);
+      const raw=atob(item.data);
+      if(!raw.length||raw.length>assetLimit(key))throw Error('Invalid media size: '+key);
+      media[key]=new File([Uint8Array.from(raw,c=>c.charCodeAt(0))],String(item.name||key).slice(0,180),{type:item.type});
+    }
+    const g=doc.graphics,graphics={enabled:false};
+    for(const key of ['assetURL','skinURL','matrixSignature'])graphics[key]=String(g[key]||'').slice(0,500);
+    for(const key of ['hue','saturation','brightness','scale','offsetX','offsetY','offsetZ']){
+      if(Number.isFinite(g[key]))graphics[key]=g[key];
+    }
+    const workshop=wk.normalizeWorkshop(doc.workshop);
+    workshop.swapEnabled=wk.getConfig().swapEnabled;
+    if(!confirm('Replace KS settings, Workshop entries and local media with this profile? Imported scripts require manual launch.'))return;
+    const changes=[[KEY,restored],[workshopKey,workshop],[graphicsKey,graphics],[advancedKey,{freezeGuard:doc.advanced.freezeGuard===true}]];
+    const previous=changes.map(([key])=>[key,localStorage.getItem(key)]);
+    const db=await openAssetDB();
+    try{
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction('assets','readwrite');
+        tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error||Error('Profile restore aborted'));
+        try{
+          const store=tx.objectStore('assets');
+          for(const key of assetKeys){if(media[key])store.put(media[key],key);else store.delete(key);}
+          for(const [key,value] of changes)localStorage.setItem(key,JSON.stringify(value));
+        }catch(error){tx.abort();reject(error);}
+      });
+    }catch(error){
+      for(const [key,old] of previous){if(old===null)localStorage.removeItem(key);else localStorage.setItem(key,old);}
+      throw error;
+    }finally{db.close();}
+    state=restored;wk.reloadProfile();
+    for(const key of assetKeys){setAssetURL(key,media[key]);assetMeta[key]=media[key]?.name||'';}
+    window.dispatchEvent(new Event('ks-webgl-settings'));
+    window.__KS_FRAME_PACER__?.setLimit(state.fpsLimit);
+    notify('game-resolution',{preset:state.gameResolution});notify('menu-resolution',{preset:state.menuResolution});
+    syncUpdatePreferences();apply();sharingStatus='Profile restored. Review imported CSS and 3D settings before enabling them.';renderTab();
+  }
   function exportSettings() {
     // Export only supported settings; local assets live in IndexedDB.
     const safe = Object.fromEntries(Object.keys(defaults)
@@ -3120,7 +3212,7 @@
     if(typeof def==='string' && value.length>12000)return undefined;
     if(['color','customAccent','centerDotColor','centerDotOutlineColor','outlineColor','shadowColor'].includes(key) && !/^#[a-f0-9]{6}$/i.test(value))return undefined;
     if(key==='language' && !Object.hasOwn(languageNames,value))return undefined;
-    if(key==='fpsLimit' && ![0,60,120,144,165,180,200,240,300,360].includes(value))return undefined;
+    if(key==='fpsLimit' && (!Number.isInteger(value)||value<0||value>1000))return undefined;
     if(key==='gameResolution' && !['native','720','1080','1440','2160'].includes(value))return undefined;
     if(key==='menuResolution' && !['native','720','1080','1440','2160'].includes(value))return undefined;
     if(key==='themePreset' && !Object.hasOwn(themeColors,value))return undefined;
@@ -3242,9 +3334,9 @@
   });
   $('ks-body').addEventListener('change', async e=>{
     const fileInput=e.target;
-    if(fileInput.id!=='ks-import-file')return;
+    if(!['ks-import-file','ks-profile-file'].includes(fileInput.id))return;
     const selected=fileInput.files?.[0];
-    try { await importSettings(selected); }
+    try { if(!selected)return;if(fileInput.id==='ks-profile-file')await importProfile(selected);else await importSettings(selected); }
     catch(error) {sharingStatus='Import failed: '+String(error.message||error);const n=$('ks-sharing-status');if(n)n.textContent=L(sharingStatus);}
     // The import can re-render the panel; never dereference a detached event target.
     if(fileInput.isConnected) fileInput.value='';
@@ -3276,6 +3368,10 @@
   });
 
   $('ks-body').addEventListener('change', e => {
+    if(e.target.hasAttribute('data-custom-cap')){
+      if(e.target.value!=='' && e.target.validity.valid)setSetting('fpsLimit',e.target.valueAsNumber);
+      return;
+    }
     const key = e.target.dataset.browser;
     if (!key || !browserPrefsLoaded || !Object.hasOwn(browserPrefs,key)) return;
     const value = e.target.type==='checkbox' ? e.target.checked : e.target.value;
@@ -3426,6 +3522,11 @@
     }
     if (a === 'browser-restart' && confirm(L('Restart and apply changes?'))) notify('browser-restart');
     if (a === 'browser-reset' && confirm(L('Reset only the settings in this browser section?'))) notify('browser-reset',{section:el.dataset.browserSection});
+    if(a==='import-profile')$('ks-profile-file')?.click();
+    if(a==='export-profile'){
+      try{await exportProfile();sharingStatus='Profile exported.';}catch(error){sharingStatus='Export failed: '+error.message;}
+      if($('ks-sharing-status'))$('ks-sharing-status').textContent=sharingStatus;
+    }
     if (a === 'export-settings') exportSettings();
     if (a === 'import-settings') $('ks-import-file')?.click();
     if (a === 'open-logs') notify('open-logs');
@@ -3574,6 +3675,7 @@
     window.__KS_FRAME_PACER__?.setActivityLimit?.(unfocused?30:lobby?60:0);
   }
   function syncMeasurement(){
+    if(document.hidden || !open || selectedTab!=='Friends & Profiles')window.__KS_WORKSHOP__?.cancelWatch?.();
     syncDiagnosticsPoll();
     syncActivityLimit();
     window.__KS_FRAME_PACER__?.setMenuLimited?.(open && selectedTab!=='Frame Stability' && state.limitSettingsFPS!==false);

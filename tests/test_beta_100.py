@@ -1,4 +1,4 @@
-"""KS Client Beta 1.0.15 — visual parity, track-aware updater and public release safety."""
+"""KS Client Beta 1.0.16 — visual parity, track-aware updater and public release safety."""
 from pathlib import Path
 r=Path(__file__).resolve().parents[1]
 ui=(r/'electron-app/overlay/overlay.js').read_text(encoding='utf-8')
@@ -6,7 +6,7 @@ assert ui==(r/'cef/overlay/overlay.js').read_text(encoding='utf-8'), "Both engin
 extras=(r/'electron-app/overlay/game_extras.js').read_text(encoding='utf-8')
 assert extras==(r/'cef/overlay/game_extras.js').read_text(encoding='utf-8')
 for key in ('showFPS: false','autoCheckUpdates: true','autoDownloadUpdates: true',"updateChannel: 'beta'",
-            'KS · ${CLIENT_VERSION}', "v:'Beta 1.0.15'", "v:'Beta 1.0.13'", "v:'Beta 1.0.9'", "v:'Beta 1.0.8'", "v:'Beta 1.0.7'", "v:'Beta 1.0.6'", "v:'Beta 1.0.4'", "v:'Beta 1.0.3'", "v:'Beta 1.0.2'", "v:'Beta 1.0.1'", "v:'Beta 1.0.0'",'ks-experimental-badge','ks-workshop-experimental',
+            'KS · ${CLIENT_VERSION}', "v:'Beta 1.0.16'", "v:'Beta 1.0.13'", "v:'Beta 1.0.9'", "v:'Beta 1.0.8'", "v:'Beta 1.0.7'", "v:'Beta 1.0.6'", "v:'Beta 1.0.4'", "v:'Beta 1.0.3'", "v:'Beta 1.0.2'", "v:'Beta 1.0.1'", "v:'Beta 1.0.0'",'ks-experimental-badge','ks-workshop-experimental',
             'EXPERIMENTAL · BETA',"data-action=\"update-check\"","data-action=\"update-install\""):
  assert key in ui,key
 assert 'background:rgba(14,13,13,.92)!important' in ui
@@ -26,16 +26,16 @@ go=(r/'launcher/update_windows.go').read_text()
 for key in ('-alpha|-beta','trackPriority','releaseTrack','updateMode="beta"','channel=="beta"&&v.track=="alpha"','compareVersion(v,current)<=0'):
  assert key in go,key
 assert 'sha256.New()' in go and 'validUpdateAsset' in go and 'waitForExitedPID' in go
-assert 'const version = "1.0.15"' in (r/'launcher/main_windows.go').read_text()
+assert 'const version = "1.0.16"' in (r/'launcher/main_windows.go').read_text()
 assert 'const releaseTrack = "beta"' in (r/'launcher/main_windows.go').read_text()
 installer=(r/'installer/main_windows.go').read_text()
-assert '//go:embed KS-Client-beta-1.0.15-Portable.zip' in installer
-assert 'bundledVersionFromArchive' in installer and 'installationVersion' in installer and '1.0.15' in (r/'cef/Program.cs').read_text()
+assert '//go:embed KS-Client-beta-1.0.16-Portable.zip' in installer
+assert 'bundledVersionFromArchive' in installer and 'installationVersion' in installer and '1.0.16' in (r/'cef/Program.cs').read_text()
 pub=(r/'ci/Publish-Release.ps1').read_text()
-for key in ('v1.0.15-beta','KS-Client-beta-1.0.15-Setup.exe','KS_PUBLIC_RELEASE_TOKEN',
+for key in ('v1.0.16-beta','KS-Client-beta-1.0.16-Setup.exe','KS_PUBLIC_RELEASE_TOKEN',
             'v1.1.24-alpha','KS-Client-alpha-1.1.24-Setup.exe','ALPHA_TO_BETA_BRIDGE_HU.md',
             'PASS: Alpha 1.1.23 can discover'):
  assert key in pub,key
-assert 'RELEASE_BETA_115_EN.md' in pub
+assert 'RELEASE_BETA_116_EN.md' in pub
 assert "'release':'beta'" in (r/'ci/make_release_manifest.py').read_text().replace('"',"'")
-print('PASS: KS Beta 1.0.15 styling, saved settings, verified beta updates and Alpha compatibility bridge')
+print('PASS: KS Beta 1.0.16 styling, saved settings, verified beta updates and Alpha compatibility bridge')

@@ -50,7 +50,7 @@ internal static class KSResourceSwap
     internal static string Folder()
     {
         foreach(var x in Types.Keys)Directory.CreateDirectory(Path.Combine(Assets,x));
-        return Path.GetDirectoryName(Assets)!;
+        return Assets;
     }
     internal static object Scan()
     {
@@ -94,6 +94,11 @@ internal static class KSResourceSwap
             }
             var ext=Path.GetExtension(candidate);
             if(!allowed.Contains(ext,StringComparer.OrdinalIgnoreCase))return null;
+            if(!File.Exists(candidate)){
+                var name=Path.GetFileName(candidate);
+                var stable=System.Text.RegularExpressions.Regex.Replace(name,@"[.-][a-fA-F0-9]{8,64}(\.[a-zA-Z0-9]+)$",".ks-anyhash$1");
+                if(stable!=name)candidate=Path.Combine(Path.GetDirectoryName(candidate)!,stable);
+            }
             var f=new FileInfo(candidate);
             if(!f.Exists){Interlocked.Increment(ref unmatched);return null;}
             if(f.Attributes.HasFlag(FileAttributes.ReparsePoint)||f.Length<=0||f.Length>16*1024*1024)return null;

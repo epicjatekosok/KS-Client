@@ -26,12 +26,17 @@
  const inArray=(raw,max,validate)=>Array.isArray(raw)?raw.slice(0,max).filter(isObject).map(validate).filter(Boolean):[];
  function read(){
    let value={};try{value=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(_){}
+   return normalizeWorkshop(value);
+ }
+ function normalizeWorkshop(value){
    if(!isObject(value))value={};
    const d=EMPTY(),w=isObject(value.weapon)?value.weapon:{};
    d.weapon={enabled:w.enabled===true,hue:clamp(w.hue,0,360,0),saturation:clamp(w.saturation,40,200,100),
      brightness:clamp(w.brightness,50,150,100),skinURL:imgURL(w.skinURL)||'',presets:inArray(w.presets,12,p=>{
        const name=trim(p.name,36);return name?{name,hue:clamp(p.hue,0,360,0),saturation:clamp(p.saturation,40,200,100),brightness:clamp(p.brightness,50,150,100),skinURL:imgURL(p.skinURL)||''}:null})};
    d.swapEnabled=value.swapEnabled===true;
+   d.markerId=/^[A-Za-z][A-Za-z0-9_-]{0,79}$/.test(value.markerId||'')?value.markerId:'';
+   d.markerColor=color(value.markerColor,'#ffffff');
    d.killfeedColors=value.killfeedColors===true;
    d.gameHudTheme=['original','compact','amber','ice'].includes(value.gameHudTheme)?value.gameHudTheme:'original';
    d.rooms=inArray(value.rooms,25,x=>{const url=kirkaURL(x.url),name=trim(x.name,45);return url?{name:name||'Saved room',url,settings:isObject(x.settings)?limitSettings(x.settings):{}}:null});
@@ -51,6 +56,7 @@
    return obj;
  }
  let cfg=read();
+ let watchFriend=null;
  let status='Workshop features are local to this browser profile.';
  const value=id=>document.getElementById('ks-client-root')?.shadowRoot?.getElementById(id)?.value||'';
  const checked=id=>!!document.getElementById('ks-client-root')?.shadowRoot?.getElementById(id)?.checked;
@@ -61,6 +67,16 @@
  const notice='<p class="ks-hint">Local-only appearance and convenience tools; never changes player inventory, server data, weapon damage or hit detection.</p>';
  const list=(items,what)=>items.length?items.map((x,i)=>'<div class="ks-row"><span>'+escape(x.name||x.nick||x.item||x.url||'Item')+'</span>'+btn(what+'-use-'+i,'Use')+btn(what+'-delete-'+i,'Remove')+'</div>').join(''):'<p class="ks-hint">No saved entries yet.</p>';
  const srcmsg='Your own script runs only inside an opaque, sandboxed preview. No raw game DOM, cookies, Electron, Node.js, network or filesystem access. The approved ks.snapshot() API returns a sanitized copy of the visible Kirka UI. Scripts never auto-run.';
+ function observedAssets(){
+   const paths=new Set();
+   for(const entry of performance.getEntriesByType('resource')){
+     let url;
+     try{url=new URL(entry.name);}catch{continue;}
+     if(url.origin!==location.origin || !/^\/assets\/(img|skins|textures|ui|media|audio|fonts|css)\/.+\.(png|jpe?g|webp|gif|svg|mp3|ogg|wav|woff2?|otf|ttf|css)$/i.test(url.pathname))continue;
+     paths.add(url.pathname);
+   }
+   return [...paths].slice(-100);
+ }
  function render(tab){
    if(tab==='Weapon Studio')return '<h2 class="ks-title">Weapon Studio / Custom Skin Link</h2><p class="ks-sub">Local weapon and inventory image cosmetics. 3D WebGL material replacement depends on exact supported game assets.</p>'+
      card('Weapon & inventory visual styling',input('weapon-hue','Hue rotation (0–360)',cfg.weapon.hue,'number')+
@@ -71,6 +87,7 @@
        btn('weapon-apply','Apply cosmetics')+' '+btn('weapon-reset','Clear cosmetics'))+
      card('3D Weapon Studio (experimental exact-match WebGL)',
        '<p class="ks-hint">Replaces a matching WebGL image texture. The exact Kirka /assets/ URL and a CORS-compatible replacement image are required. Viewmodel transforms require a manually selected matrix signature.</p>'+
+       btn('gl-probe','Identify visible weapon image')+' '+btn('gl-use-probe','Use observed texture')+
        input('gl-source','Original Kirka texture URL (exact HTTPS asset)',glCfg().assetURL||'')+
        input('gl-skin','Custom 3D Skin Link (HTTPS CORS image)',glCfg().skinURL||'')+
        input('gl-hue','Texture hue 0–360',glCfg().hue??0,'number')+
@@ -85,7 +102,8 @@
        btn('gl-apply','Apply 3D cosmetics')+' '+btn('gl-reset','Disable 3D cosmetics')+
        '<p class="ks-hint">Renderer: '+escape(JSON.stringify(glStatus()).slice(0,900))+'</p>')+
      card('Save weapon presets',input('weapon-name','Preset name')+btn('weapon-save','Save preset')+list(cfg.weapon.presets,'weapon'))+
-     card('Game HUD appearance','<label class="ks-row">Colored killfeed <input type="checkbox" id="ks-wk-killfeed-on" '+(cfg.killfeedColors?'checked':'')+'></label>'+
+     card('Game HUD appearance',input('marker-id','Native HTML hitmarker element ID (optional)',cfg.markerId)+input('marker-color','Marker color',cfg.markerColor,'color')+
+       '<p class="ks-hint">'+(cfg.markerId && document.getElementById(cfg.markerId)?'Selected game element found.':'No matching native HTML hitmarker selected.')+'</p><label class="ks-row">Colored killfeed <input type="checkbox" id="ks-wk-killfeed-on" '+(cfg.killfeedColors?'checked':'')+'></label>'+
        '<label class="ks-row">HUD style <select class="ks-input" id="ks-wk-hud-theme">'+
        ['original','compact','amber','ice'].map(v=>'<option value="'+v+'" '+(cfg.gameHudTheme===v?'selected':'')+'>'+v+'</option>').join('')+
        '</select></label>'+btn('hud-apply','Apply HUD appearance'))+
@@ -95,6 +113,7 @@
        '<label class="ks-row">Enable replacements at startup <input type="checkbox" id="ks-wk-swap-on" '+(cfg.swapEnabled?'checked':'')+'></label>'+
        btn('swap-toggle','Save swapper state')+' '+btn('swap-folder','Open asset folder')+' '+btn('swap-scan','Scan files')+
        '<p class="ks-hint">Exact Kirka image/audio/font/CSS resource matching only. Reload after changing files; no game JavaScript interception.</p>')+
+     card('Observed asset paths','<p>For a versioned path such as img/logo.1234abcd.png, you can name your local file img/logo.ks-anyhash.png. Exact names take priority. Only the hexadecimal build suffix can change.</p>'+btn('asset-refresh','Refresh observed paths')+'<pre style="white-space:pre-wrap;overflow-wrap:anywhere">'+escape(observedAssets().join('\n')||'No supported assets observed in this document.')+'</pre>')+
      card('Mouse-held freeze workaround (experimental)',
        '<label class="ks-row">Enable optional frame-yield guard (reload required) <input type="checkbox" id="ks-wk-freeze-on" '+(advancedCfg().freezeGuard?'checked':'')+'></label>'+
        btn('freeze-save','Save frame-yield setting')+
@@ -114,6 +133,9 @@
    if(tab==='Friends & Profiles')return '<h2 class="ks-title">Friends & Profiles</h2><p class="ks-sub">Local labels and notes for profiles you actually see. No access to private friend lists or invented spectate links.</p>'+
      card('Create local player annotation',input('friend-nick','Visible nickname / player ID')+input('friend-note','Personal note')+
        input('friend-color','Tag color', '#f0aa35','color')+btn('friend-save','Save note'))+
+     card('Visible friend list','<p id="ks-live-friends"></p>'+input('watch-name','Exact visible friend name',watchFriend?.name||'')+
+       btn('watch-friend','Watch for native Spectate (60 seconds)')+' '+btn('watch-cancel','Cancel')+
+       '<p class="ks-hint">Keep this panel open. The game must offer Spectate for this friend.</p>')+
      card('Visible profile details','<p class="ks-hint">'+escape(JSON.stringify(deepSnapshot().profile||{}).slice(0,700))+'</p>')+
      card('Saved annotations',cfg.friends.length?cfg.friends.map((f,i)=>'<div class="ks-row"><div><strong>'+escape(f.nick)+'</strong><div class="ks-desc">'+escape(f.note)+'</div></div>'+btn('friend-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved player notes.</p>')+notice;
    if(tab==='Inventory & Market')return '<h2 class="ks-title">Inventory / Market</h2><p class="ks-sub">Personal item favorites, notes and manually entered estimates. No trades, purchases or prices are fabricated.</p>'+
@@ -121,7 +143,7 @@
        input('item-price','Estimated price (manual only)',0,'number')+
        '<label class="ks-row">Favorite <input type="checkbox" id="ks-wk-item-favorite" checked></label>'+btn('item-save','Save item'))+
      card('Visible inventory details','<p class="ks-hint">'+escape(JSON.stringify(deepSnapshot().inventory||{}).slice(0,1200))+'</p>')+
-     card('Visible market listings (read-only)','<p class="ks-hint">'+escape(JSON.stringify(deepSnapshot().market||{}).slice(0,1200))+'</p>')+
+     card('Visible market listings (read-only)','<div id="ks-live-market"></div>')+
      card('Saved collection',cfg.inventory.length?cfg.inventory.map((x,i)=>'<div class="ks-row"><div><strong>'+(x.favorite?'★ ':'')+escape(x.item)+'</strong><div class="ks-desc">'+escape(x.note)+' · Manual estimate: '+x.price+'</div></div>'+btn('item-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved items.</p>')+notice;
    return '';
  }
@@ -132,6 +154,7 @@
    if(!area)return obj;
    const inputs=Array.from(area.querySelectorAll('input,select')).slice(0,32);
    for(const el of inputs){
+     if(!el.getClientRects().length || el.disabled)continue;
      const wrap=el.closest('.element,.items,.setting,.form-group')||el.parentElement;
      const name=trim(wrap?.querySelector('.label, label')?.textContent || el.getAttribute('aria-label')||el.name||el.id,80);
      if(!name||el.type==='password'||el.type==='file'||el.type==='hidden')continue;
@@ -159,6 +182,8 @@
      const wrap=el.closest('.element,.items,.setting,.form-group')||el.parentElement;
      const label=trim(wrap?.querySelector('.label,label')?.textContent||el.getAttribute('aria-label')||el.name||el.id,80);
      if(!Object.prototype.hasOwnProperty.call(room.settings,label)||!['text','number','range','checkbox','select-one'].includes(el.type))continue;
+     if(el.disabled || !el.getClientRects().length)continue;
+     if(el.tagName==='SELECT' && !Array.from(el.options).some(opt=>!opt.disabled && opt.value===room.settings[label]))continue;
      if(el.type==='checkbox')el.checked=room.settings[label]==='true';
      else el.value=room.settings[label];
      el.dispatchEvent(new Event('input',{bubbles:true}));
@@ -192,12 +217,27 @@
    const node=ui.getElementById('ks-wk-status');if(node)node.textContent=status;
  }
  function action(a,ui,notify){
+   if(a==='wk-asset-refresh')return true;
    if(!a.startsWith('wk-'))return false;
    a=a.slice(3);
    const val=id=>ui.getElementById('ks-wk-'+id)?.value??'';
    const flag=id=>!!ui.getElementById('ks-wk-'+id)?.checked;
    const number=(id,min,max,def)=>clamp(val(id),min,max,def);
-   if(a==='freeze-save'){
+   if(a==='watch-friend'){
+     const name=trim(val('watch-name'),60);
+     watchFriend=name?{name,until:Date.now()+60000}:null;
+     status=name?'Waiting for the native Spectate control for '+name:'Enter the exact visible name.';
+   }else if(a==='watch-cancel'){
+     watchFriend=null;status='Friend spectate request cancelled.';
+   }else if(a==='gl-probe'){
+     status=window.__KS_WEBGL_COSMETICS__?.matchVisiblePreview?.()||'Renderer unavailable.';
+   }else if(a==='gl-use-probe'){
+     const url=window.__KS_WEBGL_COSMETICS__?.matchedPreview?.();
+     if(!url){status='No matching game texture upload observed.';return true;}
+     const config=glCfg();config.assetURL=url;config.enabled=false;config.matrixSignature='';
+     localStorage.setItem(WG,JSON.stringify(config));window.dispatchEvent(new Event('ks-webgl-settings'));
+     status='Exact texture URL copied. Review and apply the cosmetic settings.';
+   }else if(a==='freeze-save'){
      localStorage.setItem(ADV,JSON.stringify({freezeGuard:flag('freeze-on')}));
      status='Frame-yield setting saved. Reload Kirka to apply safely.';
    }else if(a==='gl-apply'){
@@ -222,6 +262,9 @@
        brightness:number('weapon-brightness',50,150,100),skinURL:imgURL(val('skin-url'))||''});
      status='Local weapon and inventory visual settings updated.';save();
    }else if(a==='hud-apply'){
+     const marker=val('marker-id').trim();
+     if(marker && !/^[A-Za-z][A-Za-z0-9_-]{0,79}$/.test(marker)){status='Enter a single HTML element ID.';return true;}
+     cfg.markerId=marker;cfg.markerColor=color(val('marker-color'),'#ffffff');
      cfg.killfeedColors=flag('killfeed-on');
      cfg.gameHudTheme=['original','compact','amber','ice'].includes(val('hud-theme'))?val('hud-theme'):'original';
      status='Visible HUD style updated locally.';save();
@@ -299,7 +342,7 @@
      if(e.data.action==='snapshot'&&Number.isSafeInteger(e.data.id)&&e.data.id>0&&e.data.id<=100){
        const data=deepSnapshot();
        const safe={scene:data.scene||'unknown',stats:data.stats||{},observed:data.observed||{},
-         inventory:data.inventory||null,market:data.market||null,profile:data.profile||null,servers:data.servers||null,input:data.input||{}};
+         friends:data.friends||null,inventory:data.inventory||null,market:data.market||null,profile:data.profile||null,servers:data.servers||null,input:data.input||{}};
        frame.contentWindow?.postMessage({ksWorkshopReply:1,id:e.data.id,snapshot:safe},'*');
      }
      if(e.data.action==='message'){
@@ -325,9 +368,33 @@
  function refresh(){
    if(!document.body)return;
    if(!style){style=document.createElement('style');style.id='ks-workshop-cosmetics';document.head.appendChild(style);}
+   const panel=document.getElementById('ks-client-root')?.shadowRoot;
+   const market=panel?.getElementById('ks-live-market');
+   const friendsNode=panel?.getElementById('ks-live-friends');
+   if(watchFriend){
+     if(!friendsNode || !window.__KS_CLIENT__?.isSettingsOpen() || document.hidden || Date.now()>watchFriend.until){
+       watchFriend=null;status='Friend spectate request ended.';
+     }else{
+       const names=[...document.querySelectorAll('.friends .nickname,.friends .username,.friends .player-name')].filter(el=>
+         el.getClientRects().length && getComputedStyle(el).visibility==='visible' && trim(el.textContent,60)===watchFriend.name);
+       const row=names.length===1?names[0].closest('.friend,.friend-item,[data-friend-id],li'):null;
+       const buttons=row?[...row.querySelectorAll('button,[role="button"]')].filter(el=>
+         el.getClientRects().length && getComputedStyle(el).visibility==='visible' && !el.disabled &&
+         el.getAttribute('aria-disabled')!=='true' && /^(spectate|megfigyelés)$/i.test(trim(el.getAttribute('aria-label')||el.textContent,40))):[];
+       if(buttons.length===1){watchFriend=null;status='Requested spectating through Kirka.';buttons[0].click();}
+     }
+   }
+   if(!document.hidden && window.__KS_CLIENT__?.isSettingsOpen() && (market||friendsNode)){
+     const data=deepSnapshot();
+     const node=market||friendsNode;
+     const lines=market?data.market?.listings?.map(x=>x.item+' — '+x.price):data.friends?.names;
+     const summary=lines?.length?lines.join(' · '):'No visible entries on this game screen.';
+     if(node.textContent!==summary)node.textContent=summary;
+   }
    const w=cfg.weapon;
    const filter='hue-rotate('+w.hue+'deg) saturate('+(w.saturation/100)+') brightness('+(w.brightness/100)+')';
    const css=(w.enabled?'.inventory img,.weapons img,.weapon-icon img,.weapon-preview img,.item-card img{filter:'+filter+'!important;}':'')+
+    (cfg.markerId?'#'+cfg.markerId+'{color:'+cfg.markerColor+'!important;border-color:'+cfg.markerColor+'!important}':'')+
     (cfg.killfeedColors?'.kill-bar-cont .kill-bar-item.blue{color:#73ccff}.kill-bar-cont .kill-bar-item.red{color:#ff7777}':'')+
     (cfg.gameHudTheme==='compact'?'.script-ui .ui-row{transform:scale(.92);transform-origin:top right}':'')+
     (cfg.gameHudTheme==='amber'?'.script-ui .ui-cell{filter:sepia(.35)}':'')+
@@ -378,7 +445,7 @@
  window.addEventListener("pagehide",stopPlugin);
  window.__KS_GAME_RUNTIME__?.on("route",stopPlugin);
  function loop(){if(!document.hidden && Date.now()-lastUpdate>2200){lastUpdate=Date.now();refresh();}setTimeout(loop,1500);}
- window.__KS_WORKSHOP__=Object.freeze({render,action,refresh,stopPlugin,recordJoin,getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
+ window.__KS_WORKSHOP__=Object.freeze({render,action,refresh,stopPlugin,cancelWatch:()=>{watchFriend=null;},recordJoin,normalizeWorkshop,reloadProfile:()=>{stopPlugin();cfg=read();refresh();},getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
   setStatus:message=>{status=trim(message,400);},getRoom:idx=>cfg.rooms[idx]||null});
  if(document.body){refresh();}else document.addEventListener('DOMContentLoaded',refresh,{once:true});
  loop();

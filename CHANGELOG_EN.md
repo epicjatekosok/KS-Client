@@ -1,3 +1,7 @@
+# KS Client Beta 1.0.16
+
+Portable Workshop profiles with media, custom callback caps, browser-surface CEF capture, live visible lists, asset discovery and optional desktop Discord activity.
+
 # KS Client Beta 1.0.15
 
 [Shared game integration and frame pacing](RELEASE_BETA_115_EN.md)

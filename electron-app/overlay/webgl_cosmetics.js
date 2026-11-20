@@ -20,6 +20,15 @@ function read(){
  offsetX:clamp(o.offsetX,-2,2,0),offsetY:clamp(o.offsetY,-2,2,0),offsetZ:clamp(o.offsetZ,-2,2,0),
  matrixSignature:/^[\d., -]{1,90}$/.test(String(o.matrixSignature||''))?String(o.matrixSignature):''};
 }
+let previewProbe=null;
+function matchVisiblePreview(){
+ const images=[...document.querySelectorAll('.weapon-preview img,.weapon-card[aria-selected="true"] img')]
+   .filter(img=>img.getClientRects().length && getComputedStyle(img).visibility==='visible');
+ const urls=new Set(images.map(img=>asset(img.dataset.ksWorkshopOriginal||img.currentSrc||img.src)).filter(Boolean));
+ if(urls.size!==1){previewProbe=null;return 'Open a single visible weapon preview to identify its image.';}
+ previewProbe={url:[...urls][0],until:performance.now()+15000,matched:false};
+ return 'Watching game texture uploads for this exact preview image for 15 seconds.';
+}
 function loadImage(){
  replacement=null;replacementFor='';
  if(!cfg.enabled||!cfg.assetURL||!cfg.skinURL)return;
@@ -49,6 +58,11 @@ function install(gl,canvas){
  const origTex=(...args)=>Reflect.apply(rawTex,gl,args);
  const origMatrix=(...args)=>Reflect.apply(rawMatrix,gl,args);
  function tex(...args){
+   if(previewProbe && !previewProbe.matched){
+     if(performance.now()>previewProbe.until)previewProbe=null;
+     else if(args.length===6 && args[5] instanceof HTMLImageElement &&
+       safeURL(args[5].currentSrc||args[5].src)===previewProbe.url)previewProbe.matched=true;
+   }
    if(cfg.enabled&&replacement&&replacementFor===cfg.skinURL&&cfg.assetURL&&args.length===6){
      const src=args[5];
      if(typeof HTMLImageElement!=='undefined'&&src instanceof HTMLImageElement&&safeURL(src.currentSrc||src.src)===cfg.assetURL){
@@ -125,6 +139,8 @@ window.__KS_WEBGL_COSMETICS__=Object.freeze({
  getStatus:()=>({enabled:cfg.enabled,contexts,hookup,textureReplacements:textures,matrixTransforms:transforms,
   fallbacks:missed,ready:!!replacement,diagnostic,assetURL:cfg.assetURL,signature:cfg.matrixSignature,
   sampledSignatures:[...candidates.entries()].map(([signature,count])=>({signature,count})).slice(0,20)}),
+ matchVisiblePreview,
+ matchedPreview:()=>previewProbe?.matched?previewProbe.url:'',
  refresh:reload,
  restore:()=>{unsubscribe?.();window.removeEventListener('ks-render-observer-ready',connect);window.removeEventListener('ks-webgl-settings',reload);for(const r of records){if(r.gl.texImage2D===r.tex)r.gl.texImage2D=r.origTex;if(r.gl.uniformMatrix4fv===r.matrix)r.gl.uniformMatrix4fv=r.origMatrix;}if(fallbackWrapped&&HTMLCanvasElement.prototype.getContext===fallbackWrapped)HTMLCanvasElement.prototype.getContext=fallbackOriginal;}
 });
