@@ -53,6 +53,11 @@ with sync_playwright() as p:
     assert page.evaluate("window.seenSnapshot===null && window.__KS_GAME_RUNTIME__.getSnapshot().stats.kills===null")
     page.evaluate("document.querySelector('.game-interface').hidden=true;window.__KS_GAME_RUNTIME__.refresh()")
     assert page.evaluate("window.__KS_GAME_RUNTIME__.scene==='loading'")
+    page.evaluate("""() => {
+      document.body.insertAdjacentHTML('beforeend','<section role="dialog"><h2>Match results</h2></section>');
+      window.__KS_GAME_RUNTIME__.refresh();
+    }""")
+    assert page.evaluate("window.__KS_GAME_RUNTIME__.scene==='results'")
     # Browser SPA scene transitions detach scoped watchers, not leak them.
     page.evaluate("""() => {
       history.pushState({},'', '/');

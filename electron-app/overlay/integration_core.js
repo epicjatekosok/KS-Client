@@ -45,6 +45,8 @@
       if(typeof cleanup!=='function')return;
       module.dispose=cleanup;
       module.active=true;
+      module.selector={'hud-stats':'.script-ui .ui-row,.kill-death','room-link-drop':'.interface,.servers','friend-spectate':'.friends .list'}[name];
+      module.anchor=module.selector?document.querySelector(module.selector):null;
       delete status.errors[name];
     }catch(e){
       module.active=false;
@@ -54,13 +56,14 @@
   function detach(name,module){
     if(!module.active)return;
     try{module.dispose?.()}catch(e){status.errors[name]=String(e?.message||e).slice(0,180)}
-    module.dispose=null;module.active=false;
+    module.dispose=null;module.active=false;module.anchor=null;
   }
   function refresh(){
     settings=read();status.checks++;
     const next=scene();
     if(status.scene!==next){const before=status.scene;status.scene=next;status.lastChange=Date.now();emit('scene-change',{before,scene:next});}
     for(const [name,m] of modules){
+      if(m.active && m.anchor && m.anchor!==document.querySelector(m.selector))detach(name,m);
       let wanted=false;
       try{wanted=Boolean(m.detect(next))}catch(e){status.errors[name]=String(e?.message||e).slice(0,180)}
       if(wanted)attach(name,m);else detach(name,m);
@@ -82,7 +85,7 @@
   }
 
   // Game HUD: augment the game's visible stats, do not spoof scores.
-  register('hud-stats',s=>s==='match',()=>{
+  register('hud-stats',s=>s==='match' && settings.gameStats!==false,()=>{
     const bar=document.querySelector('.script-ui .ui-row,.kill-death');
     if(!bar)return;
     let root=bar.querySelector('[data-ks-integration="stats"]');
@@ -94,6 +97,22 @@
     const headshots=document.createElement('span');
     root.append(kills,headshots);
     bar.appendChild(root);
+    const runtime=window.__KS_GAME_RUNTIME__;
+    if(runtime){
+      let localHeadshots=0;
+      const update=()=>{
+        const values=runtime.getSnapshot().stats;
+        kills.textContent=values.kills===null?'':'KS K: '+values.kills;
+        headshots.textContent=values.headshotPercent!==null?'HS: '+values.headshotPercent+'%':localHeadshots?'Observed HS: '+localHeadshots:'';
+        root.style.display=kills.textContent||headshots.textContent?'inline-flex':'none';
+        emit('stats',{kills:values.kills,headshotPercent:values.headshotPercent});
+      };
+      update();
+      const off=runtime.on('stats',update);
+      const offFeed=runtime.on('killfeed',event=>{if(event.detail.localHeadshot){localHeadshots++;update();}});
+      const offRoute=runtime.on('route',()=>{localHeadshots=0;update();});
+      return ()=>{off();offFeed();offRoute();root.remove();};
+    }
     let killsCount=0,headshotCount=0;
     const seen=new WeakSet();
     const update=()=>{

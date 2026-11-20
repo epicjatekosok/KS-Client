@@ -92,6 +92,7 @@
     stats.style.display=state.gameStats && inGame() && !!stats.textContent?'block':'none';
   }
   function updateKeys(){
+    if(!state.gameKeystrokes)return;
     for(const el of keys.querySelectorAll('[data-code]'))el.classList.toggle('down',pressed.has(el.dataset.code));
   }
   document.addEventListener('keydown',e=>{if(!e.repeat)pressed.add(e.code);updateKeys();},true);
@@ -177,7 +178,7 @@
     if(document.hidden)return;
     if(lastLocation!==location.pathname){lastLocation=location.pathname;assistsCount=0;headshotCount=0;}
     refresh();
-    if(state.gameStats && inGame())updateObservers();
+    if(!window.__KS_GAME_RUNTIME__ && match())updateObservers();
     else {
       observerA?.disconnect();observerK?.disconnect();
       observedAchievements=null;observedKills=null;
@@ -191,6 +192,14 @@
     stats:!!state.gameStats
   })});
   if(document.body)install();else document.addEventListener('DOMContentLoaded',install,{once:true});
-  if(window.__KS_GAME_RUNTIME__)window.__KS_GAME_RUNTIME__.on('refresh',tick);
+  if(window.__KS_GAME_RUNTIME__){
+    const runtime=window.__KS_GAME_RUNTIME__;
+    runtime.on('refresh',tick);
+    runtime.on('stats',updateStats);
+    runtime.on('route',()=>{assistsCount=headshotCount=0;lastLocation=location.pathname;});
+    runtime.on('match-view-leave',()=>{assistsCount=headshotCount=0;});
+    runtime.on('killfeed',e=>{if(e.detail.localHeadshot){headshotCount++;updateStats();}});
+    runtime.on('achievement',e=>{if(/\bassist\b/i.test(e.detail.text)){assistsCount++;updateStats();}});
+  }
   else setInterval(tick,1200);
 })();
