@@ -21,3 +21,14 @@ A kiindulás a nyilvánosan kiadott 1.0.15-höz tartozó privát forrás. A „m
 | Discord | A közösségi gomb egy meghívót nyitott meg. | A launcher opcionálisan a helyi Discord asztali alkalmazásnak küld aktivitást. Ehhez regisztrált alkalmazás nyilvános azonosítója kell a KS_DISCORD_APPLICATION_ID változóban. |
 | Frissítés és telepítés | Kézi és automatikus keresés, előletöltés, jóváhagyásos telepítés, SHA-256, helyben és portable frissítés, offline telepítő. A verzió tartalékértéke már az aktuális CLIENT_LABEL volt. | Beta 1.0.16, eredeti profilkulcsok. A kiadási folyamat az eredeti Beta 1.0.0 telepítő hash-éhez ellenőrzi a régi Alpha frissítési hidat. A Stable csatorna önálló Stable kiadást igényel. |
 | Kiadási biztonság | A 1.0.15 telepítő aláíratlan. Az 1.0.3, 1.0.4 és 1.0.5 nyilvános kiadásban a vizsgálatkor még volt forrás-ZIP. | Az aláírás elő van készítve saját kiadói tanúsítványhoz. A nyilvános 1.0.16 binárisokat és ellenőrző fájlokat kap. A régi nyilvános példányok külön intézkedést igényelnek. |
+
+## A négy megadott kliens megoldásai
+
+| Kliens | Mit mutat a forrás? | Kapcsolat a KS Clienttel |
+| --- | --- | --- |
+| Dawn | Külön erőforrás-cserélő modul és Discord RPC-modul. | A KS-ben pontos fájlútvonal és engedélyezett fájltípus dönt a cseréről. A Discord-aktivitáshoz saját alkalmazásazonosító adható meg. [Swapper](https://github.com/zVipexx/dawn-client/blob/HEAD/src/addons/swapper.js) · [RPC](https://github.com/zVipexx/dawn-client/blob/HEAD/src/addons/rpc.js) |
+| Celeste | JSON-beállításkezelő és Chromium-indítási kapcsolók. | A KS külön kezeli a beállítás- és médiamentést, az animációs korlátot és a Chromium FPS-feloldását. [Beállításkezelő](https://github.com/imnotkoolkid/celeste-client/blob/HEAD/src/components/settingsManager.js) |
+| Redline | Felületi barátlista-szűrés és helyi userscript-konfiguráció. | A látható barátlista jó kapcsolódási pont. A KS saját Workshop-mentésében is megmaradnak a felhasználó szkriptjei. [Barátlista](https://github.com/robertpakalns/redline-client/blob/HEAD/src/preload/friends.ts) · [Szkriptbeállítások](https://github.com/robertpakalns/redline-client/blob/HEAD/src/utils/userscripts.ts) |
+| Helium | A barátlista HTML-elemeinek figyelésével frissíti a Spectate gombot. | A KS egy kiválasztott barát esetén a Kirka felületén megjelenő Spectate vezérlőt figyeli. [Barátlista és Spectate](https://github.com/zVipexx/helium-client/blob/HEAD/src/handlers/friends.js) |
+
+Ez utólagos forráskód-összevetés. Az 1.0.16 saját megvalósítást használ.
