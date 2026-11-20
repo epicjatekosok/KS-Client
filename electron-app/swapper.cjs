@@ -32,8 +32,16 @@ function resolve(request){
   if(parts.length<3||parts[0]!=='assets'||!Object.hasOwn(ALLOWED,parts[1])||parts.some(x=>x==='.'||x==='..'||x.includes('\\')||x.includes('/')||x.includes('\0')))return null;
   const rel=parts.slice(1), ext=path.extname(rel[rel.length-1]).toLowerCase();
   if(!ALLOWED[parts[1]].has(ext))return null;
-  const root=path.resolve(FOLDER),candidate=path.resolve(root,...rel);
+  const root=path.resolve(FOLDER);
+  let candidate=path.resolve(root,...rel);
   if(!candidate.startsWith(root+path.sep))return null;
+  if(!fs.existsSync(candidate)){
+    // Only owners who deliberately create a .ks-anyhash file opt into this match.
+    const name=path.basename(candidate);
+    const stable=name.replace(/[.-][a-f0-9]{8,64}(\.[a-z0-9]+)$/i,'.ks-anyhash$1');
+    if(stable===name)return null;
+    candidate=path.join(path.dirname(candidate),stable);
+  }
   const physical=fs.realpathSync(candidate),realRoot=fs.realpathSync(root);
   if(!physical.startsWith(realRoot+path.sep))return null;
   const st=fs.lstatSync(candidate);
