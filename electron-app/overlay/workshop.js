@@ -128,6 +128,12 @@
    const needle=query.toLocaleLowerCase(),has=s=>s.toLocaleLowerCase().includes(needle);
    let html='';
    if(node.id==='ks-live-friends'){
+     const profile=deep.profileSnapshot?.(),profileNode=panel.getElementById('ks-live-profile');
+     if(profileNode){
+       const details=profile?[profile.nickname,...profile.visibleBadges,...profile.stats].filter(Boolean):[];
+       const summary=details.join(' · ')||window.__KS_CLIENT__?.translate?.('No visible entries on this game screen.')||'No visible entries on this game screen.';
+       if(profileNode.textContent!==summary)profileNode.textContent=summary;
+     }
      friendRows=deep.friendsSnapshot?.().entries||[];
      html=friendRows.map((x,i)=>{
        const saved=cfg.friends.find(f=>f.nick.toLowerCase()===x.name.toLowerCase()||x.id&&f.nick===x.id);
@@ -249,8 +255,9 @@
      card('Visible friend list',tableControls('friends')+'<div id="ks-live-friends"></div>'+input('watch-name','Exact visible friend name',watchFriend?.name||'')+
        btn('watch-friend','Watch for native Spectate (60 seconds)')+' '+btn('watch-cancel','Cancel')+
        '<p class="ks-hint">Keep this panel open. The game must offer Spectate for this friend.</p>')+
-     card('Visible profile details','<p class="ks-hint">'+escape(JSON.stringify(deepSnapshot().profile||{}).slice(0,700))+'</p>')+
-     card('Saved annotations',cfg.friends.length?cfg.friends.map((f,i)=>'<div class="ks-row"><div><strong>'+escape((f.favorite?'★ ':'')+f.nick+' '+(f.tag||''))+'</strong><div class="ks-desc">'+escape(f.note)+'</div></div>'+btn('friend-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved player notes.</p>')+notice;
+     card('Visible profile details','<div id="ks-live-profile"></div>')+
+     card('Saved annotations',cfg.friends.length?cfg.friends.map((f,i)=>
+       ((onlyFav&&!f.favorite)||!([f.nick,f.tag,f.note].join(' ').toLocaleLowerCase().includes(query.toLocaleLowerCase())))?'':'<div class="ks-row"><div><strong>'+escape((f.favorite?'★ ':'')+f.nick+' '+(f.tag||''))+'</strong><div class="ks-desc">'+escape(f.note)+'</div></div>'+btn('friend-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved player notes.</p>')+notice;
    if(tab==='Inventory & Market')return '<h2 class="ks-title">Inventory / Market</h2><p class="ks-sub">Personal item favorites, notes and manually entered estimates. No trades, purchases or prices are fabricated.</p>'+
      card('Add item to your list',input('item-name','Item / skin name')+input('item-note','Personal note')+
        input('item-price','Estimated price (manual only)',0,'number')+
