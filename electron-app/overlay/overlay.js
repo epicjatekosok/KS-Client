@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.22 – Electron unified game overlay. */
+/* KS Client Beta 1.0.23 – Electron unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.22';
+  const CLIENT_VERSION='1.0.23';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -154,10 +154,9 @@
     'Eye Comfort': ['eyeEnabled','eyePreset','eyeBrightness','eyeContrast','eyeSaturation','eyeWarmth','eyeSoftness','comfortStillMenus','comfortReading','breakReminderMinutes'],
     Crosshair: [...crosshairFields,'previewBackground','customCrosshairPresets'],
     Appearance: ['themePreset','customAccent','customBackground','customPanel','customText','customMuted','themeSurface','themeGlow','themeRadius','themePattern','themeDensity','fontFamily','fontSize','uiAnimations'],
-    Interface: ['showHUD','showBadge','reduceMotion','minimalHUD'],
+    Interface: ['language','showHUD','showBadge','reduceMotion','minimalHUD'],
     Resources: ['menuImageEnabled','menuSelector','uiImageSelector','menuSoundEnabled'],
     'CSS Editor': ['gameThemeEnabled','gameFontEnabled','menuSelector','uiImageSelector','minimalSelectors','customCSSEnabled','customCSS'],
-    Sharing: ['language'],
     Diagnostics: []
   });
   function resetCurrentSection() {
@@ -1214,7 +1213,8 @@
   // preference values and game data are deliberately not translated.
   const languageNames = {
     en:'English',hu:'Magyar',de:'Deutsch',fr:'Français',es:'Español',
-    pt:'Português',it:'Italiano',ru:'Русский',zh:'简体中文',ja:'日本語'
+    pt:'Português',it:'Italiano',ru:'Русский',zh:'简体中文',ja:'日本語',
+    hi:'हिन्दी',bn:'বাংলা',id:'Bahasa Indonesia',ko:'한국어',tr:'Türkçe'
   };
   let browserPrefs = { gpu:'enabled', angle:'default', devTools:false, contextMenu:false, uncapFps:false };
   let browserActive = { ...browserPrefs };
@@ -1657,7 +1657,7 @@
     'The Chromium engine chooses automatically.':'A Chromium motor automatikusan választ.',
     'Enable the ANGLE D3D11 graphics path.':'Az ANGLE D3D11 grafikus útvonalának engedélyezése.',
     'Try the ANGLE OpenGL graphics path; it may fail or be slower.':'Az ANGLE OpenGL útvonalának kipróbálása; hibát vagy lassulást okozhat.',
-    'Changes are stored per Windows user. Restart is required only for GPU/ANGLE.':'A beállítások Windows-felhasználónként tárolódnak. Csak a GPU/ANGLE módosításokhoz kell újraindítás.',
+    'Changes are stored per Windows user. GPU, ANGLE and Unlimited FPS changes can require a restart.':'A beállítások Windows-felhasználónként tárolódnak. Csak a GPU/ANGLE módosításokhoz kell újraindítás.',
   });
 
   Object.assign(hu, {
@@ -1731,7 +1731,7 @@
     'Experimental Unlimited FPS (Chromium)': 'Kísérleti korlátlan FPS (Chromium)',
     'Activate Unlimited FPS': 'Korlátlan FPS aktiválása',
     'Enable experimental unlock': 'Kísérleti feloldás engedélyezése',
-    'Requests Chromium FPS unlocking and removes the KS JavaScript callback cap. Restart required; actual Kirka.io FPS is not guaranteed above monitor Hz.': 'Kéri a Chromium FPS-feloldását és megszünteti a KS JavaScript-korlátját. Újraindítás kell; a Kirka.io tényleges FPS-értéke nem garantált a monitor Hz-e fölött.',
+    'Requests Chromium FPS unlocking and removes the KS JavaScript callback cap. ${unlimitedRestartNote}': 'Kéri a Chromium FPS-feloldását és megszünteti a KS JavaScript-korlátját. Újraindítás kell; a Kirka.io tényleges FPS-értéke nem garantált a monitor Hz-e fölött.',
     'Attempts to remove Chromium rAF/vsync limits. Requires a restart and may cause tearing, higher CPU load or network input delays.': 'Megpróbálja feloldani a Chromium rAF/VSync korlátját. Újraindítást igényel; képtörést, nagyobb CPU-terhelést vagy hálózati/egérkésést okozhat.',
     'Unlimited here only removes the KS JavaScript cap. For above-monitor-Hz FPS enable Experimental Chromium Uncap below and restart.': 'A korlátlan mód itt csak a KS JavaScript-korlátját oldja fel. A monitor Hz-értéke fölötti FPS kipróbálásához engedélyezd lent a kísérleti Chromium-feloldást, majd indítsd újra a klienst.',
     'Experimental uncap is a Electron startup request; the browser may ignore it. Test the Kirka.io in-game FPS counter (Show FPS, typically I).': 'A kísérleti feloldás a Electron-nek küldött indítási kérés; a böngésző figyelmen kívül hagyhatja. Ellenőrizd a Kirka.io saját FPS-mutatójával (Show FPS, általában I).',
@@ -1788,6 +1788,421 @@
     'SETTINGS':'BEÁLLÍTÁSOK',
     'No matching settings. Try another term.':'Nincs találat. Próbálj másik kifejezést.'
   });
+  const unlimitedRestartNote = "If you turn off Unlimited FPS or change the FPS limit, restart KS Client when you enable Unlimited FPS again. The game will restart with the client.";
+  Object.assign(extraLocales.hi ??= {}, {
+    "Settings": "सेटिंग्स",
+    "SETTINGS": "सेटिंग्स",
+    "KS Client Settings": "KS Client सेटिंग्स",
+    "Open KS Client settings": "KS Client सेटिंग्स खोलें",
+    "Close Settings": "सेटिंग्स बंद करें",
+    "Customize your game experience": "अपने गेम का अनुभव बदलें",
+    "Graphics": "ग्राफ़िक्स",
+    "Display": "डिस्प्ले",
+    "Gameplay": "गेमप्ले",
+    "Workshop": "वर्कशॉप",
+    "Controls": "नियंत्रण",
+    "Interface": "इंटरफ़ेस",
+    "Advanced": "उन्नत",
+    "Performance": "प्रदर्शन",
+    "Frame Stability": "फ़्रेम स्थिरता",
+    "Browser Graphics": "ब्राउज़र ग्राफ़िक्स",
+    "Browser GPU Info": "ब्राउज़र GPU जानकारी",
+    "Eye Comfort": "आँखों की सुविधा",
+    "Crosshair": "निशाना",
+    "Game Integration": "गेम एकीकरण",
+    "Lobby": "लॉबी",
+    "Friends & Profiles": "दोस्त और प्रोफ़ाइल",
+    "Weapon Studio": "हथियार स्टूडियो",
+    "Resource Swapper": "संसाधन बदलें",
+    "Plugins": "प्लगइन",
+    "Inventory & Market": "इन्वेंट्री और बाज़ार",
+    "Browser Controls": "ब्राउज़र नियंत्रण",
+    "Appearance": "दिखावट",
+    "Resources": "संसाधन",
+    "CSS Editor": "CSS संपादक",
+    "General": "सामान्य",
+    "Updates": "अपडेट",
+    "Sharing": "साझाकरण",
+    "Diagnostics": "निदान",
+    "Display language": "इंटरफ़ेस की भाषा",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "KS Client की भाषा चुनें। कुछ उन्नत विकल्प अंग्रेज़ी में हैं।",
+    "Client HUD & Style": "क्लाइंट HUD और शैली",
+    "Choose which KS Client widgets appear over the game.": "गेम पर दिखने वाले KS Client विजेट चुनें।",
+    "Client HUD enabled": "क्लाइंट HUD चालू",
+    "Show KS Client badge": "KS Client बैज दिखाएँ",
+    "Reduce client animations": "क्लाइंट ऐनिमेशन कम करें",
+    "Minimal HUD": "न्यूनतम HUD",
+    "Search settings": "सेटिंग्स खोजें",
+    "No matching settings. Try another term.": "कोई सेटिंग नहीं मिली। दूसरा शब्द आज़माएँ।",
+    "Reset to Default": "डिफ़ॉल्ट पर रीसेट करें",
+    "Cancel": "रद्द करें",
+    "Apply": "लागू करें",
+    "Changes preview instantly": "बदलाव तुरंत दिखाई देते हैं",
+    "FPS Limiter": "FPS सीमा",
+    "Unlimited / Native": "असीमित / मूल",
+    "Activate Unlimited FPS": "असीमित FPS सक्रिय करें",
+    "Enable experimental unlock": "प्रयोगात्मक अनलॉक चालू करें",
+    "Experimental Unlimited FPS (Chromium)": "प्रयोगात्मक असीमित FPS (Chromium)",
+    "Restart KS Client now": "KS Client अभी पुनः शुरू करें",
+    "Restart and apply changes?": "पुनः शुरू करके बदलाव लागू करें?",
+    "Show FPS counter": "FPS काउंटर दिखाएँ",
+    "Low": "कम",
+    "Medium": "मध्यम",
+    "High": "उच्च",
+    "Custom Crosshair": "कस्टम निशाना",
+    "Enable custom crosshair": "कस्टम निशाना चालू करें",
+    "Check for updates": "अपडेट जाँचें",
+    "Install update & restart": "अपडेट लगाएँ और पुनः शुरू करें",
+    "Automatic updates": "स्वचालित अपडेट",
+    "Current version": "वर्तमान संस्करण",
+    "Settings Backup": "सेटिंग्स बैकअप",
+    "Settings import/export": "सेटिंग्स आयात/निर्यात",
+    "Export settings": "सेटिंग्स निर्यात करें",
+    "Import settings": "सेटिंग्स आयात करें",
+    [unlimitedRestartNote]: "असीमित FPS बंद करने या सीमा बदलने के बाद उसे फिर चालू करें तो KS Client पुनः शुरू करें। गेम भी पुनः शुरू होगा।",
+  });
+  Object.assign(extraLocales.bn ??= {}, {
+    "Settings": "সেটিংস",
+    "SETTINGS": "সেটিংস",
+    "KS Client Settings": "KS Client সেটিংস",
+    "Open KS Client settings": "KS Client সেটিংস খুলুন",
+    "Close Settings": "সেটিংস বন্ধ করুন",
+    "Customize your game experience": "আপনার গেমের অভিজ্ঞতা সাজান",
+    "Graphics": "গ্রাফিক্স",
+    "Display": "ডিসপ্লে",
+    "Gameplay": "গেমপ্লে",
+    "Workshop": "ওয়ার্কশপ",
+    "Controls": "নিয়ন্ত্রণ",
+    "Interface": "ইন্টারফেস",
+    "Advanced": "উন্নত",
+    "Performance": "পারফরম্যান্স",
+    "Frame Stability": "ফ্রেমের স্থিতিশীলতা",
+    "Browser Graphics": "ব্রাউজারের গ্রাফিক্স",
+    "Browser GPU Info": "ব্রাউজারের GPU তথ্য",
+    "Eye Comfort": "চোখের আরাম",
+    "Crosshair": "ক্রসহেয়ার",
+    "Game Integration": "গেম ইন্টিগ্রেশন",
+    "Lobby": "লবি",
+    "Friends & Profiles": "বন্ধু ও প্রোফাইল",
+    "Weapon Studio": "অস্ত্র স্টুডিও",
+    "Resource Swapper": "রিসোর্স বদল",
+    "Plugins": "প্লাগইন",
+    "Inventory & Market": "ইনভেন্টরি ও বাজার",
+    "Browser Controls": "ব্রাউজার নিয়ন্ত্রণ",
+    "Appearance": "চেহারা",
+    "Resources": "রিসোর্স",
+    "CSS Editor": "CSS সম্পাদক",
+    "General": "সাধারণ",
+    "Updates": "আপডেট",
+    "Sharing": "শেয়ারিং",
+    "Diagnostics": "ডায়াগনস্টিকস",
+    "Display language": "ইন্টারফেসের ভাষা",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "KS Client-এর ভাষা বেছে নিন। কিছু উন্নত লেখা ইংরেজিতে থাকবে।",
+    "Client HUD & Style": "ক্লায়েন্ট HUD ও স্টাইল",
+    "Choose which KS Client widgets appear over the game.": "গেমের উপরে কোন KS Client উইজেট দেখাবে তা বেছে নিন।",
+    "Client HUD enabled": "ক্লায়েন্ট HUD চালু",
+    "Show KS Client badge": "KS Client ব্যাজ দেখান",
+    "Reduce client animations": "ক্লায়েন্টের অ্যানিমেশন কমান",
+    "Minimal HUD": "ন্যূনতম HUD",
+    "Search settings": "সেটিংস অনুসন্ধান করুন",
+    "No matching settings. Try another term.": "কোনো সেটিংস মেলেনি। অন্য শব্দ দিয়ে চেষ্টা করুন।",
+    "Reset to Default": "ডিফল্টে ফিরিয়ে নিন",
+    "Cancel": "বাতিল",
+    "Apply": "প্রয়োগ করুন",
+    "Changes preview instantly": "পরিবর্তন সঙ্গে সঙ্গে দেখা যায়",
+    "FPS Limiter": "FPS সীমা",
+    "Unlimited / Native": "সীমাহীন / নেটিভ",
+    "Activate Unlimited FPS": "সীমাহীন FPS চালু করুন",
+    "Enable experimental unlock": "পরীক্ষামূলক আনলক চালু করুন",
+    "Experimental Unlimited FPS (Chromium)": "পরীক্ষামূলক সীমাহীন FPS (Chromium)",
+    "Restart KS Client now": "এখনই KS Client পুনরায় চালু করুন",
+    "Restart and apply changes?": "পুনরায় চালু করে পরিবর্তন প্রয়োগ করবেন?",
+    "Show FPS counter": "FPS কাউন্টার দেখান",
+    "Low": "নিম্ন",
+    "Medium": "মাঝারি",
+    "High": "উচ্চ",
+    "Custom Crosshair": "কাস্টম ক্রসহেয়ার",
+    "Enable custom crosshair": "কাস্টম ক্রসহেয়ার চালু করুন",
+    "Check for updates": "আপডেট খুঁজুন",
+    "Install update & restart": "আপডেট ইনস্টল করে আবার চালু করুন",
+    "Automatic updates": "স্বয়ংক্রিয় আপডেট",
+    "Current version": "বর্তমান সংস্করণ",
+    "Settings Backup": "সেটিংস ব্যাকআপ",
+    "Settings import/export": "সেটিংস আমদানি/রপ্তানি",
+    "Export settings": "সেটিংস রপ্তানি করুন",
+    "Import settings": "সেটিংস আমদানি করুন",
+    [unlimitedRestartNote]: "সীমাহীন FPS বন্ধ করার বা সীমা পরিবর্তন করার পর আবার চালু করলে KS Client পুনরায় চালু করুন। গেমটিও পুনরায় চালু হবে।",
+  });
+  Object.assign(extraLocales.id ??= {}, {
+    "Settings": "Pengaturan",
+    "SETTINGS": "PENGATURAN",
+    "KS Client Settings": "Pengaturan KS Client",
+    "Open KS Client settings": "Buka pengaturan KS Client",
+    "Close Settings": "Tutup pengaturan",
+    "Customize your game experience": "Sesuaikan pengalaman bermain",
+    "Graphics": "Grafis",
+    "Display": "Tampilan",
+    "Gameplay": "Permainan",
+    "Workshop": "Lokakarya",
+    "Controls": "Kontrol",
+    "Interface": "Antarmuka",
+    "Advanced": "Lanjutan",
+    "Performance": "Performa",
+    "Frame Stability": "Stabilitas frame",
+    "Browser Graphics": "Grafis browser",
+    "Browser GPU Info": "Info GPU browser",
+    "Eye Comfort": "Kenyamanan mata",
+    "Crosshair": "Bidikan",
+    "Game Integration": "Integrasi game",
+    "Lobby": "Lobi",
+    "Friends & Profiles": "Teman dan profil",
+    "Weapon Studio": "Studio senjata",
+    "Resource Swapper": "Pengganti aset",
+    "Plugins": "Plugin",
+    "Inventory & Market": "Inventaris dan pasar",
+    "Browser Controls": "Kontrol browser",
+    "Appearance": "Penampilan",
+    "Resources": "Aset",
+    "CSS Editor": "Editor CSS",
+    "General": "Umum",
+    "Updates": "Pembaruan",
+    "Sharing": "Berbagi",
+    "Diagnostics": "Diagnostik",
+    "Display language": "Bahasa antarmuka",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "Pilih bahasa KS Client. Sebagian teks lanjutan tetap dalam bahasa Inggris.",
+    "Client HUD & Style": "HUD dan gaya klien",
+    "Choose which KS Client widgets appear over the game.": "Pilih widget KS Client yang tampil di atas game.",
+    "Client HUD enabled": "Aktifkan HUD klien",
+    "Show KS Client badge": "Tampilkan lencana KS Client",
+    "Reduce client animations": "Kurangi animasi klien",
+    "Minimal HUD": "HUD minimal",
+    "Search settings": "Cari pengaturan",
+    "No matching settings. Try another term.": "Tidak ada pengaturan yang cocok. Coba kata lain.",
+    "Reset to Default": "Atur ulang ke default",
+    "Cancel": "Batal",
+    "Apply": "Terapkan",
+    "Changes preview instantly": "Pratinjau perubahan langsung",
+    "FPS Limiter": "Pembatas FPS",
+    "Unlimited / Native": "Tanpa batas / bawaan",
+    "Activate Unlimited FPS": "Aktifkan FPS tanpa batas",
+    "Enable experimental unlock": "Aktifkan pembuka batas eksperimental",
+    "Experimental Unlimited FPS (Chromium)": "FPS tanpa batas eksperimental (Chromium)",
+    "Restart KS Client now": "Mulai ulang KS Client sekarang",
+    "Restart and apply changes?": "Mulai ulang dan terapkan perubahan?",
+    "Show FPS counter": "Tampilkan penghitung FPS",
+    "Low": "Rendah",
+    "Medium": "Sedang",
+    "High": "Tinggi",
+    "Custom Crosshair": "Bidikan kustom",
+    "Enable custom crosshair": "Aktifkan bidikan kustom",
+    "Check for updates": "Periksa pembaruan",
+    "Install update & restart": "Instal pembaruan dan mulai ulang",
+    "Automatic updates": "Pembaruan otomatis",
+    "Current version": "Versi saat ini",
+    "Settings Backup": "Cadangan pengaturan",
+    "Settings import/export": "Impor atau ekspor pengaturan",
+    "Export settings": "Ekspor pengaturan",
+    "Import settings": "Impor pengaturan",
+    [unlimitedRestartNote]: "Jika FPS tanpa batas diaktifkan kembali setelah dinonaktifkan atau setelah batas diubah, mulai ulang KS Client. Game juga akan dimulai ulang.",
+  });
+  Object.assign(extraLocales.ko ??= {}, {
+    "Settings": "설정",
+    "SETTINGS": "설정",
+    "KS Client Settings": "KS Client 설정",
+    "Open KS Client settings": "KS Client 설정 열기",
+    "Close Settings": "설정 닫기",
+    "Customize your game experience": "게임 환경을 맞춤 설정하세요",
+    "Graphics": "그래픽",
+    "Display": "디스플레이",
+    "Gameplay": "게임 플레이",
+    "Workshop": "워크숍",
+    "Controls": "조작",
+    "Interface": "인터페이스",
+    "Advanced": "고급",
+    "Performance": "성능",
+    "Frame Stability": "프레임 안정성",
+    "Browser Graphics": "브라우저 그래픽",
+    "Browser GPU Info": "브라우저 GPU 정보",
+    "Eye Comfort": "눈 편안함",
+    "Crosshair": "조준점",
+    "Game Integration": "게임 연동",
+    "Lobby": "로비",
+    "Friends & Profiles": "친구 및 프로필",
+    "Weapon Studio": "무기 스튜디오",
+    "Resource Swapper": "리소스 교체",
+    "Plugins": "플러그인",
+    "Inventory & Market": "보관함 및 시장",
+    "Browser Controls": "브라우저 조작",
+    "Appearance": "외관",
+    "Resources": "리소스",
+    "CSS Editor": "CSS 편집기",
+    "General": "일반",
+    "Updates": "업데이트",
+    "Sharing": "공유",
+    "Diagnostics": "진단",
+    "Display language": "표시 언어",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "KS Client 언어를 선택하세요. 일부 고급 설정은 영어로 표시됩니다.",
+    "Client HUD & Style": "클라이언트 HUD 및 스타일",
+    "Choose which KS Client widgets appear over the game.": "게임 화면에 표시할 KS Client 위젯을 선택하세요.",
+    "Client HUD enabled": "클라이언트 HUD 사용",
+    "Show KS Client badge": "KS Client 배지 표시",
+    "Reduce client animations": "클라이언트 애니메이션 줄이기",
+    "Minimal HUD": "간소화된 HUD",
+    "Search settings": "설정 검색",
+    "No matching settings. Try another term.": "일치하는 설정이 없습니다. 다른 검색어를 입력하세요.",
+    "Reset to Default": "기본값으로 재설정",
+    "Cancel": "취소",
+    "Apply": "적용",
+    "Changes preview instantly": "변경 사항 즉시 미리 보기",
+    "FPS Limiter": "FPS 제한",
+    "Unlimited / Native": "무제한 / 기본값",
+    "Activate Unlimited FPS": "무제한 FPS 활성화",
+    "Enable experimental unlock": "실험적 제한 해제 사용",
+    "Experimental Unlimited FPS (Chromium)": "실험적 무제한 FPS (Chromium)",
+    "Restart KS Client now": "지금 KS Client 다시 시작",
+    "Restart and apply changes?": "다시 시작하고 변경 사항을 적용할까요?",
+    "Show FPS counter": "FPS 표시",
+    "Low": "낮음",
+    "Medium": "중간",
+    "High": "높음",
+    "Custom Crosshair": "사용자 지정 조준점",
+    "Enable custom crosshair": "사용자 지정 조준점 사용",
+    "Check for updates": "업데이트 확인",
+    "Install update & restart": "업데이트 설치 후 다시 시작",
+    "Automatic updates": "자동 업데이트",
+    "Current version": "현재 버전",
+    "Settings Backup": "설정 백업",
+    "Settings import/export": "설정 가져오기/내보내기",
+    "Export settings": "설정 내보내기",
+    "Import settings": "설정 가져오기",
+    [unlimitedRestartNote]: "무제한 FPS를 끄거나 제한을 변경한 뒤 다시 켜면 KS Client를 재시작하세요. 게임도 함께 재시작됩니다.",
+  });
+  Object.assign(extraLocales.tr ??= {}, {
+    "Settings": "Ayarlar",
+    "SETTINGS": "AYARLAR",
+    "KS Client Settings": "KS Client Ayarları",
+    "Open KS Client settings": "KS Client ayarlarını aç",
+    "Close Settings": "Ayarları kapat",
+    "Customize your game experience": "Oyun deneyimini özelleştir",
+    "Graphics": "Grafik",
+    "Display": "Ekran",
+    "Gameplay": "Oynanış",
+    "Workshop": "Atölye",
+    "Controls": "Kontroller",
+    "Interface": "Arayüz",
+    "Advanced": "Gelişmiş",
+    "Performance": "Performans",
+    "Frame Stability": "Kare kararlılığı",
+    "Browser Graphics": "Tarayıcı grafikleri",
+    "Browser GPU Info": "Tarayıcı GPU bilgisi",
+    "Eye Comfort": "Göz konforu",
+    "Crosshair": "Nişangâh",
+    "Game Integration": "Oyun entegrasyonu",
+    "Lobby": "Lobi",
+    "Friends & Profiles": "Arkadaşlar ve profiller",
+    "Weapon Studio": "Silah stüdyosu",
+    "Resource Swapper": "Kaynak değiştirici",
+    "Plugins": "Eklentiler",
+    "Inventory & Market": "Envanter ve pazar",
+    "Browser Controls": "Tarayıcı kontrolleri",
+    "Appearance": "Görünüm",
+    "Resources": "Kaynaklar",
+    "CSS Editor": "CSS düzenleyici",
+    "General": "Genel",
+    "Updates": "Güncellemeler",
+    "Sharing": "Paylaşım",
+    "Diagnostics": "Tanılama",
+    "Display language": "Arayüz dili",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "KS Client dilini seçin. Bazı gelişmiş açıklamalar İngilizce kalır.",
+    "Client HUD & Style": "İstemci HUD'u ve stil",
+    "Choose which KS Client widgets appear over the game.": "Oyunun üzerinde görünecek KS Client araçlarını seçin.",
+    "Client HUD enabled": "İstemci HUD'u etkin",
+    "Show KS Client badge": "KS Client rozetini göster",
+    "Reduce client animations": "İstemci animasyonlarını azalt",
+    "Minimal HUD": "Sade HUD",
+    "Search settings": "Ayarlarda ara",
+    "No matching settings. Try another term.": "Eşleşen ayar yok. Başka bir sözcük deneyin.",
+    "Reset to Default": "Varsayılana sıfırla",
+    "Cancel": "İptal",
+    "Apply": "Uygula",
+    "Changes preview instantly": "Değişiklikleri anında önizle",
+    "FPS Limiter": "FPS sınırlayıcı",
+    "Unlimited / Native": "Sınırsız / Yerel",
+    "Activate Unlimited FPS": "Sınırsız FPS'yi etkinleştir",
+    "Enable experimental unlock": "Deneysel kilit açmayı etkinleştir",
+    "Experimental Unlimited FPS (Chromium)": "Deneysel sınırsız FPS (Chromium)",
+    "Restart KS Client now": "KS Client'ı şimdi yeniden başlat",
+    "Restart and apply changes?": "Yeniden başlatıp değişiklikler uygulansın mı?",
+    "Show FPS counter": "FPS sayacını göster",
+    "Low": "Düşük",
+    "Medium": "Orta",
+    "High": "Yüksek",
+    "Custom Crosshair": "Özel nişangâh",
+    "Enable custom crosshair": "Özel nişangâhı etkinleştir",
+    "Check for updates": "Güncellemeleri denetle",
+    "Install update & restart": "Güncellemeyi yükle ve yeniden başlat",
+    "Automatic updates": "Otomatik güncellemeler",
+    "Current version": "Geçerli sürüm",
+    "Settings Backup": "Ayar yedeği",
+    "Settings import/export": "Ayarları içe/dışa aktar",
+    "Export settings": "Ayarları dışa aktar",
+    "Import settings": "Ayarları içe aktar",
+    [unlimitedRestartNote]: "Sınırsız FPS'yi kapattıktan veya sınırı değiştirdikten sonra yeniden açarsan KS Client'ı yeniden başlat. Oyun da yeniden başlar.",
+  });
+  Object.assign(hu, {
+    "Display language": "Felület nyelve",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "Válaszd ki a KS Client nyelvét. Néhány speciális szöveg angolul marad.",
+    "Settings Backup": "Beállításmentés",
+    [unlimitedRestartNote]: "A korlátlan FPS kikapcsolása vagy a limit módosítása után indítsd újra a KS Clientet, amikor visszakapcsolod a korlátlan módot. A játék a klienssel együtt újraindul.",
+  });
+  Object.assign(extraLocales.de ??= {}, {
+    "Display language": "Anzeigesprache",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "Wähle die Sprache des KS Client. Einige erweiterte Texte bleiben auf Englisch.",
+    "Settings Backup": "Einstellungssicherung",
+    [unlimitedRestartNote]: "Wenn du Unlimited FPS wieder aktivierst, nachdem du es deaktiviert oder das Limit geändert hast, starte KS Client neu. Das Spiel startet dabei ebenfalls neu.",
+  });
+  Object.assign(extraLocales.fr ??= {}, {
+    "Display language": "Langue d’affichage",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "Choisis la langue de KS Client. Certains textes avancés restent en anglais.",
+    "Settings Backup": "Sauvegarde des paramètres",
+    [unlimitedRestartNote]: "Si tu réactives les FPS illimités après les avoir désactivés ou après avoir modifié la limite, redémarre KS Client. Le jeu redémarrera aussi.",
+  });
+  Object.assign(extraLocales.es ??= {}, {
+    "Display language": "Idioma de la interfaz",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "Elige el idioma de KS Client. Algunos textos avanzados siguen en inglés.",
+    "Settings Backup": "Copia de seguridad de ajustes",
+    [unlimitedRestartNote]: "Si vuelves a activar los FPS ilimitados después de desactivarlos o cambiar el límite, reinicia KS Client. El juego también se reiniciará.",
+  });
+  Object.assign(extraLocales.pt ??= {}, {
+    "Display language": "Idioma da interface",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "Escolhe o idioma do KS Client. Alguns textos avançados permanecem em inglês.",
+    "Settings Backup": "Cópia das definições",
+    [unlimitedRestartNote]: "Se voltares a ativar os FPS ilimitados após os desativares ou alterares o limite, reinicia o KS Client. O jogo também será reiniciado.",
+  });
+  Object.assign(extraLocales.it ??= {}, {
+    "Display language": "Lingua di visualizzazione",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "Scegli la lingua di KS Client. Alcuni testi avanzati rimangono in inglese.",
+    "Settings Backup": "Backup delle impostazioni",
+    [unlimitedRestartNote]: "Se riattivi gli FPS illimitati dopo averli disattivati o dopo aver modificato il limite, riavvia KS Client. Anche il gioco verrà riavviato.",
+  });
+  Object.assign(extraLocales.ru ??= {}, {
+    "Display language": "Язык интерфейса",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "Выберите язык KS Client. Некоторые расширенные настройки описаны по-английски.",
+    "Settings Backup": "Резервная копия настроек",
+    [unlimitedRestartNote]: "Если вы снова включаете неограниченный FPS после отключения или изменения лимита, перезапустите KS Client. Игра тоже перезапустится.",
+  });
+  Object.assign(extraLocales.zh ??= {}, {
+    "Display language": "界面语言",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "选择 KS Client 的界面语言。部分高级设置仍以英语显示。",
+    "Settings Backup": "设置备份",
+    [unlimitedRestartNote]: "关闭无限帧率或更改帧率上限后，若重新启用无限帧率，请重启 KS Client。游戏会一同重启。",
+  });
+  Object.assign(extraLocales.ja ??= {}, {
+    "Display language": "表示言語",
+    "Choose the KS Client interface language. Some advanced text remains in English.": "KS Client の言語を選択します。一部の詳細設定は英語で表示されます。",
+    "Settings Backup": "設定のバックアップ",
+    [unlimitedRestartNote]: "無制限 FPS をオフにしたり上限を変更したりした後で再び有効にする場合は、KS Client を再起動してください。ゲームも再起動します。",
+  });
   function L(input) {
     const str=String(input ?? '');
     if(state.language==='en')return str;
@@ -1829,6 +2244,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.23',en:['Moved Display language to Interface and added Hindi, Bengali, Indonesian, Korean and Turkish.','Added restart guidance for re-enabling Unlimited FPS.'],hu:['Új helyen a nyelvválasztó. Hindi, bengáli, indonéz, koreai és török felület.','A korlátlan FPS-nél újraindítási tájékoztató jelenik meg.']},
     {v:'Beta 1.0.22',en:['Three graphics profiles, fitted render targets and automatic native crosshair suppression.'],hu:['Három grafikai profil, választható renderfelbontás és a Kirka-célkereszt automatikus elrejtése.']},
     {v:'Beta 1.0.21',en:['Electron is now the installed engine. Legacy engine choices open Electron. Added game-canvas edge smoothing and retained the engine selector.'],hu:['Az Electron az egyetlen telepített motor. A régi motorválasztás is Electronnal indul. Új játékvászon-élsimítás és megőrzött motorválasztó.']},
     {v:'Beta 1.0.20',en:['Display-aligned frame pacing, measured callback averages per limit and a match-only crosshair centered on the game canvas.'],hu:['Kijelzőhöz igazított időzítés, limitenként újramért átlag és a játékvászon közepére igazított, csak meccsen látható célkereszt.']},
@@ -1895,6 +2311,7 @@
   function updateShellLanguage() {
     // Only the gear icon is visible; its localized accessible name remains below.
     $('ks-gear').setAttribute('aria-label',L('Open KS Client settings'));
+    $('ks-panel').lang=Object.hasOwn(languageNames,state.language)?state.language:'en';
     $('ks-panel').setAttribute('aria-label',L('KS Client Settings'));
     $('ks-close').setAttribute('aria-label',L('Close Settings'));
     $('ks-brand-main').textContent=L('Settings');
@@ -1981,10 +2398,8 @@
           `</div>` +
           `<p class="ks-hint">This build uses the current KS Client build label. Game files and player data still come from Kirka.io.</p>` + historyHTML();
       case 'Sharing':
-        return title('Settings Backup & Language','Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.') +
+        return title('Settings Backup','Save and share your own KS Client preferences. JSON only; never import settings from an unknown person.') +
           `<div class="ks-card">` +
-          selectRow('Language','Choose your Settings language. Less common advanced technical labels may remain in English. The Windows Setup and Uninstaller remain English.','language',
-            Object.entries(languageNames).map(([value,label])=>({value,label}))) +
           `<div class="ks-row"><div><div class="ks-label">Settings import/export</div><div class="ks-desc">Export a JSON backup, including crosshair presets and visual settings. Uploaded binary assets are excluded.</div></div><div class="ks-stack"><button class="ks-btn primary" data-action="export-settings">Export settings</button><button class="ks-btn" data-action="import-settings">Import settings</button></div></div>` +
           `<div class="ks-row"><div><div class="ks-label">Portable KS profile</div><div class="ks-desc">Transfer Workshop entries, scripts, settings and uploaded images, fonts and audio between engines. Each engine keeps its own game login.</div></div><div class="ks-stack"><button class="ks-btn" data-action="export-profile">Export profile</button><button class="ks-btn" data-action="import-profile">Import profile</button></div></div><input id="ks-profile-file" type="file" accept=".json" hidden>` +
           `<input id="ks-import-file" type="file" accept=".json,application/json" hidden>` +
@@ -2064,8 +2479,8 @@
             ...([0,60,120,144,165,180,200,240,300,360].includes(state.fpsLimit)?[]:[{value:state.fpsLimit,label:state.fpsLimit+' FPS'}])
           ]) +
           `<label class="ks-row">Custom callback limit (1–1000, 0 = Unlimited)<input class="ks-input" type="number" min="0" max="1000" step="1" data-custom-cap value="${Number(state.fpsLimit)||0}"></label>` +
-          `<div class="ks-row"><div><div class="ks-label">Activate Unlimited FPS</div><div class="ks-desc">Requests Chromium FPS unlocking and removes the KS JavaScript callback cap. Restart required; actual Kirka.io FPS is not guaranteed above monitor Hz.</div></div><button class="ks-btn primary" data-action="enable-unlimited-fps" ${!browserPrefsLoaded?'disabled':''}>Enable experimental unlock</button></div>` +
-          `<div class="ks-row"><div><div class="ks-label">Experimental Unlimited FPS (Chromium)</div><div class="ks-desc">Attempts to remove Chromium rAF/vsync limits. Requires a restart and may cause tearing, higher CPU load or network input delays.</div></div><input type="checkbox" data-browser="uncapFps" ${browserPrefs.uncapFps?'checked':''} ${!browserPrefsLoaded?'disabled':''}></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Activate Unlimited FPS</div><div class="ks-desc">Requests Chromium FPS unlocking and removes the KS JavaScript callback cap.</div><div class="ks-desc" id="ks-unlimited-restart-note">${unlimitedRestartNote}</div></div><button class="ks-btn primary" data-action="enable-unlimited-fps" ${!browserPrefsLoaded?'disabled':''}>Enable experimental unlock</button></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Experimental Unlimited FPS (Chromium)</div><div class="ks-desc">Uses Chromium startup settings to unlock FPS.</div></div><input type="checkbox" data-browser="uncapFps" ${browserPrefs.uncapFps?'checked':''} ${!browserPrefsLoaded?'disabled':''}></div>` +
           `<div class="ks-row"><div><div class="ks-label">FPS unlock verification</div><div class="ks-desc">Reports native startup requests, NOT measured Kirka.io GPU FPS.</div></div><span class="ks-code" id="ks-fps-native-diag">${esc(fpsDiagnosticText())}</span></div>`+
           `<div class="ks-row"><div class="ks-label">${state.language==='hu'?'Ezen a képernyőn érvényes cél':'Active target on this screen'}</div><span class="ks-code" id="ks-fps-effective">—</span></div>`+
           `<div class="ks-row"><div><div class="ks-label">Observed browser animation rate</div><div class="ks-desc">JavaScript requestAnimationFrame callbacks; not necessarily the game's render rate.</div></div><span class="ks-code" id="ks-fps-callback-diag">Measuring…</span></div>`+
@@ -2244,6 +2659,8 @@
       case 'Interface':
         return title('Client HUD & Style', 'Choose which KS Client widgets appear over the game.') +
           `<div class="ks-card">` +
+          selectRow('Display language','Choose the KS Client interface language. Some advanced text remains in English.','language',
+            Object.entries(languageNames).map(([value,label])=>({value,label}))) +
           toggleRow('Client HUD enabled', 'Master switch for FPS counter, badge, crosshair and quick settings button', 'showHUD') +
           toggleRow('Show KS Client badge', 'Small KS Client label in the lower-left corner', 'showBadge') +
           toggleRow('Reduce client animations', 'Disable blur and decorative transitions in the KS interface', 'reduceMotion') +
@@ -2261,12 +2678,12 @@
           browserSelect('ANGLE graphics backend','ANGLE changes and GPU startup flags require restarting KS Client.','angle',[
             {value:'default',label:'Automatic / Default'},{value:'d3d11',label:'D3D11 (DirectX 11)'},{value:'opengl',label:'OpenGL (experimental)'}])+
           `<p class="ks-hint">chrome://flags/#use-angle — applies only when Electron starts.</p>`+
-          browserCheckbox('Experimental Unlimited FPS (Chromium)','Attempts to remove Chromium rAF/vsync limits. Requires a restart and may cause tearing, higher CPU load or network input delays.','uncapFps')+
+          browserCheckbox('Experimental Unlimited FPS (Chromium)',unlimitedRestartNote,'uncapFps')+
           `</div></div>`+
           browserStatusBox()+
           `<div class="ks-stack" style="flex-wrap:wrap"><button class="ks-btn primary" data-action="browser-restart" ${!browserPrefsLoaded?'disabled':''}>Restart KS Client now</button></div>`+
           browserResetButton('graphics')+
-          `<p class="ks-hint">Changes are stored per Windows user. Restart is required only for GPU/ANGLE.</p>`;
+          `<p class="ks-hint">Changes are stored per Windows user. GPU, ANGLE and Unlimited FPS changes can require a restart.</p>`;
       case 'Browser Controls':
         return title('Electron Browser Controls','These settings use the native Electron Settings API. Some changes become fully visible after reloading the page.')+
           `<div class="ks-settings-columns"><div class="ks-card">`+
@@ -2547,7 +2964,7 @@
     'Eye Comfort':'brightness contrast warmth saturation softness blue light break reminders szemkimelo szemkomfort fenyero szinhomerseklet',
     Crosshair:'crosshair dot color shape outline shadow thickness gap celkereszt szin korvonal arnyek',
     Appearance:'theme accent dark colors background text font megjelenes tema betutipus',
-    Interface:'menu size ui scale motion animations interface felulet menu nagyitas animacio',
+    Interface:'display language nyelv menu size ui scale motion animations interface felulet menu nagyitas animacio',
     Resources:'custom image font sound backgrounds audio eroforras kep hang',
     'CSS Editor':'custom css styles selectors css szerkeszto stilus',
     General:'client engine cef electron restart settings language altalanos nyelv ujrainditas',

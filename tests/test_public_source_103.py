@@ -8,8 +8,8 @@ assert 'git ls-files' in script
 assert 'Get-FileHash' in script
 assert 'Potential secret in tracked file' in script
 assert 'Refusing to publish a potentially confidential source file' in script
-assert "KS-Client-beta-1.0.22-Source.zip" in release
-assert "KS-Client-beta-1.0.22-Source.sha256.txt" in release
+assert "KS-Client-beta-1.0.23-Source.zip" in release
+assert "KS-Client-beta-1.0.23-Source.sha256.txt" in release
 assert 'Package-Source.ps1' in release
 assert 'source-snapshot' in release
 assert '$publicPaths=' in release
