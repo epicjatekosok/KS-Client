@@ -7,7 +7,7 @@ app.commandLine.appendSwitch('use-angle','swiftshader');
 app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 app.whenReady().then(async()=>{
-  const win=new BrowserWindow({useContentSize:true,width:960,height:540,show:false,webPreferences:{backgroundThrottling:false}});
+  const win=new BrowserWindow({useContentSize:true,width:960,height:540,show:true,webPreferences:{backgroundThrottling:false}});
   const wc=win.webContents;
   await win.loadURL('data:text/html,<canvas id="game" style="position:fixed;inset:0;width:100%;height:100%"></canvas>');
   await wc.executeJavaScript(`window.gl=game.getContext('webgl',{antialias:false});window.density=1;
@@ -20,13 +20,15 @@ app.whenReady().then(async()=>{
     await wc.executeJavaScript('density='+density+';resize()');
     display.select(preset);
     const height=preset==='native'?540:Number(preset);
+    const samples=[];
     let dimensions;
     for(let i=0;i<90;i++){
       dimensions=await wc.executeJavaScript('[gl.drawingBufferWidth,gl.drawingBufferHeight]');
+      if(i%5===0)samples.push(await wc.executeJavaScript('[innerWidth,innerHeight,density,game.width,game.height,gl.drawingBufferHeight]'));
       if(dimensions[1]===height)break;
       await sleep(100);
     }
-    assert.deepEqual(dimensions,[Math.round(height*16/9),height],preset);
+    assert.deepEqual(dimensions,[Math.round(height*16/9),height],preset+' '+JSON.stringify(samples));
     assert.equal(wc.getZoomFactor(),1);
     sizes.push(preset+' '+dimensions.join('x'));
   }
