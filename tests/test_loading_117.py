@@ -1,6 +1,4 @@
-"""Test the real local loading HTML and a trusted CEF-like canvas click.
-The second check mocks a bridge; it does NOT prove native CefSharp pointer lock.
-"""
+"""Test the Electron loading screen and its packaged logo."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 

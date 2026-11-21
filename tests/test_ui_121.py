@@ -25,7 +25,7 @@ def run(browser,engine):
     }""")
     src=(root/('electron-app/overlay/overlay.js')).read_text(encoding='utf8')
     page.add_script_tag(content=src.replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1))
-    page.evaluate("window.__KS_CLIENT__.setDiagnostics({browserRAM:103,engine:'CEF',sampling:'Partial native sample'})")
+    page.evaluate("window.__KS_CLIENT__.setDiagnostics({browserRAM:103,engine:'Electron',sampling:'Partial native sample'})")
     # A previously throwing .toFixed(undefined) must not prevent either engine's
     # fixed gear from reopening settings after long sessions.
     for _ in range(8):

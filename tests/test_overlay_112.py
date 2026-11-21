@@ -78,7 +78,7 @@ with sync_playwright() as play:
 
   page.locator('.ks-tab[data-group="Gameplay"]').click()
   page.locator('.ks-subtab[data-tab="Game Integration"]').click()
-  assert page.locator('[data-setting="gameAutoMouseCapture"]').count()==1
+  assert page.locator('#ks-pointer-status').is_visible()
   assert page.locator('[data-setting="gameKeystrokes"]').count()==1
   page.locator('[data-setting="gameKeystrokes"]').check()
   assert page.evaluate("window.__KS_GAME_EXTRAS__.getStatus().keystrokes")
