@@ -27,7 +27,10 @@ function createGameResolution(win, getDisplayScale, isGame) {
     clearTimeout(timer);
     const current = ++generation;
     const target = Number(preset);
-    function fit(viewHeight, attempt) {
+    const tried = new Set();
+    function fit(viewHeight) {
+      if(tried.has(viewHeight) || tried.size>=4)return;
+      tried.add(viewHeight);
       if (current !== generation || win.isDestroyed() || !isGame()) return;
       const viewWidth = Math.round(viewHeight * width / height);
       if (viewWidth < 1 || viewWidth > 8192 || viewHeight > 8192) return;
@@ -38,23 +41,30 @@ function createGameResolution(win, getDisplayScale, isGame) {
       contents.executeJavaScript('window.__KS_OUTPUT_PIXEL_RATIO__=' + (scale * displayScale)).catch(()=>{});
       // Games may choose their own internal render density. Calibrate against
       // the actual primary WebGL output after the game's resize handler settles.
+      let resized=false, previousBuffer=0;
       async function measure(retries) {
         if (current !== generation || win.isDestroyed() || !isGame()) return;
         try {
           const sample = await contents.executeJavaScript(
             '({view:innerHeight,buffer:window.__KS_RENDER_OBSERVER__?.getGameBufferHeight?.()||0})');
           if (current !== generation) return;
-          if (sample.view !== viewHeight || sample.buffer < 64) {
-            if (retries) timer = setTimeout(()=>measure(retries-1),600);
-          } else if (attempt < 2 && Math.abs(sample.buffer-target)>1) {
+          if (sample.view === viewHeight && !resized) {
+            resized=true;
+            await contents.executeJavaScript("window.dispatchEvent(new Event('resize'))");
+            if (current !== generation) return;
+          } else if (sample.view === viewHeight && sample.buffer >= 64 && sample.buffer === previousBuffer) {
+            if(Math.abs(sample.buffer-target)<=1)return;
             const corrected = Math.round(viewHeight * target / sample.buffer);
-            if (corrected >= 240 && corrected !== viewHeight) fit(corrected, attempt+1);
+            if (corrected >= 240) fit(corrected);
+            return;
           }
+          previousBuffer=sample.buffer;
+          if(retries)timer=setTimeout(()=>measure(retries-1),400);
         } catch (_) { /* A navigation or window close invalidates this sample. */ }
       }
       timer = setTimeout(()=>measure(8),350);
     }
-    fit(target,0);
+    fit(target);
   }
 
   function select(value) {
