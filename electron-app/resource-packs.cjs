@@ -51,7 +51,8 @@ function createStore(root){
   function rebuild(){
     matches.clear();
     for(const p of packs.filter(p=>p.enabled))for(const n of p.files){
-      if(!matches.has(n))matches.set(n,{id:p.id,file:path.join(root,p.id,...n.split('/'))});
+      if(!matches.has(n))matches.set(n,[]);
+      matches.get(n).push({id:p.id,file:path.join(root,p.id,...n.split('/'))});
     }
   }
   function commit(next){
@@ -63,9 +64,15 @@ function createStore(root){
   }
   rebuild();
   return {
-    list:()=>packs.map(p=>({id:p.id,name:p.name,enabled:p.enabled,total:p.files.length,
-      matched:p.files.filter(n=>observed.has(n)).length,
-      conflicts:p.files.filter(n=>p.enabled&&matches.get(n)?.id!==p.id).length})),
+    list:()=>packs.map(p=>{
+      const details=p.files.map(n=>{
+        const available=fs.existsSync(path.join(root,p.id,...n.split('/')));
+        const shadowed=p.enabled&&matches.get(n)?.[0]?.id!==p.id;
+        return {path:n,available,shadowed,matched:observed.has(p.id+'/'+n)};
+      });
+      return {id:p.id,name:p.name,enabled:p.enabled,total:details.length,
+        matched:details.filter(f=>f.matched).length,conflicts:details.filter(f=>f.shadowed).length,details};
+    }),
     import(doc){
       if(packs.length>=MAX_PACKS)throw Error('Maximum 12 packs');
       const files=validate(doc),id=randomUUID(),dir=path.join(root,id);
@@ -84,10 +91,15 @@ function createStore(root){
     },
     resolve(name){
       const hash=name.replace(/[.-][a-f0-9]{8,64}(\.[a-z0-9]+)$/i,'.ks-anyhash$1');
-      const key=matches.has(name)?name:hash,rec=matches.get(key);
-      if(!rec)return null;
-      if(!fs.existsSync(rec.file)||!fs.realpathSync(rec.file).startsWith(fs.realpathSync(root)+path.sep+rec.id+path.sep))return null;
-      observed.add(key);return rec.file;
+      for(const key of new Set([name,hash])){
+        for(const rec of matches.get(key)||[]){
+          try{
+            if(!fs.realpathSync(rec.file).startsWith(fs.realpathSync(root)+path.sep+rec.id+path.sep))continue;
+            observed.add(rec.id+'/'+key);return rec.file;
+          }catch{/* A removed file yields to the next matching pack. */}
+        }
+      }
+      return null;
     },
     export(id){
       const p=packs.find(p=>p.id===id);if(!p)throw Error('Unknown resource pack');
