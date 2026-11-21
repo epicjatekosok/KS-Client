@@ -132,7 +132,7 @@
      html=friendRows.map((x,i)=>{
        const saved=cfg.friends.find(f=>f.nick.toLowerCase()===x.name.toLowerCase()||x.id&&f.nick===x.id);
        if(!has([x.name,x.id,saved?.tag,saved?.note].join(' '))||onlyFav&&!saved?.favorite)return '';
-       return '<div class="ks-row"><span>'+escape([x.name,x.id,x.state,saved?.tag,saved?.note].filter(Boolean).join(' · '))+'</span>'+
+       return '<div class="ks-row"><span>'+escape([x.name,x.id,x.state?(window.__KS_CLIENT__?.translate?.(x.state==='online'?'Online':'Offline')||x.state):'',saved?.tag,saved?.note].filter(Boolean).join(' · '))+'</span>'+
          (x.profile?btn('profile-'+i,'Open profile'):'')+'</div>';
      }).join('');
    }else{
@@ -153,7 +153,7 @@
      updateHistory(marketRows);
      const filtered=marketRows.filter(x=>has(x.item)&&(!onlyFav||fav(x.item)));
      if(sortPrice)filtered.sort((a,b)=>{
-       const x=priceOf(a),y=priceOf(b);if(!x||!y)return Number(!x)-Number(!y);
+       const x=priceOf(a),y=priceOf(b);if(!x?.unit||!y?.unit)return Number(!x?.unit)-Number(!y?.unit);
        return x.unit.localeCompare(y.unit)||x.amount-y.amount;
      });
      html=filtered.map(x=>'<div class="ks-row"><span>'+escape(x.item)+'</span><strong>'+escape(x.price)+' '+escape(x.unit||'')+'</strong></div>').join('');
@@ -231,7 +231,7 @@
        '<p class="ks-hint">Status: '+escape(JSON.stringify(window.__KS_FREEZE_GUARD__?.getStatus?.()||{}).slice(0,260))+'</p>')+notice;
    if(tab==='Plugins')return '<h2 class="ks-title">Safe JavaScript plugins</h2><p class="ks-sub">'+escape(srcmsg)+'</p>'+
      '<p class="ks-hint">Example: ks.message("Hello!"); ks.tint("hud","#ffaa22"); ks.snapshot().then(s=>ks.message(s.scene)); The snapshot includes only visible game data. Each run requires a click.</p>'+
-     card('Add local plugin',input('plugin-name','Plugin name')+'<textarea id="ks-wk-plugin-code" class="ks-input" rows="7" placeholder="document.body.textContent = &#39;Hello from a sandboxed plugin!&#39;"></textarea>'+input('plugin-version','Plugin version','1.0.0')+input('plugin-settings','Plugin settings (JSON)','{}')+
+     card('Add local plugin',input('plugin-name','Plugin name')+'<textarea id="ks-wk-plugin-code" class="ks-input" rows="7" placeholder="ks.message(&#39;Hello!&#39;)"></textarea>'+input('plugin-version','Plugin version','1.0.0')+input('plugin-settings','Plugin settings (JSON)','{}')+
        '<label class="ks-row">Worker API 2 <input id="ks-wk-plugin-v2" type="checkbox"></label>'+btn('plugin-save','Save code')+
        '<input id="ks-wk-plugin-file" type="file" accept=".json">'+btn('plugin-import','Import plugin'))+
      card('Saved plugins',cfg.plugins.length?cfg.plugins.map((p,i)=>'<div class="ks-row"><div><strong>'+escape(p.name)+'</strong><div class="ks-desc">v'+escape(p.version)+' · API '+p.api+'</div></div>'+(p.enabled?btn('plugin-run-'+i,'Run'):'')+btn('plugin-toggle-'+i,p.enabled?'Disable':'Enable')+btn('plugin-edit-'+i,'Edit')+btn('plugin-export-'+i,'Export')+btn('plugin-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No scripts saved.</p>')+
@@ -364,7 +364,10 @@
    else if(a.startsWith('profile-')){
      const row=friendRows[Number(a.slice(8))];
      const current=window.__KS_DEEP__?.friendsSnapshot?.().entries.find(x=>x.name===row?.name&&x.id===row?.id&&x.profile===row?.profile);
-     if(current?.profile)location.assign(current.profile);
+     if(current?.profile){
+       const link=[...document.querySelectorAll('.friends a[href]')].find(a=>a.getClientRects().length&&a.href===new URL(current.profile,location.origin).href);
+       link?.click();
+     }
    }else if(a==='watch-friend'){
      const name=trim(val('watch-name'),60);
      watchFriend=name?{name,until:Date.now()+60000}:null;
@@ -448,7 +451,7 @@
        cfg.plugins.push({...p,enabled:false});save();return true;
      })();
    }else if(a.startsWith('plugin-toggle-')){
-     const p=cfg.plugins[Number(a.slice(14))];if(p){if(activePlugin===p.name)stopPlugin();p.enabled=!p.enabled;save();}
+     const p=cfg.plugins[Number(a.slice(14))];if(p){mailbox.delete(p.name);if(activePlugin===p.name)stopPlugin();p.enabled=!p.enabled;save();}
    }else if(a.startsWith('plugin-edit-')){
      const p=cfg.plugins[Number(a.slice(12))];if(p){
        for(const [id,text] of Object.entries({name:p.name,code:p.code,version:p.version,settings:JSON.stringify(p.settings)}))ui.getElementById('ks-wk-plugin-'+id).value=text;
@@ -458,7 +461,7 @@
      const p=cfg.plugins[Number(a.slice(14))];if(p)exportPlugin(p);
    }else if(a.startsWith('plugin-run-')){
      const p=cfg.plugins[Number(a.slice(11))];if(p)runPlugin(p,ui);
-   }else if(a.startsWith('plugin-delete-')){const [p]=cfg.plugins.splice(Number(a.slice(14)),1);if(p?.name===activePlugin)stopPlugin();save();}
+   }else if(a.startsWith('plugin-delete-')){const [p]=cfg.plugins.splice(Number(a.slice(14)),1);if(p){mailbox.delete(p.name);if(p.name===activePlugin)stopPlugin();}save();}
    else if(a==='plugin-stop'){stopPlugin();const wrap=ui.getElementById('ks-wk-plugin-preview');if(wrap)wrap.replaceChildren(document.createTextNode('Preview stopped.'));}
    else if(a==='room-capture'){status='Captured '+Object.keys(captureLobby()).length+' editable native lobby controls; save a room to retain them.';}
    else if(a==='room-save'){
@@ -498,7 +501,7 @@
    if(JSON.stringify(settings).length>2000)return null;
    return {name,code,api,version,enabled:x.enabled!==false,settings};
  }
- const pluginLog=[];
+ const pluginLog=[],mailbox=new Map();
  let activePlugin=null,cleanupWorker=null,workerStop=null;
  function recordError(text){pluginLog.push(trim(text,160));if(pluginLog.length>20)pluginLog.shift();}
  function exportPlugin(p){
@@ -513,7 +516,7 @@
      if(e.data?.type==='start'&&!worker){
        const boot='const post=self.postMessage.bind(self),handlers=new Map();let init,request=0;const pending=new Map();'+
          'self.onmessage=e=>{const d=e.data;if(d.type==="ping"){post({type:"alive"});return}if(d.type==="reply"){pending.get(d.id)?.(d.value);pending.delete(d.id);return}if(d.type==="event"){for(const cb of handlers.get(d.name)||[])cb(d.value);return}if(d.type==="init"&&!init){init=true;'+
-         'self.ks=Object.freeze({apiVersion:2,settings:Object.freeze(d.settings),message:text=>post({type:"panel",text:String(text).slice(0,180)}),panel:text=>post({type:"panel",text:String(text).slice(0,180)}),on:(name,fn)=>{if(!["scene","settings","shortcut"].includes(name)||typeof fn!=="function")throw Error("Unknown event");if(!handlers.has(name))handlers.set(name,new Set());handlers.get(name).add(fn);return ()=>handlers.get(name).delete(fn)},snapshot:()=>new Promise(resolve=>{if(pending.size>=4)return resolve(null);const id=++request;pending.set(id,resolve);post({type:"snapshot",id})})});(new Function(d.code))()}}';
+         'self.ks=Object.freeze({apiVersion:2,settings:Object.freeze(d.settings),send:(to,text)=>post({type:"send",to:String(to).slice(0,45),text:String(text).slice(0,140)}),message:text=>post({type:"panel",text:String(text).slice(0,180)}),panel:text=>post({type:"panel",text:String(text).slice(0,180)}),on:(name,fn)=>{if(!["scene","settings","shortcut","message"].includes(name)||typeof fn!=="function")throw Error("Unknown event");if(!handlers.has(name))handlers.set(name,new Set());handlers.get(name).add(fn);return ()=>handlers.get(name).delete(fn)},snapshot:()=>new Promise(resolve=>{if(pending.size>=4)return resolve(null);const id=++request;pending.set(id,resolve);post({type:"snapshot",id})})});(new Function(d.code))()}}';
        const url=URL.createObjectURL(new Blob([boot],{type:'text/javascript'}));
        worker=new Worker(url);URL.revokeObjectURL(url);
        worker.onmessage=event=>parent.postMessage({ksV2:event.data},'*');
@@ -539,6 +542,14 @@
      if(Date.now()-period>1000){calls=0;period=Date.now();}
      if(++calls>32||m.type==='error'){recordError(m.type==='error'?m.text:'Plugin message limit exceeded');stopPlugin();return;}
      if(m.type==='alive'){alive=Date.now();return;}
+     if(m.type==='send'){
+       const recipient=cfg.plugins.find(p=>p.name===m.to&&p.api===2&&p.enabled);
+       if(recipient&&Array.isArray(recipient.settings.allowFrom)&&recipient.settings.allowFrom.includes(plugin.name)){
+         const message={from:plugin.name,text:trim(m.text,140)};
+         if(recipient.name===activePlugin)event('message',message);
+         else mailbox.set(recipient.name,[...(mailbox.get(recipient.name)||[]).slice(-7),message]);
+       }
+     }
      if(m.type==='panel'){out.textContent=trim(m.text,180);out.hidden=!out.textContent;}
      if(m.type==='snapshot'&&Number.isSafeInteger(m.id)){
        const p=window.__KS_FRAME_PACER__?.getStats();
@@ -557,6 +568,8 @@
    frame.onload=()=>{
      post({type:'start',code:plugin.code,settings:plugin.settings});
      const opening=!!window.__KS_CLIENT__?.isSettingsOpen();event('settings',opening);
+     for(const m of mailbox.get(plugin.name)||[])if(plugin.settings.allowFrom?.includes?.(m.from))event('message',m);
+     mailbox.delete(plugin.name);
      ping=setInterval(()=>{if(!document.hidden&&Date.now()-alive>6500){shutdown();return;}post({type:'ping'});},1500);
    };
    frame.srcdoc='<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\' \'unsafe-eval\'; worker-src blob:; connect-src \'none\'; form-action \'none\'"><script>('+isolatedRunner.toString()+')()</script>';
@@ -688,7 +701,7 @@
      decorated.set(el,fields);
    }
  }
- window.addEventListener("pagehide",stopPlugin);
+ window.addEventListener("pagehide",()=>{stopPlugin();mailbox.clear();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&cleanupWorker)stopPlugin();});
  window.__KS_GAME_RUNTIME__?.on("route",stopPlugin);
  let activeTab=null,offRefresh=null,fallbackTimer=null;
@@ -703,7 +716,7 @@
    }else if(!needed){offRefresh?.();offRefresh=null;clearInterval(fallbackTimer);fallbackTimer=null;}
  }
  document.addEventListener('visibilitychange',()=>syncWork(activeTab));
- window.__KS_WORKSHOP__=Object.freeze({setPacks,render,action,refresh,syncWork,stopPlugin,stopPreview,cancelWatch:()=>{watchFriend=null;},recordJoin,normalizeWorkshop,reloadProfile:()=>{stopPlugin();cfg=read();refresh();syncWork(activeTab);},getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
+ window.__KS_WORKSHOP__=Object.freeze({setPacks,render,action,refresh,syncWork,stopPlugin,stopPreview,cancelWatch:()=>{watchFriend=null;},recordJoin,normalizeWorkshop,reloadProfile:()=>{stopPlugin();mailbox.clear();cfg=read();refresh();syncWork(activeTab);},getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
   setStatus:message=>{status=trim(message,400);},getRoom:idx=>cfg.rooms[idx]||null});
  if(document.body){refresh();}else document.addEventListener('DOMContentLoaded',refresh,{once:true});
  syncWork(null);

@@ -6,7 +6,7 @@
 if(location.protocol!=='https:'||!['kirka.io','www.kirka.io'].includes(location.hostname)||window.__KS_WEBGL_COSMETICS__)return;
 const KEY='ksclient.webgl.v114', hooked=new WeakSet(), records=new Set();
 const defaults={enabled:false,assetURL:'',skinURL:'',hue:0,saturation:100,brightness:100,scale:100,offsetX:0,offsetY:0,offsetZ:0,matrixSignature:''};
-let cfg={...defaults}, replacement=null, replacementFor='', diagnostic='', draws=0, textures=0, transforms=0, contexts=0, missed=0, scanCount=0, candidates=new Map();
+let cfg={...defaults}, diagnostic='', draws=0, textures=0, transforms=0, contexts=0, missed=0, scanCount=0, candidates=new Map();
 const clamp=(v,lo,hi,base)=>Number.isFinite(Number(v))?Math.min(hi,Math.max(lo,Number(v))):base;
 const safeURL=s=>{
  if(typeof s!=='string'||!s.trim())return '';
@@ -26,7 +26,7 @@ function read(){
 }
 let previewProbe=null,probeTimeout=null;
 function syncTexture(r){
- const needed=!!previewProbe||cfg.enabled;
+ const needed=!!(previewProbe&&!previewProbe.matched&&performance.now()<=previewProbe.until)||cfg.enabled;
  if(needed&&r.gl.texImage2D===r.origTex)r.gl.texImage2D=r.tex;
  if(!needed&&r.gl.texImage2D===r.tex)r.gl.texImage2D=r.origTex;
 }
@@ -44,7 +44,7 @@ function matchVisiblePreview(){
  return 'Watching game texture uploads for this exact preview image for 15 seconds.';
 }
 function loadImage(){
- replacement=null;replacementFor='';images=new Map();
+ images=new Map();
  const generation=++imageGeneration;
  if(!cfg.enabled)return;
  // The active form takes priority over saved bindings for the same source.
@@ -60,7 +60,6 @@ function loadImage(){
        const ctx=c.getContext('2d');if(!ctx)return;
        ctx.filter='hue-rotate('+clamp(p.hue,0,360,0)+'deg) saturate('+clamp(p.saturation,20,300,100)+'%) brightness('+clamp(p.brightness,20,250,100)+'%)';
        ctx.drawImage(img,0,0);ctx.getImageData(0,0,1,1);images.set(url,c);
-       if(url===cfg.assetURL){replacement=c;replacementFor=p.skinURL;}
        diagnostic='Cosmetic image ready';
      }catch{diagnostic='Image unavailable for local processing';}
    };
@@ -128,7 +127,7 @@ function install(gl,canvas){
   const record={gl,origTex:rawTex,origMatrix:rawMatrix,tex,matrix};
   records.add(record);syncMatrix(record);syncTexture(record);
  }catch(e){diagnostic='Read-only WebGL context; hook refused: '+String(e.message).slice(0,100)}
- canvas.addEventListener('webglcontextlost',()=>{replacement=null;diagnostic='Context lost, awaiting recovery'},{passive:true});
+ canvas.addEventListener('webglcontextlost',()=>{imageGeneration++;images.clear();diagnostic='Context lost, awaiting recovery'},{passive:true});
  canvas.addEventListener('webglcontextrestored',()=>reload(),{passive:true});
 }
 // Prefer the shared early observer. It replays contexts which already existed
