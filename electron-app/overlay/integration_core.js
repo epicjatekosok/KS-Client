@@ -166,21 +166,29 @@
   };
   function startListFilter(kind,list){
     const spec=nativeLists[kind];
-    const hu=settings.language==='hu';
     const bar=document.createElement('div');
     bar.dataset.ksListFilter=kind;
     bar.style.cssText='display:flex;align-items:center;gap:.6em;flex-wrap:wrap;padding:.35em;';
     const search=document.createElement('input');
     search.type='search';
     search.maxLength=100;
-    search.placeholder=spec.label[Number(hu)];
-    search.setAttribute('aria-label',search.placeholder);
     bar.append(search);
     const unlocked=document.createElement('input');
+    const filterLabel=document.createTextNode('');
+    function translateFilter(){
+      const tr = window.__KS_CLIENT__?.translate;
+      const language = read().language;
+      const choose = (english,hungarian) => language==='hu' ? hungarian : tr?.(english) ?? english;
+      search.placeholder=choose(...spec.label);
+      search.setAttribute('aria-label',search.placeholder);
+      filterLabel.textContent=' '+choose('Hide locked rooms','Zárolt szobák elrejtése');
+    }
+    window.addEventListener('ks-language-changed',translateFilter);
+    translateFilter();
     if(kind==='servers'){
       unlocked.type='checkbox';
       const label=document.createElement('label');
-      label.append(unlocked,hu?' Zárolt szobák elrejtése':' Hide locked rooms');
+      label.append(unlocked,filterLabel);
       bar.append(label);
     }
     const style=document.createElement('style');
@@ -212,7 +220,7 @@
     search.addEventListener('input',change);
     unlocked.addEventListener('change',change);
     for(const type of ['keydown','keyup'])search.addEventListener(type,event=>event.stopPropagation());
-    return ()=>{observer.disconnect();for(const row of marked)clearMark(row);bar.remove();};
+    return ()=>{window.removeEventListener('ks-language-changed',translateFilter);observer.disconnect();for(const row of marked)clearMark(row);bar.remove();};
   }
   for(const [kind,spec] of Object.entries(nativeLists)){
     const visibleList=()=>Array.from(document.querySelectorAll(spec.list)).find(el=>
@@ -243,7 +251,7 @@
       for(const card of list.querySelectorAll('.friend')){
         if(tracked.has(card)||!roomFor(card))continue;
         const button=document.createElement('button');
-        button.type='button';button.dataset.ksSpectate='1';button.textContent='Spectate';
+        button.type='button';button.dataset.ksSpectate='1';button.textContent=window.__KS_CLIENT__?.translate('Spectate') ?? 'Spectate';
         button.style.cssText='margin-left:8px;font:600 11px Segoe UI;color:#f0aa35;background:#141a25;border:1px solid #f0aa35;border-radius:4px;padding:4px 6px;cursor:pointer;';
         button.addEventListener('click',e=>{
           if(!e.isTrusted)return;

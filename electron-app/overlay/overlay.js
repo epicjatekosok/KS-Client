@@ -1278,6 +1278,7 @@
     return `<div class="ks-section-reset"><span>${L('Restore only these browser settings to defaults.')}</span><button class="ks-btn danger" data-action="browser-reset" data-browser-section="${esc(section)}">${L('Reset browser settings')}</button></div>`;
   }
   const hu = {
+    "KS Engine coming soon":"Hamarosan érkezik a KS saját motorja",
   "Live preview":"Élő előnézet",
   "Crosshair shape":"Célkereszt formája",
   "Select one of 12 shapes":"Válassz a 12 célkeresztforma közül",
@@ -2237,7 +2238,7 @@
     if(bundled){
       const prefix=translatedStatusPrefixes.find(part=>v.startsWith(part));
       const localizedPrefix=prefix && bundled[prefix.trim()];
-      if(localizedPrefix)return str.replace(v,()=>localizedPrefix+' '+L(v.slice(prefix.length)));
+      if(localizedPrefix)return str.replace(v,()=>localizedPrefix+' '+v.slice(prefix.length));
     }
     if(state.language!=='hu') {
       const dict=extraLocales[state.language];
@@ -2268,7 +2269,7 @@
     for(const el of root.querySelectorAll('[placeholder],[aria-label],[title],img[alt]')) {
       for(const attr of ['placeholder','aria-label','title','alt']) {
         const v=el.getAttribute(attr);
-        if(v && !el.closest('[translate=no]'))el.setAttribute(attr,L(v));
+        if(v && !el.closest('[translate=no]') && !(attr==='placeholder' && /^(?:\/\*|document\.)/.test(v)))el.setAttribute(attr,L(v));
       }
     }
   }
@@ -2405,8 +2406,8 @@
           selectRow('Update channel','Beta is recommended. Beta includes Beta and Stable releases; Alpha also includes older experimental builds.','updateChannel',[
             {value:'beta',label:'Beta (recommended)'},{value:'stable',label:'Stable only'},{value:'alpha',label:'Alpha + Beta + Stable'}])+
           '<div class="ks-row"><div><div class="ks-label">Update status</div><div class="ks-desc" id="ks-update-status">'+esc(updateStateText())+'</div></div></div>'+
-          (updateStatus.state==='available'?'<div class="ks-note">Release '+esc(String(updateStatus.version||''))+
-            ' · '+(updateStatus.cached?'Downloaded and verified':'Size: '+Math.round(Number(updateStatus.bytes||0)/1048576)+' MB')+
+          (updateStatus.state==='available'?'<div class="ks-note">'+esc(formatText('Release {0}',String(updateStatus.version||'')))+
+            ' · '+esc(updateStatus.cached?L('Downloaded and verified'):formatText('Size: {0} MB',Math.round(Number(updateStatus.bytes||0)/1048576)))+
             (updateStatus.notes?'<p style="white-space:pre-wrap;max-height:135px;overflow:auto">'+esc(String(updateStatus.notes||''))+'</p>':'')+
             '</div>':'')+
           '<div class="ks-stack" style="flex-wrap:wrap;margin-top:12px">'+
@@ -2422,7 +2423,7 @@
         return title('Client Overview', esc(formatText('KS Client {0} uses Electron.',CLIENT_LABEL))) +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
-          `<div class="ks-row"><div class="ks-label">Switch browser engine</div><div class="ks-stack"><button class="ks-btn" disabled aria-pressed="true" data-action="engine-switch" data-engine="electron">Electron</button><button class="ks-btn" disabled>KS saját motorja cooming soon</button></div></div>` +
+          `<div class="ks-row"><div class="ks-label">Switch browser engine</div><div class="ks-stack"><button class="ks-btn" disabled aria-pressed="true" data-action="engine-switch" data-engine="electron">Electron</button><button class="ks-btn" disabled>KS Engine coming soon</button></div></div>` +
           `<div class="ks-row"><div><div class="ks-label">Kirka account sign-in</div><div class="ks-desc">Sign-in windows for supported providers stay inside KS Client, sharing the game's browser session. Google can refuse authentication in embedded apps by its own policy; KS does not spoof the browser or send you away to play in Chrome. A Chrome login alone does not sign in this separate profile. If you already have a Kirka game session in Chrome, the optional local import below can transfer it into the client.</div></div><span class="ks-pill">IN CLIENT</span></div>` +
           `<div class="ks-row"><div style="min-width:0;flex:1"><div class="ks-label">Import Kirka.io session (advanced)</div><div class="ks-desc">First sign in to https://kirka.io/ in your regular browser. On that exact page, open Developer Tools Console and run <code>copy(localStorage.getItem('token'))</code>. Paste below. Treat this session token like a password: never share it, including in chat or support. It is saved only in this engine's Kirka.io local storage, not sent to KS Client servers. Kirka may reject or expire it.</div><input class="ks-input" id="ks-account-session-token" type="password" maxlength="8192" autocomplete="new-password" spellcheck="false" placeholder="Kirka.io token (keep secret)" aria-label="Kirka.io session token" style="width:100%;margin-top:8px"><label class="ks-desc" style="display:block;margin-top:8px"><input id="ks-account-session-consent" type="checkbox"> I understand that a session token grants access to my Kirka account.</label><div id="ks-account-session-status" class="ks-desc" role="status" aria-live="polite"></div></div><button class="ks-btn" data-action="auth-import-session">Import session locally</button></div>` +
           (engineSwitchStatus ? `<p class="ks-hint" id="ks-engine-switch-status">${esc(engineSwitchStatus)}</p>` : '') +
@@ -3030,6 +3031,21 @@
     categories.hidden=true;results.hidden=false;
   }
 
+  function updateSidebarLanguage() {
+    const bottom=$('ks-sidebar-bottom');
+    if(!$('ks-language')){
+      bottom.innerHTML=`<div class="ks-sidebar-language">
+        <label id="ks-language-label" for="ks-language"></label>
+        <select class="ks-input" id="ks-language" data-setting="language">${Object.entries(languageNames).map(([value,label])=>
+          `<option value="${value}" lang="${value}">${esc(label)}</option>`).join('')}</select>
+        </div><div class="ks-sidebar-foot">KS CLIENT <span>${esc(CLIENT_LABEL.toUpperCase())}</span>
+        <div id="ks-sidebar-shortcuts" style="opacity:.7;margin-top:5px"></div></div>`;
+    }
+    $('ks-language-label').textContent=L('Display language');
+    $('ks-language').value=Object.hasOwn(languageNames,state.language)?state.language:'en';
+    $('ks-sidebar-shortcuts').textContent='F1 · '+L('Settings')+'   F10 · HUD';
+  }
+
   function renderTab() {
     window.__KS_WORKSHOP__?.stopPlugin?.();
     syncMeasurement();
@@ -3041,11 +3057,7 @@
       `<div id="ks-sidebar-groups">`+
       groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon" aria-hidden="true">${groupIcon(g.key)}</span><span>${translateTab(g.key)}</span>${g.key==='Workshop'?`<span class="ks-experimental-badge">${esc(L('EXPERIMENTAL'))}</span>`:''}</button>`).join('')+
       `</div>`;
-    $('ks-sidebar-bottom').innerHTML = `<div class="ks-sidebar-language">
-      <label for="ks-language">${esc(L('Display language'))}</label>
-      <select class="ks-input" id="ks-language" data-setting="language">${Object.entries(languageNames).map(([value,label])=>
-        `<option value="${value}" lang="${value}" ${(Object.hasOwn(languageNames,state.language)?state.language:'en')===value?'selected':''}>${esc(label)}</option>`).join('')}</select>
-      </div><div class="ks-sidebar-foot">KS CLIENT <span>${esc(CLIENT_LABEL.toUpperCase())}</span><div style="opacity:.7;margin-top:5px">F1 · ${L('Settings')} &nbsp; F10 · HUD</div></div>`;
+    updateSidebarLanguage();
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
@@ -3504,6 +3516,7 @@
     notify('menu-resolution',{preset:state.menuResolution});
     if(browserPrefsLoaded)notify('browser-save',{browser:browserPrefs});
     settingsSnapshot=null;
+    window.dispatchEvent(new Event('ks-language-changed'));
     apply();
   }
   function show(toggle) {
@@ -3519,7 +3532,10 @@
         try {renderTab();}
         catch(error) {
           const body=$('ks-body');
-          if(body)body.innerHTML='<h2 class="ks-title">Settings temporarily unavailable</h2><p class="ks-sub">Choose another category or restart the client. Saved settings are unchanged.</p>';
+          if(body){
+            body.innerHTML='<h2 class="ks-title">Settings temporarily unavailable</h2><p class="ks-sub">Choose another category or restart the client. Saved settings are unchanged.</p>';
+            localizePanel(body);
+          }
           notify('client-error',{message:'Settings render: '+String(error?.message||error).slice(0,160)});
         }
         if(state.menuSoundEnabled && assetURLs.menuSound)void playMenuSound();
@@ -3589,6 +3605,7 @@
     if(k==='fpsLimit')window.__KS_FRAME_PACER__?.setLimit(value);
     save();
     if(k==='gameListFilters')window.__KS_INTEGRATION__?.refresh?.();
+    if(k==='language')window.dispatchEvent(new Event('ks-language-changed'));
     if(k.startsWith('game'))window.__KS_GAME_EXTRAS__?.refresh?.();
     apply();
     const preview = $('ks-preview-svg');
@@ -3995,7 +4012,7 @@
     }
     if (a === 'update-open-release') openTrustedExternal('releases');
     if (a === 'update-install' && updateStatus.state==='available') {
-      notify('update-install',{channel:state.updateChannel});
+      notify('update-install',{channel:state.updateChannel,language:state.language});
     }
     if (a === 'browser-restart' && confirm(L('Restart and apply changes?'))) notify('browser-restart');
     if (a === 'browser-reset' && confirm(L('Reset only the settings in this browser section?'))) notify('browser-reset',{section:el.dataset.browserSection});
@@ -4264,7 +4281,7 @@
       }
     },
     toggle: () => show(),
-    translate: L,
+    translate: formatText,
     isSettingsOpen: () => Boolean(open),
     open: () => show(true),
     close: () => show(false),
