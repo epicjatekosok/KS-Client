@@ -133,3 +133,11 @@ advance(288,144);
 assert(Math.abs(p.getStats().averageCallbackFPS-30)<1);
 win.cancelAnimationFrame(pending);
 assert.equal(timers.size+raf.size,0);
+
+p.setMenuLimited(false);p.setLimit(30);pending=win.requestAnimationFrame(game);
+advance(240,240);
+const lowWakes=p.getStats().nativeWakes,lowSteps=deliveries;
+advance(2400,240);
+assert(Math.abs(deliveries-lowSteps-300)<=1);
+assert(p.getStats().nativeWakes-lowWakes<=650,'30 FPS should sleep through intermediate 240 Hz refreshes');
+win.cancelAnimationFrame(pending);
