@@ -1,4 +1,5 @@
 """Offline Chromium verification for the 1.0.0 KS Settings dashboard."""
+import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 r=Path(__file__).resolve().parents[1]
@@ -18,6 +19,8 @@ with sync_playwright() as p:
    }});
   }""")
   js=(r/('electron-app/overlay/overlay.js')).read_text()
+  locales={p.stem:json.loads(p.read_text(encoding='utf8')) for p in (r/'electron-app/locales').glob('*.json')}
+  page.evaluate("catalogs => {window.__KS_LOCALES__=catalogs}",locales)
   page.add_script_tag(content=js.replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1))
   page.wait_for_function("!!window.__KS_CLIENT__")
   page.evaluate('window.__KS_CLIENT__.open()')
@@ -59,12 +62,21 @@ with sync_playwright() as p:
   assert categories['Controls']==['Browser Controls']
   assert categories['Advanced']==['General','Updates','Sharing','Diagnostics']
   page.locator('.ks-subtab[data-tab="Sharing"]').click()
-  assert page.locator('[data-setting="language"]').count()==0
-  page.locator('button[data-group="Interface"]').click()
-  page.locator('.ks-subtab[data-tab="Interface"]').click()
-  language=page.locator('select[data-setting="language"]')
+  language=page.locator('#ks-sidebar-bottom select[data-setting="language"]')
+  assert language.is_visible()
+  assert language.locator('option[value="de"]').text_content()=='Deutsch'
+  assert language.locator('option').count()==15
+  assert language.evaluate("el => el.getBoundingClientRect().bottom <= el.closest('#ks-sidebar-bottom').querySelector('.ks-sidebar-foot').getBoundingClientRect().top")
+  for width,height in [(800,500),(620,680),(1600,900)]:
+   page.set_viewport_size({'width':width,'height':height})
+   assert language.evaluate('''el => {
+      const a=el.getBoundingClientRect(), b=el.closest('#ks-nav').getBoundingClientRect();
+      return a.height>0 && a.top>=b.top && a.bottom<=b.bottom+1;
+   }''')
+
+  assert page.locator('#ks-body [data-setting="language"]').count()==0
   for code,label in [('de','Einstellungen'),('hi','सेटिंग्स'),('bn','সেটিংস'),('id','Pengaturan'),('ko','설정'),('tr','Ayarlar')]:
-   language.evaluate("(select,code)=>{select.value=code;select.dispatchEvent(new Event('change',{bubbles:true}));}",code)
+   language.select_option(code)
    assert page.locator('#ks-brand-main').text_content()==label
    assert page.locator('#ks-panel').get_attribute('lang')==code
   page.locator('button[data-group="Graphics"]').click()
@@ -72,7 +84,7 @@ with sync_playwright() as p:
   assert 'yeniden başlat' in page.locator('#ks-unlimited-restart-note').text_content()
   page.locator('button[data-group="Interface"]').click()
   page.locator('.ks-subtab[data-tab="Interface"]').click()
-  language.evaluate("(select)=>{select.value='en';select.dispatchEvent(new Event('change',{bubbles:true}));}")
+  language.select_option('en')
   page.locator('button[data-group="Graphics"]').click()
   page.locator('.ks-subtab[data-tab="Performance"]').click()
   assert 'restart KS Client when you enable Unlimited FPS again' in page.locator('#ks-unlimited-restart-note').text_content()

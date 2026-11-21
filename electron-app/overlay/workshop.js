@@ -214,7 +214,7 @@
    const accepted=deep?await deep.join(safe,spectate):!spectate && /^\/(games\/|hub\/ranked|servers\/)/.test(new URL(safe).pathname) && notify('game-join',{url:safe});
    if(accepted){recordJoin(safe);status=spectate?'Spectate requested.':'Room navigation requested.';}
    else status=deep?.getStatus().lastError||'Room action unavailable.';
-   const node=ui.getElementById('ks-wk-status');if(node)node.textContent=status;
+   const node=ui.getElementById('ks-wk-status');if(node)node.textContent=window.__KS_CLIENT__?.translate(status) ?? status;
  }
  function action(a,ui,notify){
    if(a==='wk-asset-refresh')return true;
@@ -347,7 +347,7 @@
      }
      if(e.data.action==='message'){
        status='Plugin message: '+trim(e.data.text,140);
-       const node=ui.getElementById('ks-wk-status');if(node)node.textContent=status;
+       const node=ui.getElementById('ks-wk-status');if(node)node.textContent=window.__KS_CLIENT__?.translate(status) ?? status;
      }
      if(e.data.action==='tint'&&Object.hasOwn(presets,e.data.target)){
        const value=color(e.data.color,'');
@@ -355,7 +355,7 @@
        if(!pluginCSS){pluginCSS=document.createElement('style');pluginCSS.id='ks-workshop-plugin-style';document.head.appendChild(pluginCSS);}
        pluginCSS.textContent=presets[e.data.target]+'{color:'+value+'!important;border-color:'+value+'!important}';
        status='Sandboxed plugin applied a cosmetic color to '+e.data.target;
-       const node=ui.getElementById('ks-wk-status');if(node)node.textContent=status;
+       const node=ui.getElementById('ks-wk-status');if(node)node.textContent=window.__KS_CLIENT__?.translate(status) ?? status;
      }
    };
    window.addEventListener('message',pluginListener);

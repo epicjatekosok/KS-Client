@@ -10,7 +10,7 @@ def add(path,content=b'test'):
  path.write_bytes(content)
 def mark(folder,engine,filename):
  blob=(folder/filename).read_bytes()
- value={'version':'1.0.23','engine':engine,'exeName':filename,
+ value={'version':'1.0.24','engine':engine,'exeName':filename,
         'exeSha256':sha256(blob).hexdigest(),'runner':'windows','result':'PASS'}
  add(folder/'ks-smoke-pass.json',json.dumps(value).encode('utf8'))
 with TemporaryDirectory() as temp:
@@ -44,5 +44,5 @@ with TemporaryDirectory() as temp:
  mark(root/'runtime/Electron','Electron','electron.exe')
  ok=run()
  assert ok.returncode==0,(ok.stdout,ok.stderr)
- assert (root/'KS-Client-beta-1.0.23-Portable.zip').is_file()
+ assert (root/'KS-Client-beta-1.0.24-Portable.zip').is_file()
  print('PASS: release requires a matching Electron Windows smoke marker')
