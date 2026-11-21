@@ -180,7 +180,9 @@
    return packList.map((p,i)=>'<div class="ks-row"><div><strong>'+escape(p.name)+'</strong><div class="ks-desc">'+
      escape(tr('Observed paths'))+' '+p.matched+'/'+p.total+' · '+escape(tr('Conflicts'))+' '+p.conflicts+'</div></div>'+
      btn('pack-toggle-'+i,tr(p.enabled?'Disable':'Enable'))+btn('pack-first-'+i,tr('Highest priority'))+
-     btn('pack-export-'+i,tr('Export'))+btn('pack-remove-'+i,tr('Remove'))+'</div>').join('');
+     btn('pack-export-'+i,tr('Export'))+btn('pack-remove-'+i,tr('Remove'))+'</div>'+
+     '<details><summary>'+escape(tr('Observed paths'))+'</summary><ul>'+p.details.map(f=>'<li>'+escape(f.path)+' · '+
+       escape(tr(!f.available?'Missing file':f.shadowed?'Conflicts':f.matched?'Observed paths':'Not observed yet'))+'</li>').join('')+'</ul></details>').join('');
  }
  function setPacks(result){
    if(!Array.isArray(result?.packs))return;

@@ -39,7 +39,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "Lokale Ressourcenpakete, Waffen-Texturbindungen, gewachene Preise, Spieler-Tags und Versionen-Plugins.",
     "Online": "Online",
     "Offline": "Offline",
-    "Open KirkaStats": "KirkaStats öffnen"
+    "Open KirkaStats": "KirkaStats öffnen",
+    "Missing file": "Datei fehlt",
+    "Not observed yet": "Noch nicht beobachtet"
   },
   "hu": {
     "Resource packs": "Erőforráscsomagok",
@@ -81,7 +83,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "Helyi erőforráscsomagok, fegyvertextúrák hozzárendelése, megfigyelt árak, játékoscímkék és verziózott bővítmények.",
     "Online": "Elérhető",
     "Offline": "Nem elérhető",
-    "Open KirkaStats": "KirkaStats megnyitása"
+    "Open KirkaStats": "KirkaStats megnyitása",
+    "Missing file": "Hiányzó fájl",
+    "Not observed yet": "Még nem észlelt útvonal"
   },
   "fr": {
     "Resource packs": "Packs de ressources",
@@ -123,7 +127,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "Les packs de ressources locaux, les liens de texture des arme, les prix observés, les balises des jouteurs et les plugins versionés.",
     "Online": "En ligne",
     "Offline": "Hors ligne",
-    "Open KirkaStats": "Ouvrir KirkaStats"
+    "Open KirkaStats": "Ouvrir KirkaStats",
+    "Missing file": "Fichier manquant",
+    "Not observed yet": "Pas encore observé"
   },
   "es": {
     "Resource packs": "Paquetes de recursos",
@@ -165,7 +171,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "Paquetes de recursos, enlaces de textura de armas, los valores observados, las etiquetas de jugadores y los plugins de versión.",
     "Online": "En línea",
     "Offline": "Sin conexión",
-    "Open KirkaStats": "Abrir KirkaStats"
+    "Open KirkaStats": "Abrir KirkaStats",
+    "Missing file": "Archivo ausente",
+    "Not observed yet": "Aún no observado"
   },
   "pt": {
     "Resource packs": "Pacotes de recursos",
@@ -207,7 +215,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "Pacotes de recursos, ligações de textura de armas, precos observados, etiquetas de jogador e plugins de versão.",
     "Online": "Online",
     "Offline": "Offline",
-    "Open KirkaStats": "Abrir KirkaStats"
+    "Open KirkaStats": "Abrir KirkaStats",
+    "Missing file": "Ficheiro em falta",
+    "Not observed yet": "Ainda não observado"
   },
   "it": {
     "Resource packs": "Pacchetti di risorse",
@@ -249,7 +259,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "Pacchi di risorse, legami di texture delle armi, prezzi osservati, tag dei player e plugin di versioni.",
     "Online": "Online",
     "Offline": "Offline",
-    "Open KirkaStats": "Apri KirkaStats"
+    "Open KirkaStats": "Apri KirkaStats",
+    "Missing file": "File mancante",
+    "Not observed yet": "Non ancora osservato"
   },
   "ru": {
     "Resource packs": "Пакеты ресурсов",
@@ -291,7 +303,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "Местные пакеты ресурсов, связывающие текстуру оружия, наблюдаемые цены, теги игрока и версии плагинов.",
     "Online": "В сети",
     "Offline": "Не в сети",
-    "Open KirkaStats": "Открыть KirkaStats"
+    "Open KirkaStats": "Открыть KirkaStats",
+    "Missing file": "Файл отсутствует",
+    "Not observed yet": "Ещё не обнаружено"
   },
   "zh": {
     "Resource packs": "资源包",
@@ -333,7 +347,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "地方资源包,武器纹理结合,观察价格,玩家标签和版本插件.",
     "Online": "在线",
     "Offline": "离线",
-    "Open KirkaStats": "打开 KirkaStats"
+    "Open KirkaStats": "打开 KirkaStats",
+    "Missing file": "文件缺失",
+    "Not observed yet": "尚未观察到"
   },
   "ja": {
     "Resource packs": "リソースパック",
@@ -375,7 +391,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "ローカル・リソースパック,武器テクスチャ結合,観測価格,プレイヤータグ,バージョンプラグイン.",
     "Online": "オンライン",
     "Offline": "オフライン",
-    "Open KirkaStats": "KirkaStats を開く"
+    "Open KirkaStats": "KirkaStats を開く",
+    "Missing file": "ファイルがありません",
+    "Not observed yet": "未検出"
   },
   "hi": {
     "Resource packs": "रिसोर्स पैक",
@@ -417,7 +435,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "स्थानीय संसाधन पैक, हथियार बनावट बंधन, अवलोकन की गई कीमतें, प्लेयर टैग और संस्करण प्लगइन्स।",
     "Online": "ऑनलाइन",
     "Offline": "ऑफ़लाइन",
-    "Open KirkaStats": "KirkaStats खोलें"
+    "Open KirkaStats": "KirkaStats खोलें",
+    "Missing file": "फ़ाइल नहीं मिली",
+    "Not observed yet": "अभी तक नहीं दिखा"
   },
   "bn": {
     "Resource packs": "রিসোর্স প্যাক",
@@ -459,7 +479,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "স্থানীয় রিসোর্স প্যাক, অস্ত্র টেক্সচার বন্ডিং, পর্যবেক্ষণ করা দাম, প্লেয়ার ট্যাগ এবং সংস্করণ প্লাগইন।",
     "Online": "অনলাইন",
     "Offline": "অফলাইন",
-    "Open KirkaStats": "KirkaStats খুলুন"
+    "Open KirkaStats": "KirkaStats খুলুন",
+    "Missing file": "ফাইল অনুপস্থিত",
+    "Not observed yet": "এখনও দেখা যায়নি"
   },
   "id": {
     "Resource packs": "Paket sumber daya",
@@ -501,7 +523,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "Paket sumber daya lokal, pengikat tekstur senjata, harga yang diamati, tag pemain dan plugin versi.",
     "Online": "Daring",
     "Offline": "Luring",
-    "Open KirkaStats": "Buka KirkaStats"
+    "Open KirkaStats": "Buka KirkaStats",
+    "Missing file": "Berkas tidak ditemukan",
+    "Not observed yet": "Belum diamati"
   },
   "ko": {
     "Resource packs": "리소스 팩",
@@ -543,7 +567,9 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "로컬 리소스 팩, 무기 텍스처 결합, 관찰된 가격, 플레이어 태그 및 버전 플러그인",
     "Online": "온라인",
     "Offline": "오프라인",
-    "Open KirkaStats": "KirkaStats 열기"
+    "Open KirkaStats": "KirkaStats 열기",
+    "Missing file": "파일 누락",
+    "Not observed yet": "아직 관찰되지 않음"
   },
   "tr": {
     "Resource packs": "Kaynak paketleri",
@@ -585,6 +611,8 @@
     "Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.": "Yerel araç paketleri, silah dokusu bağlamaları, gözlenen fiyatlar, oyunculu etiketi ve versiyonlu eklentiler.",
     "Online": "Çevrimiçi",
     "Offline": "Çevrimdışı",
-    "Open KirkaStats": "KirkaStats aç"
+    "Open KirkaStats": "KirkaStats aç",
+    "Missing file": "Dosya eksik",
+    "Not observed yet": "Henüz gözlemlenmedi"
   }
 }

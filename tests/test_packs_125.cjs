@@ -9,9 +9,11 @@ try{
   const [a,b]=store.list();assert.equal(store.resolve('textures/rifle.01234567.png'),null);
   store.change(a.id,'toggle');store.change(b.id,'toggle');assert(store.resolve('textures/rifle.01234567.png').includes(a.id));
   assert.equal(store.list()[1].conflicts,1);store.change(b.id,'first');assert(store.resolve('textures/rifle.01234567.png').includes(b.id));
-  assert.equal(store.list()[0].matched,1);assert.deepEqual(store.export(a.id),doc);
+  assert.equal(store.list()[0].matched,1);assert.equal(store.list()[0].details[0].available,true);assert.deepEqual(store.export(a.id),doc);
   const reopened=createStore(root);assert(reopened.resolve('textures/rifle.01234567.png').includes(b.id));
   assert.deepEqual(fromFolder(path.join(root,a.id),'Test'),doc);
+  fs.unlinkSync(path.join(root,b.id,'textures','rifle.ks-anyhash.png'));
+  assert.equal(reopened.list()[0].details[0].available,false);assert(reopened.resolve('textures/rifle.01234567.png').includes(a.id));
   reopened.change(b.id,'remove');assert(reopened.resolve('textures/rifle.01234567.png').includes(a.id));
   for(const file of [{path:'../bad.png',data:png},{path:'ui/test.js',data:png},{path:'ui/logo.png',data:'aGVsbG8='},{path:'ui/con.png',data:png}]){
     assert.throws(()=>validate({...doc,files:[file]}));
