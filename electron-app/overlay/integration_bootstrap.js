@@ -53,7 +53,10 @@
 
   function publish(canvas, kind, gl, receiver = null) {
     if (!gl || canvas.id !== 'game') return;
-    if(!receiver){try{improveTextureSampling(gl);}catch(_){/* Optional GPU extension. */}}
+    if(!receiver){
+      try{improveTextureSampling(gl);}catch(_){/* Optional GPU extension. */}
+      window.__KS_NATIVE__?.post?.({type:'game-buffer-ready'});
+    }
     for (const subscriber of receiver ? [receiver] : subscribers) {
       try { subscriber(gl, canvas, kind); seen.notifications++; }
       catch (_) { seen.subscriberErrors++; }

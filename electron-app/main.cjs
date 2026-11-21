@@ -431,6 +431,7 @@ function receiveMessage(event, raw){
     case 'discord-community':openKSDiscord();break;
     case 'auth-help':jsCall('openAccountHelp');break;
     case 'fullscreen':win.setFullScreen(!win.isFullScreen());break;
+    case 'game-buffer-ready':gameDisplay.bufferReady();break;
     case 'game-resolution':gameDisplay.select(String(raw.preset||'native'));break;
     case 'menu-resolution':setWindowSize(String(raw.preset||'native'));break;
     case 'engine-switch':switchEngine(raw.engine);break;

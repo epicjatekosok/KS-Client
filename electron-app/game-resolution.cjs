@@ -65,6 +65,6 @@ function createGameResolution(win, getDisplayScale, isGame) {
     if (value === 'native' && isGame()) contents.executeJavaScript('delete window.__KS_OUTPUT_PIXEL_RATIO__').catch(()=>{});
   }
 
-  return {select, apply, leave(){preset='native';reset();}};
+  return {select, apply, bufferReady(){if(preset!=='native'){key='';apply();}}, leave(){preset='native';reset();}};
 }
 module.exports = {createGameResolution};

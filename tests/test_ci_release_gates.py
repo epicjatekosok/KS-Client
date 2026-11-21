@@ -18,7 +18,7 @@ with TemporaryDirectory() as temp:
  add(root/'ci/package_offline.py',original.read_bytes())
  for rel in ('KS-Client.exe','Uninstall-KS-Client.exe','README_EN.md','LICENSE',
              'runtime/Electron/electron.exe','runtime/Electron/resources/app/main.cjs',
-             'runtime/Electron/resources/app/preload.cjs',
+             'runtime/Electron/resources/app/preload.cjs','runtime/Electron/resources/app/game-resolution.cjs',
              'runtime/Electron/resources/app/assets/loading.html',
              'runtime/Electron/resources/app/assets/ks-logo.png',
              'runtime/Electron/resources/app/overlay/native_login_gate.js',
