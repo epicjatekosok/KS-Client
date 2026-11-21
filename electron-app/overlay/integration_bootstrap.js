@@ -23,10 +23,7 @@
   const mipmapHooks=new WeakMap();
   function improveTextureSampling(gl){
     if(!smoothEdges || mipmapHooks.has(gl) || typeof gl.generateMipmap!=='function')return;
-    const extension=gl.getExtension('EXT_texture_filter_anisotropic');
-    if(!extension)return;
-    const level=Math.min(4,gl.getParameter(extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
-    if(!(level>1))return;
+    if(!gl.getExtension('EXT_texture_filter_anisotropic'))return;
     const originalMipmap=gl.generateMipmap;
     function generateMipmap(target){
       const result=Reflect.apply(originalMipmap,this,arguments);
@@ -36,6 +33,10 @@
       if(gl.getParameter(gl.TEXTURE_BINDING_2D)){
         const filter=gl.getTexParameter(target,gl.TEXTURE_MIN_FILTER);
         if(filter===gl.LINEAR_MIPMAP_LINEAR || filter===gl.LINEAR_MIPMAP_NEAREST){
+          // Context restoration invalidates previously enabled extensions.
+          const extension=gl.getExtension('EXT_texture_filter_anisotropic');
+          if(!extension)return result;
+          const level=Math.min(4,gl.getParameter(extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
           const anisotropy=extension.TEXTURE_MAX_ANISOTROPY_EXT;
           if(gl.getTexParameter(target,anisotropy)<level)gl.texParameterf(target,anisotropy,level);
         }
