@@ -8,8 +8,8 @@
 
   const proto = HTMLCanvasElement.prototype;
   const original = proto.getContext;
-  let smoothEdges=true;
-  try{smoothEdges=JSON.parse(localStorage.getItem('ksclient.settings.alpha')||'{}').smoothGameEdges!==false;}catch(_){}
+  let smoothEdges=true, performanceAA=false;
+  try{const saved=JSON.parse(localStorage.getItem('ksclient.settings.alpha')||'{}');smoothEdges=saved.smoothGameEdges!==false;performanceAA=!smoothEdges&&saved.performancePreset==='Low';}catch(_){}
   const contexts = new WeakSet();
   const known = new Set();
   function liveContexts(){
@@ -90,6 +90,7 @@
     const gameGL=this.id==='game' && ['webgl','webgl2','experimental-webgl'].includes(kind);
     const requestAA=gameGL && smoothEdges && args[0]?.antialias===false;
     let options=args;
+    if(gameGL && performanceAA)options=[{...(args[0] || {}),antialias:false},...args.slice(1)];
     if(requestAA)options=[Object.create(args[0],{antialias:{value:true,enumerable:true}}),...args.slice(1)];
     let gl=Reflect.apply(original,this,[kind,...options]);
     if(!gl && requestAA){options=args;gl=Reflect.apply(original,this,[kind,...args]);}
@@ -119,6 +120,8 @@
       for (const [gl, info] of liveContexts()) publish(info.canvas, info.kind, gl, callback);
       return () => subscribers.delete(callback);
     },
+    getGameBufferHeight: () => selected?.canvas.id === 'game' && selected.canvas.isConnected
+      ? selected.gl.drawingBufferHeight : 0,
     getStats: () => selected ? {
       antialiasRequested: selected.asked, antialiasReported: selected.reported,
       canvasWidth: Number(selected.gl.drawingBufferWidth || selected.canvas.width || 0),

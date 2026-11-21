@@ -1,12 +1,12 @@
 'use strict';
-// KS Client Beta 1.0.21: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.22: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {execFile,spawn}=require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const APP_VERSION = 'Beta 1.0.21';
+const APP_VERSION = 'Beta 1.0.22';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.21.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.22.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -115,7 +115,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.21').slice(0,40),
+      current:String(payload.current||'1.0.22').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -249,7 +249,7 @@ function startSplash(){
 }
 let currentURL=GAME;
 let menuResolution='native';
-let gameResolution='native';
+let gameDisplay;
 const RES={720:[1280,720],1080:[1920,1080],1440:[2560,1440],2160:[3840,2160]};
 function needsRestart(){return active.gpu!==desired.gpu||active.angle!==desired.angle||active.uncapFps!==(desired.uncapFps&&!fixedTarget)}
 function jsCall(name,...args){
@@ -271,16 +271,6 @@ function setWindowSize(preset) {
   const w=Math.min(width,work.width),h=Math.min(height,work.height);
   win.setBounds({x:work.x+Math.floor((work.width-w)/2),y:work.y+Math.floor((work.height-h)/2),width:w,height:h});
 }
-function setGameResolution(preset){
-  if(preset!=='native'&&!RES[preset])return;
-  gameResolution=preset;
-  // Electron has no equivalent of WebView2's rasterizationScale. Page zoom
-  // is a real operation but changes the page layout; do not promise GPU supersampling.
-  if(!win)return;
-  const target=RES[preset];
-  const zoom=target?Math.min(2,Math.max(.5,target[1]/Math.max(win.getContentBounds().height,240))):1;
-  win.webContents.setZoomFactor(zoom);
-}
 function installShortcuts(){
   win.webContents.on('before-input-event',(event,input)=>{
     if(input.type!=='keyDown')return;
@@ -298,6 +288,14 @@ function createWindow(){
     webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,nodeIntegration:false,contextIsolation:true,
       webSecurity:true,devTools:true,backgroundThrottling:true,defaultFontFamily:{standard:'Segoe UI'}}});
   win.setMenu(null);
+  gameDisplay=require('./game-resolution.cjs').createGameResolution(win,
+    ()=>screen.getDisplayMatching(win.getBounds()).scaleFactor,()=>validURL(win.webContents.getURL(),true));
+  win.on('resize',gameDisplay.apply);
+  win.on('move',gameDisplay.apply);
+  win.on('restore',gameDisplay.apply);
+  win.webContents.on('did-start-navigation',(event,_url,inPlace,mainFrame)=>{
+    if((event.isMainFrame ?? mainFrame) && !(event.isSameDocument ?? inPlace))gameDisplay.leave();
+  });
   // No game setWindowOpenHandler, did-create-window OAuth wrapper,
   // will-navigate interceptor or will-redirect interceptor. Electron 45
   // handles Kirka's window.open and normal HTTPS navigation natively.
@@ -307,7 +305,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.21 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.22 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
@@ -318,7 +316,7 @@ function createWindow(){
           "(()=>{try{return !!localStorage.getItem('token')}catch(_){return false}})()",true);
         if(!authenticated){
           log('Kirka sign-in: running original game login UI without KS injections');
-          setGameResolution(gameResolution);
+          gameDisplay.select('native');
           closeSplash();
           return;
         }
@@ -338,7 +336,7 @@ function createWindow(){
       jsCall('setEngineInfo','Electron');
       browserConfig();
     }catch(e){log('Overlay: '+e.message)}
-    setGameResolution(gameResolution);
+
     closeSplash();
   });
   win.webContents.on('render-process-gone',(e,d)=>{log('Renderer gone: '+d.reason);closeSplash()});
@@ -433,7 +431,7 @@ function receiveMessage(event, raw){
     case 'discord-community':openKSDiscord();break;
     case 'auth-help':jsCall('openAccountHelp');break;
     case 'fullscreen':win.setFullScreen(!win.isFullScreen());break;
-    case 'game-resolution':setGameResolution(String(raw.preset||'native'));break;
+    case 'game-resolution':gameDisplay.select(String(raw.preset||'native'));break;
     case 'menu-resolution':setWindowSize(String(raw.preset||'native'));break;
     case 'engine-switch':switchEngine(raw.engine);break;
     case 'engine-info':jsCall('setEngineInfo','Electron');break;
