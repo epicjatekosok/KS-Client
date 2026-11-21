@@ -1,3 +1,7 @@
+# KS Client Beta 1.0.19
+
+[Game-loop and comfort improvements](RELEASE_BETA_119_EN.md)
+
 # KS Client Beta 1.0.18
 
 [Fixed frame pacing and menu power controls](RELEASE_BETA_118_EN.md)
