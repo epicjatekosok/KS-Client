@@ -1,12 +1,10 @@
-"""Engine-independent KS Client 1.0.20 UI smoke test in local Chromium.
+"""Engine-independent KS Client 1.0.21 UI smoke test in local Chromium.
 Not a live test of Windows Electron, CEF, or FPS unlock.
 """
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 root=Path(__file__).resolve().parents[1]
 js=(root/'electron-app/overlay/overlay.js').read_text()
-cef=(root/'cef/overlay/overlay.js').read_text()
-assert js==cef, 'Different overlays shipped to the two engines'
 js=js.replace("if (!allowedHosts.has(location.hostname) || location.protocol !== 'https:') return;",'/* Testing offline origin: allow. */')
 pacer=(root/'electron-app/overlay/frame_pacer.js').read_text().replace("if (location.protocol !== 'https:' || !['kirka.io', 'www.kirka.io'].includes(location.hostname)) return;",'/* Testing offline origin: allow. */')
 with sync_playwright() as play:
@@ -72,15 +70,15 @@ with sync_playwright() as play:
   page.locator('.ks-tab[data-group="Advanced"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
 
-  page.locator('[data-action="engine-cef"]').click()
-  assert page.evaluate("window.__out.some(m=>m.type==='engine-switch' && m.engine==='cef')")
+  assert page.get_by_role('button', name='KS saját motorja cooming soon').is_disabled()
+  assert not page.evaluate("window.__out.some(m=>m.type==='engine-switch')")
   # A missing native status must not keep the original Requesting banner forever.
   page.evaluate("window.__KS_CLIENT__.setEngineSwitchStatus('Native host reached')")
   assert 'Native host reached' in page.locator('#ks-body').inner_text()
 
   page.locator('.ks-tab[data-group="Gameplay"]').click()
   page.locator('.ks-subtab[data-tab="Game Integration"]').click()
-  assert page.locator('[data-setting="gameAutoMouseCapture"]').count()==1
+  assert page.locator('#ks-pointer-status').is_visible()
   assert page.locator('[data-setting="gameKeystrokes"]').count()==1
   page.locator('[data-setting="gameKeystrokes"]').check()
   assert page.evaluate("window.__KS_GAME_EXTRAS__.getStatus().keystrokes")
@@ -132,8 +130,8 @@ with sync_playwright() as play:
   assert page.locator('[data-setting="crosshairEnabled"]').count()==1
   page.locator('.ks-tab[data-group="Advanced"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
-  assert page.locator('.ks-release').first.inner_text().startswith('KS Client Beta 1.0.20')
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client Beta 1.0.21')
   assert not errors,(width,errors)
-  print('PASS 1.0.20 engine UI',width,height)
+  print('PASS 1.0.21 engine UI',width,height)
   page.close()
  browser.close()

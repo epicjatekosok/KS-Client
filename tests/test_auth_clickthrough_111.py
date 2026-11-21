@@ -3,7 +3,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 root=Path(__file__).resolve().parents[1]
-for engine in ('Electron','CEF'):
+for engine in ('Electron',):
  with sync_playwright() as pw:
   browser=pw.chromium.launch(headless=True)
   page=browser.new_page(viewport={'width':1280,'height':800})
@@ -34,7 +34,7 @@ for engine in ('Electron','CEF'):
       e.preventDefault();window.__clicks.submit++;
     });
   }""")
-  script=(root/('cef/overlay/overlay.js' if engine=='CEF' else 'electron-app/overlay/overlay.js')).read_text(encoding='utf8')
+  script=(root/('electron-app/overlay/overlay.js')).read_text(encoding='utf8')
   page.add_script_tag(content=script.replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1))
   page.wait_for_function('!!window.__KS_CLIENT__')
   # The KS shadow host must have zero hit-test area. Only its own visible

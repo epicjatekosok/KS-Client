@@ -268,7 +268,6 @@ func startUpdateWorker(mode string,channel string)error{
  own,e:=os.Executable();if e!=nil{return e}
  target:=filepath.Dir(own)
  if _,e=os.Stat(filepath.Join(target,"runtime","Electron","electron.exe"));e!=nil{return errors.New("Update requires full KS Client folder")}
- if _,e=os.Stat(filepath.Join(target,"runtime","CEF","KS.Cef.Client.exe"));e!=nil{return errors.New("Update requires CEF runtime")}
  worker:=filepath.Join(dataDir(),"Updates","worker-"+randomID()+".exe")
  if e=copyUpdaterWorker(own,worker);e!=nil{return e}
  arguments:=[]string{"--ks-update-worker","--mode="+mode,"--channel="+channel,"--target="+target,"--wait-pid="+strconv.Itoa(os.Getppid())}
@@ -301,7 +300,7 @@ func updateWorkerCLI(mode,target string,waitPID int){
   if e!=nil{appendLog("Update prefetch: "+e.Error())}
   return
  }
- w:=ksui.New("KS Client - Update "+choice.release.Tag,"Downloading KS Client update","Verified GitHub release · both engines · saved settings kept")
+ w:=ksui.New("KS Client - Update "+choice.release.Tag,"Downloading KS Client update","Verified GitHub release · saved settings kept")
  w.Version="Beta "+version
  w.SetButtons(ksui.Button{Label:"Close",ID:"close",Enabled:false})
  w.OnButton=func(id string){if id=="close"{w.Close()}}

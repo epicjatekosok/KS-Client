@@ -1,10 +1,10 @@
-"""KS Beta 1.0.20 browser smoke: matching HUD/close, Experimental Workshop and update buttons."""
+"""KS Beta 1.0.21 browser smoke: matching HUD/close, Experimental Workshop and update buttons."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 root=Path(__file__).resolve().parents[1]
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True)
- for engine in ('Electron','CEF'):
+ for engine in ('Electron',):
   page=browser.new_page(viewport={'width':1380,'height':820})
   errors=[]
   page.on('pageerror',lambda e:errors.append(str(e)))
@@ -16,7 +16,7 @@ with sync_playwright() as p:
     getItem:k=>db.get(k)||null,setItem:(k,v)=>db.set(k,v),removeItem:k=>db.delete(k)
    }});
   }""")
-  js=(root/('cef/overlay/overlay.js' if engine=='CEF' else 'electron-app/overlay/overlay.js')).read_text()
+  js=(root/('electron-app/overlay/overlay.js')).read_text()
   page.add_script_tag(content=js.replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1))
   page.wait_for_function('!!window.__KS_CLIENT__')
   page.evaluate('window.__KS_CLIENT__.open()')
@@ -43,7 +43,7 @@ with sync_playwright() as p:
   assert info['defaultFps']=='none',info
   assert info['fpsBorder']=='10px' and info['closeBorder']=='10px',info
   assert info['fpsBackground']==info['closeBackground'],info
-  assert info['version']=='KS · 1.0.20' and info['workshopBadge'],info
+  assert info['version']=='KS · 1.0.21' and info['workshopBadge'],info
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-group="Workshop"]').click()""")
   assert page.evaluate("""() => {
    const s=document.querySelector('#ks-client-root').shadowRoot;
@@ -55,7 +55,7 @@ with sync_playwright() as p:
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-action="update-check"]').click()""")
   assert page.evaluate("window.__out.some(m=>m.type==='update-check'&&m.channel==='beta')")
   page.evaluate("""() => window.__KS_CLIENT__.setUpdateStatus({
-   state:'available',channel:'beta',current:'1.0.20',version:'1.0.20-beta',
+   state:'available',channel:'beta',current:'1.0.21',version:'1.0.21-beta',
    message:'New verified beta available',bytes:424000000
   })""")
   assert page.evaluate("""() => !!document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-action="update-install"]')""")
@@ -63,5 +63,5 @@ with sync_playwright() as p:
   assert page.evaluate("window.__out.some(m=>m.type==='update-open-release')")
   assert not errors,errors
   page.close()
-  print('PASS KS Beta 1.0.20 HUD, Experimental Workshop, check/install/manual update',engine)
+  print('PASS KS Beta 1.0.21 HUD, Experimental Workshop, check/install/manual update',engine)
  browser.close()

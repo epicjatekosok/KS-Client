@@ -12,7 +12,7 @@ def test_engine(browser,engine):
     const store=new Map();
     Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)}});
   }""")
-  source=(root/('cef/overlay/overlay.js' if engine=='CEF' else 'electron-app/overlay/overlay.js')).read_text(encoding='utf8').replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1)
+  source=(root/('electron-app/overlay/overlay.js')).read_text(encoding='utf8').replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1)
   page.add_script_tag(content=source)
   page.wait_for_timeout(150)
   page.evaluate('window.__KS_CLIENT__.open()')
@@ -21,7 +21,7 @@ def test_engine(browser,engine):
     const s=document.querySelector('#ks-client-root').shadowRoot;
     return s.querySelectorAll('#ks-sidebar-groups .ks-tab').length;
   }""")==7
-  assert page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-badge').textContent""")=='KS · 1.0.20'
+  assert page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-badge').textContent""")=='KS · 1.0.21'
   badge=page.evaluate("""() => {
     const b=document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-badge');
     const s=getComputedStyle(b);
@@ -50,8 +50,8 @@ def test_engine(browser,engine):
   assert len(out)==1,out
   assert page.evaluate("document.location.href")== 'about:blank'
   page.close()
-  print('PASS alpha 1.0.20 Chromium UI + Discord',engine)
+  print('PASS alpha 1.0.21 Chromium UI + Discord',engine)
 with sync_playwright() as p:
   browser=p.chromium.launch(headless=True)
-  for engine in ('Electron','CEF'):test_engine(browser,engine)
+  for engine in ('Electron',):test_engine(browser,engine)
   browser.close()

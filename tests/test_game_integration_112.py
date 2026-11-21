@@ -8,8 +8,6 @@ root = Path(__file__).resolve().parents[1]
 files = ["integration_bootstrap.js", "integration_core.js"]
 for name in files:
     electron = (root / "electron-app" / "overlay" / name).read_text(encoding="utf-8")
-    cef = (root / "cef" / "overlay" / name).read_text(encoding="utf-8")
-    assert electron == cef, f"CEF/Electron {name} diverged"
 
 boot = (root / "electron-app/overlay/integration_bootstrap.js").read_text(encoding="utf-8")
 core = (root / "electron-app/overlay/integration_core.js").read_text(encoding="utf-8")
