@@ -268,7 +268,6 @@ func startUpdateWorker(mode string,channel string)error{
  own,e:=os.Executable();if e!=nil{return e}
  target:=filepath.Dir(own)
  if _,e=os.Stat(filepath.Join(target,"runtime","Electron","electron.exe"));e!=nil{return errors.New("Update requires full KS Client folder")}
- if _,e=os.Stat(filepath.Join(target,"runtime","CEF","KS.Cef.Client.exe"));e!=nil{return errors.New("Update requires CEF runtime")}
  worker:=filepath.Join(dataDir(),"Updates","worker-"+randomID()+".exe")
  if e=copyUpdaterWorker(own,worker);e!=nil{return e}
  arguments:=[]string{"--ks-update-worker","--mode="+mode,"--channel="+channel,"--target="+target,"--wait-pid="+strconv.Itoa(os.Getppid())}

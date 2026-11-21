@@ -2,18 +2,15 @@
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 ui=(root/'electron-app/overlay/overlay.js').read_text(encoding='utf8')
-assert ui==(root/'cef/overlay/overlay.js').read_text(encoding='utf8')
 assert "{key:'Advanced', items:['General','Updates','Sharing','Diagnostics']}" in ui
 for field in ('autoCheckUpdates: true','autoDownloadUpdates: true',"updateChannel: 'beta'",'data-action="update-check"','data-action="update-install"','setUpdateStatus: status =>'):
  assert field in ui,field
 assert "showFPS: false" in ui, 'FPS must remain disabled on new profiles'
 assert "ensureOverlayMounted()" in ui, 'Kirka SPA settings must remain persistent'
 e=(root/'electron-app/main.cjs').read_text(encoding='utf8')
-c=(root/'cef/ClientForm.cs').read_text(encoding='utf8')
 for word in ('update-check','update-install','update-prefetch'):
  assert word in e,word
-assert 'update-check' in c and 'update-install' in c and 'LaunchUpdateHelper' in c
-assert 'dialog.showMessageBox' in e and 'MessageBox.Show(this' in c
+assert 'dialog.showMessageBox' in e
 launcher=(root/'launcher/main_windows.go').read_text(encoding='utf8')
 up=(root/'launcher/update_windows.go').read_text(encoding='utf8')
 assert 'handleUpdateCLI(os.Args[1:])' in launcher

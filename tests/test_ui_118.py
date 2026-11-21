@@ -15,7 +15,7 @@ def run(browser,engine):
     Element.prototype.attachShadow=function(opts){return original.call(this,this.id==='ks-game-extras'?{...opts,mode:'open'}:opts);};
   }""")
   if engine=='CEF':page.evaluate('window.CefSharp={PostMessage:()=>{}}')
-  folder=r/('cef/overlay' if engine=='CEF' else 'electron-app/overlay')
+  folder=r/('electron-app/overlay')
   for file in ('overlay.js','game_extras.js'):
     source=(folder/file).read_text(encoding='utf8').replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1)
     page.add_script_tag(content=source)
@@ -44,5 +44,5 @@ def run(browser,engine):
   print('PASS: KS 1.0.0 mock Kirka UI',engine)
 with sync_playwright() as p:
   browser=p.chromium.launch(headless=True)
-  for engine in ('Electron','CEF'):run(browser,engine)
+  for engine in ('Electron',):run(browser,engine)
   browser.close()

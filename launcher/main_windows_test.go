@@ -22,7 +22,7 @@ func TestEnginePaths(t *testing.T){
  e,dir:=runtimeFile(base,"electron")
  if filepath.Base(e)!="electron.exe"||filepath.Base(dir)!="Electron"{t.Fatal("invalid Electron path")}
  c,dir:=runtimeFile(base,"cef")
- if filepath.Base(c)!="KS.Cef.Client.exe"||filepath.Base(dir)!="CEF"{t.Fatal("invalid CEF path")}
+ if filepath.Base(c)!="electron.exe"||filepath.Base(dir)!="Electron"{t.Fatal("invalid CEF path")}
 }
 func TestInitialEngineDefaultsToElectron(t *testing.T) {
  t.Setenv("LOCALAPPDATA",t.TempDir())
@@ -31,7 +31,7 @@ func TestInitialEngineDefaultsToElectron(t *testing.T) {
  if err:=os.WriteFile(prefsFile(),[]byte("unknown\n"),0600);err!=nil{t.Fatal(err)}
  if chosenEngine()!="electron"{t.Fatal("invalid preference must fall back to Electron")}
  if err:=saveEngine("cef");err!=nil{t.Fatal(err)}
- if chosenEngine()!="cef"{t.Fatal("explicitly saved CEF choice must remain")}
+ if chosenEngine()!="electron"{t.Fatal("legacy preference must start Electron")}
 }
 func TestReadyDoesNotChangeSelectionUntilConfirmed(t *testing.T){
  // Isolate the application preference directory and verify that failure
@@ -46,7 +46,7 @@ func TestReadyDoesNotChangeSelectionUntilConfirmed(t *testing.T){
  cmd:=exec.Command("cmd.exe","/c","exit","3")
  if err:=cmd.Start();err!=nil{t.Fatal(err)}
  if err:=awaitEngineSwitch(cmd,"electron",token);err==nil{t.Fatal("exited child passed readiness")}
- if chosenEngine()!="cef"{t.Fatal("engine selection changed on startup failure")}
+ if chosenEngine()!="electron"{t.Fatal("engine selection changed on startup failure")}
 }
 func TestSwitchTimeoutConstant(t *testing.T){
  if switchTimeout<30*time.Second||switchTimeout>60*time.Second{t.Fatal("invalid switch timeout")}

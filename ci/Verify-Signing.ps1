@@ -12,7 +12,7 @@ if($packageVersion -notmatch '^[0-9]+[.][0-9]+[.][0-9]+-beta$'){
 $releaseNumber=$packageVersion -replace '-beta$',''
 $setupName="KS-Client-beta-$releaseNumber-Setup.exe"
 $files=@('KS-Client.exe','Uninstall-KS-Client.exe',
-  'runtime/CEF/KS.Cef.Client.exe',$setupName)
+  $setupName)
 $require=[bool]$env:KS_SIGNING_PFX_BASE64
 $allValid=$true
 $report=@("KS CLIENT BETA $releaseNumber CODE SIGNING STATUS",

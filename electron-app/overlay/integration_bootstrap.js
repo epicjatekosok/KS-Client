@@ -1,5 +1,5 @@
 /* KS Client – single early Kirka WebGL context registry (Electron and CEF).
-   This passive layer never creates a WebGL context, alters rendering, or consumes
+   Tracks game-owned WebGL contexts and never consumes
    game input. Subscribers can attach to contexts created before they loaded. */
 (() => {
   'use strict';
@@ -8,6 +8,8 @@
 
   const proto = HTMLCanvasElement.prototype;
   const original = proto.getContext;
+  let smoothEdges=true;
+  try{smoothEdges=JSON.parse(localStorage.getItem('ksclient.settings.alpha')||'{}').smoothGameEdges!==false;}catch(_){}
   const contexts = new WeakSet();
   const known = new Set();
   function liveContexts(){
@@ -40,7 +42,7 @@
     try {
       const attrs = gl.getContextAttributes?.();
       const requested = canvas.__ksLastWebGLAttrs ?? null;
-      if (!selected || (canvas.width * canvas.height) >= (selected.canvas.width * selected.canvas.height)) {
+      if (!selected || canvas.id==='game' || (selected.canvas.id!=='game' && (canvas.width * canvas.height) >= (selected.canvas.width * selected.canvas.height))) {
         selected = { canvas, gl, kind, asked: requested?.antialias ?? null,
           reported: typeof attrs?.antialias === 'boolean' ? attrs.antialias : null };
       }
@@ -58,14 +60,17 @@
     }
   }
   function wrappedGetContext(kind, ...args) {
-    // Invoke the game's original getContext exactly once, with its original
-    // arguments and receiver. Never suppress errors from Chromium itself.
-    const gl = Reflect.apply(original, this, [kind, ...args]);
+    const gameGL=this.id==='game' && ['webgl','webgl2','experimental-webgl'].includes(kind);
+    const requestAA=gameGL && smoothEdges && args[0]?.antialias===false;
+    let options=args;
+    if(requestAA)options=[Object.create(args[0],{antialias:{value:true,enumerable:true}}),...args.slice(1)];
+    let gl=Reflect.apply(original,this,[kind,...options]);
+    if(!gl && requestAA){options=args;gl=Reflect.apply(original,this,[kind,...args]);}
     if (kind === 'webgl' || kind === 'experimental-webgl' || kind === 'webgl2') {
       try {
         if (!this.__ksLastWebGLAttrs && args.length && args[0] && typeof args[0] === 'object') {
           // Only keep a boolean snapshot, never retain game-owned option objects.
-          this.__ksLastWebGLAttrs = { antialias: typeof args[0].antialias === 'boolean' ? args[0].antialias : null };
+          this.__ksLastWebGLAttrs = { antialias: typeof options[0].antialias === 'boolean' ? options[0].antialias : null };
         }
         track(this, kind, gl);
       } catch (_) { seen.subscriberErrors++; }

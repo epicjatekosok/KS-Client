@@ -1,17 +1,16 @@
-"""Beta 1.0.20 UI regression: complete palettes and advanced visual-only extras."""
+"""Beta 1.0.21 UI regression: complete palettes and advanced visual-only extras."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 r=Path(__file__).resolve().parents[1]
 js=(r/'electron-app/overlay/overlay.js').read_text(encoding='utf8')
-assert js==(r/'cef/overlay/overlay.js').read_text(encoding='utf8')
 palettes=['Amber','Ember','Ice','Forest','Violet','Midnight','Ocean','Crimson','Cyber',
           'Rose','Sand','Monochrome','Copper']
 for name in palettes:
  assert name+':{accent:' in js, name
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True)
- for engine in ('Electron','CEF'):
+ for engine in ('Electron',):
   page=browser.new_page(viewport={'width':1450,'height':910})
   errors=[]
   page.on('pageerror',lambda e:errors.append(str(e)))
@@ -45,7 +44,7 @@ with sync_playwright() as p:
       version:root.querySelector('#ks-badge').textContent};
    }""")
   before=data()
-  assert before['version']=='KS · 1.0.20',before
+  assert before['version']=='KS · 1.0.21',before
   assert before['paletteTiles']==13,before
   original={key:before['saved'][key] for key in
     ['gameStats','gameAutoMouseCapture','showFPS','fpsLimit','uiScale','gameQuickJoin']}
@@ -104,5 +103,5 @@ with sync_playwright() as p:
   assert data()['saved']['customPanel']=='#253040'
   assert not errors,(engine,errors)
   page.close()
-  print('PASS: Beta 1.0.20 13 palettes + extra appearance without changing gameplay',engine)
+  print('PASS: Beta 1.0.21 13 palettes + extra appearance without changing gameplay',engine)
  browser.close()

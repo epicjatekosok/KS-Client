@@ -125,7 +125,7 @@ func removeProgramFiles(folder string) error {
 		status("REMOVING PROGRAM FILES", entry.Name(), .04+.83*float64(i)/float64(max(1, len(entries))))
 		file := filepath.Join(folder, entry.Name())
 		if err := os.RemoveAll(file); err != nil {
-			return fmt.Errorf("could not remove %s: %w. Close KS Client, Electron and CEF before uninstalling", entry.Name(), err)
+			return fmt.Errorf("could not remove %s: %w. Close KS Client and Electron before uninstalling", entry.Name(), err)
 		}
 	}
 	status("REMOVING PROGRAM FILES", "Finishing the application directory…", .88)
@@ -212,9 +212,9 @@ func main() {
 	}
 	if askEnglish("KS Client Uninstaller - "+installedReleaseLabel(dir),
 		"Remove KS Client from this Windows account?\n\n"+
-			"Application files, Electron and CEF runtime files, and shortcuts will be removed.\n"+
+			"Application files, bundled runtime files, and shortcuts will be removed.\n"+
 			"You can choose whether to keep your saved settings and browser profiles.\n\n"+
-			"Close every KS Client, Electron, and CEF window before continuing.",
+			"Close every KS Client and Electron window before continuing.",
 		dialogButton{"Yes", 6}, dialogButton{"No", 7}) != 6 {
 		return
 	}

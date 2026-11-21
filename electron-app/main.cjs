@@ -1,13 +1,12 @@
 'use strict';
-// KS Client Beta 1.0.20: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.21: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
-const {spawn,execFile}=require('node:child_process');
+const {execFile,spawn}=require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const crypto = require('node:crypto');
 
-const APP_VERSION = 'Beta 1.0.20';
+const APP_VERSION = 'Beta 1.0.21';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -17,7 +16,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.20.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.21.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -116,7 +115,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.20').slice(0,40),
+      current:String(payload.current||'1.0.21').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -175,7 +174,9 @@ async function installKSUpdate(channel){
     app.quit();
   });
 }
-let switchInProgress = false;
+const crypto = require('node:crypto');
+const installedEngines=Object.freeze({electron:['Electron','electron.exe']});
+let switchInProgress=false;
 let switchProbeTimer = null;
 function signalSwitchReady(){
   // Independent of Kirka.io network and renderer timing. Native window exists.
@@ -288,9 +289,6 @@ function installShortcuts(){
     if(input.key==='F1'){event.preventDefault();runJS('window.__KS_CLIENT__?.toggle?.()')}
     if(input.key==='F10'){event.preventDefault();runJS('window.__KS_CLIENT__?.toggleHud?.()')}
     if(input.key==='F12' && desired.devTools){event.preventDefault();win.webContents.openDevTools({mode:'detach'})}
-    if(input.control && input.alt && input.key.toLowerCase()==='c'){
-      event.preventDefault();switchEngine('cef');return;
-    }
     if(input.control && input.key.toLowerCase()==='r'){event.preventDefault();win.webContents.reload()}
   });
 }
@@ -309,7 +307,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.20 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.21 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
@@ -372,10 +370,10 @@ function createWindow(){
 // Preserve the old window until the new engine has actually loaded its UI.
 // The launcher relays a one-time nonce; the new engine acknowledges from DOM-ready.
 function switchEngine(target) {
-  if(switchInProgress || !['electron','cef'].includes(target))return;
+  if(switchInProgress || target==='electron' || !Object.hasOwn(installedEngines,target))return;
   const root=path.resolve(__dirname,'..','..','..','..');
   const launcher=path.join(root,'KS-Client.exe');
-  const targetExe=target==='cef'?path.join(root,'runtime','CEF','KS.Cef.Client.exe'):path.join(root,'runtime','Electron','electron.exe');
+  const targetExe=path.join(root,'runtime',...installedEngines[target]);
   if(!fs.existsSync(launcher)||!fs.existsSync(targetExe)){
     jsCall('setEngineSwitchStatus','Engine or launcher missing. Repair the offline installation.');
     return;
@@ -437,11 +435,8 @@ function receiveMessage(event, raw){
     case 'fullscreen':win.setFullScreen(!win.isFullScreen());break;
     case 'game-resolution':setGameResolution(String(raw.preset||'native'));break;
     case 'menu-resolution':setWindowSize(String(raw.preset||'native'));break;
+    case 'engine-switch':switchEngine(raw.engine);break;
     case 'engine-info':jsCall('setEngineInfo','Electron');break;
-    case 'engine-switch':{
-      if(raw.engine==='cef')switchEngine('cef');
-      break;
-    }
     case 'update-config': {
       saveUpdatePreferences(raw);
       if(lastNativeUpdateStatus)emitUpdateStatus(lastNativeUpdateStatus);

@@ -1,9 +1,7 @@
-"""KS Client alpha 1.0.20 — modern settings and fixed Discord invite contract."""
+"""KS Client alpha 1.0.21 — modern settings and fixed Discord invite contract."""
 from pathlib import Path
 r=Path(__file__).resolve().parents[1]
 a=(r/'electron-app/overlay/overlay.js').read_text(encoding='utf8')
-b=(r/'cef/overlay/overlay.js').read_text(encoding='utf8')
-assert a==b, 'Both engines must share the modern menu and Discord redirect'
 for required in ('ks-menu-search','ks-search-results','ks-sidebar-groups','updateSettingsSearch','settingsSearchTerms','KS · ${CLIENT_VERSION}','isKirkaDiscordButton', "openTrustedExternal('discord')"):
  assert required in a,required
 assert "showFPS: false" in a
@@ -12,16 +10,11 @@ assert "items:['Performance','Frame Stability','Browser Graphics','Browser GPU I
 assert "items:['Display','Eye Comfort','Crosshair']" in a
 assert "items:['Game Integration','Lobby','Friends & Profiles']" in a
 assert "['General','Updates','Sharing','Diagnostics']" in a
-assert (r/'electron-app/overlay/workshop.js').read_text()==(r/'cef/overlay/workshop.js').read_text()
 e=(r/'electron-app/main.cjs').read_text()
-c=(r/'cef/ClientForm.cs').read_text()
 assert "case 'discord-community':" in e
-assert 'case "discord-community":' in c
 assert "shell.openExternal('https://discord.gg/cxP386yGjk')" in e
-assert 'ClientCommunityLinks.OpenInvite()' in c
-assert 'https://discord.gg/cxP386yGjk' in (r/'cef/ClientCommunityLinks.cs').read_text()
 assert "discord-community" not in "stats clan game fullscreen crash-status diagnostics-poll update-check update-install"
-for path in ('launcher/main_windows.go','installer/main_windows.go','electron-app/main.cjs','cef/Program.cs','ci/Publish-Release.ps1'):
- assert '1.0.20' in (r/path).read_text(),path
-assert 'RELEASE_BETA_120_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
-print('PASS: KS 1.0.20 modern searchable menu, subtle badge, strict Discord native bridge and preserved dual-engine settings')
+for path in ('launcher/main_windows.go','installer/main_windows.go','electron-app/main.cjs','ci/Publish-Release.ps1'):
+ assert '1.0.21' in (r/path).read_text(),path
+assert 'RELEASE_BETA_121_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
+print('PASS: KS 1.0.21 modern searchable menu, subtle badge, strict Discord native bridge and preserved dual-engine settings')
