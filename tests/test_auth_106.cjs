@@ -5,8 +5,6 @@ const path=require('node:path');
 const vm=require('node:vm');
 const root=path.join(__dirname,'..');
 const source=fs.readFileSync(path.join(root,'electron-app/overlay/overlay.js'),'utf8');
-const cef=fs.readFileSync(path.join(root,'cef/overlay/overlay.js'),'utf8');
-assert.equal(source,cef,'CEF and Electron must retain identical UI');
 assert(source.includes('data-action="auth-import-session"'),'Missing account import control');
 assert(source.includes('type="password" maxlength="8192"'),'Session input must be masked and bounded');
 assert(source.includes("v:'Beta 1.0.5'"),'Preserve the previous release in change history');

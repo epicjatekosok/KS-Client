@@ -1,6 +1,6 @@
 //go:build windows
 
-// KS Client Beta 1.0.20: engine-neutral Windows launcher.
+// KS Client Beta 1.0.21: engine-neutral Windows launcher.
 // A switch is committed only after the newly started native host acknowledges
 // its own readiness. A transient game page/network failure is not engine failure.
 package main
@@ -18,7 +18,7 @@ import (
  "time"
 )
 
-const version = "1.0.20"
+const version = "1.0.21"
 const releaseTrack = "beta" // Release lifecycle: alpha -> beta -> stable.
 const switchTimeout = 45 * time.Second
 
@@ -30,13 +30,6 @@ func dataDir() string {
 }
 func prefsFile() string { return filepath.Join(dataDir(), "selected-engine.txt") }
 func chosenEngine() string {
- b,err:=os.ReadFile(prefsFile())
- if err==nil {
-  switch strings.TrimSpace(strings.ToLower(string(b))) {
-  case "electron":return "electron"
-  case "cef":return "cef" // Preserve explicitly saved CEF choice.
-  }
- }
  return "electron" // Fresh installations start in Electron.
 }
 func saveEngine(engine string) error {
@@ -46,12 +39,8 @@ func saveEngine(engine string) error {
  return os.WriteFile(prefsFile(),[]byte(engine+"\n"),0600)
 }
 func runtimeFile(base,engine string)(string,string){
- if engine=="electron"{
-  dir:=filepath.Join(base,"runtime","Electron")
-  return filepath.Join(dir,"electron.exe"),dir
- }
- dir:=filepath.Join(base,"runtime","CEF")
- return filepath.Join(dir,"KS.Cef.Client.exe"),dir
+ dir:=filepath.Join(base,"runtime","Electron")
+ return filepath.Join(dir,"electron.exe"),dir
 }
 func validSwitchToken(token string)bool{
  if len(token)!=32 {return false}
@@ -130,11 +119,11 @@ func main(){
  for i:=0;i<len(args);i++{
   switch{
   case args[i]=="--engine"&&i+1<len(args):
-   if args[i+1]=="cef"||args[i+1]=="electron"{engine=args[i+1];explicitEngine=true}
+   if args[i+1]=="cef"||args[i+1]=="electron"{explicitEngine=true}
    i++
   case strings.HasPrefix(args[i],"--engine="):
    v:=strings.TrimPrefix(args[i],"--engine=")
-   if v=="cef"||v=="electron"{engine=v;explicitEngine=true}
+   if v=="cef"||v=="electron"{explicitEngine=true}
   case strings.HasPrefix(args[i],"--ks-switch-token="):
    v:=strings.TrimPrefix(args[i],"--ks-switch-token=")
    if validSwitchToken(v){token=v}
@@ -143,7 +132,7 @@ func main(){
   case args[i]=="--ks-browser-safe-mode":
    safe=true
   case args[i]=="--repair-engines":
-   message("KS Client - Repair","Please rerun the complete offline installer; both engines are shipped together.",0);return
+   message("KS Client - Repair","Please rerun the complete offline installer; the Electron runtime is included.",0);return
   }
  }
  if token=="" && explicitEngine {
@@ -171,12 +160,6 @@ func main(){
  }
  cmd:=exec.Command(file,pass...)
  cmd.Dir=dir
- if engine=="cef"{
-  localDotnet:=filepath.Join(dir,"dotnet")
-  if _,err:=os.Stat(filepath.Join(localDotnet,"host","fxr"));err==nil{
-   cmd.Env=append(os.Environ(),"DOTNET_ROOT="+localDotnet,"DOTNET_ROOT_X64="+localDotnet,"DOTNET_MULTILEVEL_LOOKUP=0")
-  }
- }
  appendLog("Starting "+engine+" executable "+file)
  if err:=cmd.Start();err!=nil{
   detail:="Failed to start "+engine+": "+err.Error()
@@ -191,7 +174,7 @@ func main(){
    appendLog("Switch failure: "+err.Error())
    reportSwitchFailure(token,err.Error())
    if explicitEngine && !probe {
-    message("KS Client - Engine Launch Error",err.Error()+"\nCheck %LOCALAPPDATA%\\KSClient\\launcher-1.0.20.log",0)
+    message("KS Client - Engine Launch Error",err.Error()+"\nCheck %LOCALAPPDATA%\\KSClient\\launcher-1.0.21.log",0)
    }
   }else if !probe{keepPresence(pid,engine)}
   return

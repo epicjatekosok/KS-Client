@@ -8,8 +8,6 @@ const vm=require('node:vm');
 const root=path.join(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const electronGate=read('electron-app/overlay/native_login_gate.js');
-const cefGate=read('cef/overlay/native_login_gate.js');
-assert.equal(electronGate,cefGate);
 assert(!/preventDefault|stopPropagation|stopImmediatePropagation/.test(electronGate));
 assert(!/fetch\(|XMLHttpRequest|clipboard|postMessage|location\.href/.test(electronGate));
 assert(electronGate.includes("localStorage.getItem('token')"));
@@ -44,7 +42,6 @@ assert.equal(ready.interval,null,'Existing session must load the full KS runtime
 // Browser/native injection must leave an unauthenticated Kirka page alone.
 const preload=read('electron-app/preload.cjs');
 const host=read('electron-app/main.cjs');
-const cef=read('cef/ClientForm.cs');
 assert(preload.includes("gameSessionReady=!!localStorage.getItem('token')"));
 assert(preload.includes('if(gameSessionReady)'));
 const start=host.indexOf("win.webContents.on('dom-ready',async()=>{");
@@ -53,15 +50,9 @@ const guard=host.indexOf('if(!authenticated){',start);
 assert(start>=0&&guard>start&&runner>guard,
  'Authenticated gating must run before late game/overlay hooks');
 assert(host.includes('await win.webContents.executeJavaScript(nativeLoginGateJS,true)'));
-assert(cef.includes('private static string AfterKirkaLogin(string script)'));
-assert(cef.includes('e.Frame.ExecuteJavaScriptAsync(nativeLoginGate)'));
-for(const file of ['overlay','pacer','extras','workshop','advanced','freezeGuard'])
-  assert(new RegExp('\\b'+file+'=AfterKirkaLogin\\(').test(cef),file+' CEF module is not login-gated');
-assert(!cef.includes('browser.LifeSpanHandler ='), 'CEF must use default Chromium popup management');
 assert(!host.includes("win.webContents.on('will-navigate',guardMainNavigation)"), 'Kirka OAuth navigation is no longer intercepted');
 // No broad Discord text interception: the user's own provider buttons are Kirka's.
 const ui=read('electron-app/overlay/overlay.js');
-assert.equal(ui,read('cef/overlay/overlay.js'));
 const begin=ui.indexOf('  function isKirkaDiscordButton(element) {');
 const end=ui.indexOf('  if(isGamePage)document.addEventListener',begin);
 assert(begin>0&&end>begin);

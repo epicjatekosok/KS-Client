@@ -4,12 +4,10 @@ from playwright.sync_api import sync_playwright
 
 root=Path(__file__).resolve().parents[1]
 a=(root/'electron-app/overlay/overlay.js').read_text(encoding='utf-8')
-b=(root/'cef/overlay/overlay.js').read_text(encoding='utf-8')
-assert a==b, 'CEF and Electron must ship identical theme/settings behavior'
 
 with sync_playwright() as p:
     browser=p.chromium.launch(headless=True)
-    for engine in ('Electron','CEF'):
+    for engine in ('Electron',):
         page=browser.new_page(viewport={'width':1400,'height':850})
         errors=[]
         page.on('pageerror',lambda error:errors.append(str(error)))

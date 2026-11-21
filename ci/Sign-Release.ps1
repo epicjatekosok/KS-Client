@@ -1,7 +1,7 @@
 # Optional genuine Authenticode signing for KS Client first-party binaries.
 # Both KS_SIGNING_PFX_BASE64 and KS_SIGNING_PFX_PASSWORD must be protected Actions secrets.
 [CmdletBinding()]
-param([Parameter(Mandatory)][ValidateSet('cef','native','setup')][string]$Stage)
+param([Parameter(Mandatory)][ValidateSet('native','setup')][string]$Stage)
 $ErrorActionPreference='Stop'
 $repo=Split-Path -Parent $PSScriptRoot
 # Derive this release's EXE filename from Electron's packaged metadata.
@@ -20,7 +20,6 @@ if(-not $encoded) {
     return
 }
 $files=switch($Stage) {
-    'cef' { @(Join-Path $repo 'runtime/CEF/KS.Cef.Client.exe') }
     'native' { @((Join-Path $repo 'KS-Client.exe'),(Join-Path $repo 'Uninstall-KS-Client.exe')) }
     'setup' { @(Join-Path $repo $setupName) }
 }

@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.20 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.21 – Electron unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.20';
+  const CLIENT_VERSION='1.0.21';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -42,6 +42,7 @@
     customCSSEnabled: false,
     customCSS: '',
     menuResolution: 'native',
+    smoothGameEdges: true,
     gameResolution: 'native',
     fpsLimit: 0,
     smoothPreset: 'Native',
@@ -100,7 +101,7 @@
   let open = false;
 
   let activeEngine = window.__KS_RUNTIME__?.engine ||
-    (window.CefSharp?.PostMessage ? 'CEF (CefSharp)' : 'Detecting native engine…');
+    'Detecting native engine…';
   let engineSwitchStatus = '';
   let engineSwitchAcknowledged=false;
   let crashStatus = 'Checking local logs...';
@@ -138,7 +139,7 @@
 
   const resetSections = Object.freeze({
     General: [],
-    Display: ['menuResolution','gameResolution','uiScale','showFPS','fpsSource','fpsPosition'],
+    Display: ['smoothGameEdges','menuResolution','gameResolution','uiScale','showFPS','fpsSource','fpsPosition'],
     Performance: ['fpsLimit','smoothPreset','limitSettingsFPS','limitLobbyFPS','protectUnlockedMenus','limitUnfocusedFPS','showGraph','lowLatency','performancePreset','uiAnimations'],
     'Frame Stability': [],
     'Game Integration':['gameKeystrokes','gameStats','gameKeysPosition','gameKeysScale','gameAutoMouseCapture','gameQuickJoin','gameListFilters','gameScreenshotKey'],
@@ -193,26 +194,11 @@
     try {
       const data={ type, ...payload };
       if(window.__KS_NATIVE__?.post){window.__KS_NATIVE__.post(data);return true;}
-      if(window.CefSharp?.PostMessage){window.CefSharp.PostMessage(JSON.stringify(data));return true;}
     } catch (_) {}
     return false;
   }
 
-  // CEF's postMessage bridge can be detached while the Kirka SPA changes
-  // frames. These two fixed, trusted client-owned actions therefore navigate
-  // to reserved Kirka URLs that the native CEF request handler ALWAYS
-  // intercepts before network access. Electron keeps its existing IPC path.
   function openTrustedExternal(kind) {
-    if(isGamePage && !window.__KS_NATIVE__?.post && (window.CefSharp?.PostMessage || (typeof activeEngine==='string' && activeEngine.toLowerCase().includes('cef')))) {
-      const routes={
-        discord:'https://kirka.io/__ksclient_internal_open_discord__',
-        releases:'https://kirka.io/__ksclient_internal_open_releases__'
-      };
-      if(Object.prototype.hasOwnProperty.call(routes,kind)) {
-        location.assign(routes[kind]);
-        return true;
-      }
-    }
     return notify(kind==='discord'?'discord-community':'update-open-release');
   }
 
@@ -491,7 +477,7 @@
     .ks-select-popup button:hover,.ks-select-popup button:focus-visible {outline:0;background:#2e3137;color:white;}
     .ks-select-popup button[aria-selected="true"] {background:rgba(242,162,37,.12);color:var(--ks-accent,#f0aa35);}
     .ks-select-popup button[aria-selected="true"]::after {content:'✓';font-weight:900;}
-    /* Electron/CEF / Chromium scrollbar track and arrows; no native white arrow buttons. */
+    /* Electron / Chromium scrollbar track and arrows; no native white arrow buttons. */
     #ks-nav::-webkit-scrollbar,#ks-body::-webkit-scrollbar,.ks-select-popup::-webkit-scrollbar,#ks-panel textarea::-webkit-scrollbar {width:7px;height:7px;}
     #ks-nav::-webkit-scrollbar-track,#ks-body::-webkit-scrollbar-track,.ks-select-popup::-webkit-scrollbar-track,#ks-panel textarea::-webkit-scrollbar-track {background:transparent;}
     #ks-nav::-webkit-scrollbar-thumb,#ks-body::-webkit-scrollbar-thumb,.ks-select-popup::-webkit-scrollbar-thumb,#ks-panel textarea::-webkit-scrollbar-thumb {background:color-mix(in srgb,var(--ks-accent,#f0aa35) 65%,#252b33);border-radius:20px;border:1px solid transparent;background-clip:padding-box;}
@@ -1246,7 +1232,7 @@
     if(updateStatus.state==='checking')return 'Checking GitHub Releases…';
     return String(updateStatus.message||'Not checked');
   }
-  let browserStatus = 'Waiting for native Electron/CEF settings…';
+  let browserStatus = 'Waiting for native Electron settings…';
   let fpsNativeInfo=null;
   function fpsDiagnosticText(){
     if(!fpsNativeInfo)return 'Native startup flags: waiting for engine response';
@@ -1363,7 +1349,7 @@
   "Close Settings": "Beállítások bezárása",
   "● ACTIVE": "● AKTÍV",
   "Client Overview": "A kliens áttekintése",
-  "KS Client is a separate Windows app with an embedded Chromium Electron/CEF engine.": "A KS Client önálló Windows-alkalmazás, beépített Chromium Electron/CEF motorral.",
+  "KS Client is a separate Windows app with an embedded Chromium Electron engine.": "A KS Client önálló Windows-alkalmazás, beépített Chromium Electron motorral.",
   "Active browser engine": "Aktív böngészőmotor",
   "Experimental engine, not available in this release": "Kísérleti motor, ebben a kiadásban még nem használható",
   "Borderless fullscreen": "Keret nélküli teljes képernyő",
@@ -1388,7 +1374,7 @@
   "Menu resolution preset": "Menüfelbontás",
   "Controls the client window preset used for the KS menu and browsing pages.": "A kliensablak célméretét állítja be a menühöz és a weboldalakhoz.",
   "Game resolution preset": "Játékfelbontás",
-  "Controls the Electron/CEF rasterization target for Kirka.io rendering.": "A Kirka.io Electron/CEF-megjelenítésének célfelbontását állítja be.",
+  "Controls the Electron rasterization target for Kirka.io rendering.": "A Kirka.io Electron-megjelenítésének célfelbontását állítja be.",
   "Native / automatic": "Natív / automatikus",
   "Settings menu scale": "Beállításmenü méretezése",
   "Show FPS counter": "FPS-számláló megjelenítése",
@@ -1397,7 +1383,7 @@
   "Top left": "Bal felső sarok",
   "Top right": "Jobb felső sarok",
   "Bottom right": "Jobb alsó sarok",
-  "Automatic is recommended: the menu fits your monitor work area and the game uses the native engine/Windows display scale. When monitor information is unavailable, 1080p is used as a fallback. Fixed presets adjust browser page zoom, not the game engine’s internal render resolution.": "A játékfelbontás a Electron/CEF megjelenítési sűrűségét akár 4K-ig növeli. A menübeállítás a kliensablak célméretét módosítja; a tényleges méret a monitortól és a Windows nagyításától is függ.",
+  "Automatic is recommended: the menu fits your monitor work area and the game uses the native engine/Windows display scale. When monitor information is unavailable, 1080p is used as a fallback. Fixed presets adjust browser page zoom, not the game engine’s internal render resolution.": "A játékfelbontás a Electron megjelenítési sűrűségét akár 4K-ig növeli. A menübeállítás a kliensablak célméretét módosítja; a tényleges méret a monitortól és a Windows nagyításától is függ.",
   "Performance Settings": "Teljesítménybeállítások",
   "Best-effort game animation pacing, measured frametimes, and client-side performance profiles.": "Kísérleti képkocka-időzítés, mért képkockaidők és kliensoldali teljesítményprofilok.",
   "FPS Limiter": "FPS-korlátozó",
@@ -1422,7 +1408,7 @@
   "Frametime history (milliseconds)": "Képkockaidő-előzmények (ezredmásodperc)",
   "The FPS limit is a best-effort JavaScript frame pacing mechanism, not a driver-level cap. Graphs display animation callback timings, not confirmed GPU presentation times. For stable gameplay try 120 or 144 FPS.": "Az FPS-korlát kísérleti JavaScript-időzítés, nem illesztőprogram-szintű korlátozás. A grafikonok animációs hívási időket mutatnak, nem igazolt GPU-megjelenítési adatokat. Stabil játékhoz próbáld a 120 vagy 144 FPS-t.",
   "Advanced Diagnostics": "Részletes diagnosztika",
-  "Live measurements of KS Client and its Chromium/Electron/CEF child processes. Refreshes every two seconds.": "A KS Client és a Chromium/Electron/CEF alfolyamatainak élő mérései. Két másodpercenként frissülnek.",
+  "Live measurements of KS Client and its Chromium/Electron child processes. Refreshes every two seconds.": "A KS Client és a Chromium/Electron alfolyamatainak élő mérései. Két másodpercenként frissülnek.",
   "Browser CPU": "Böngésző CPU-használata",
   "Browser RAM": "Böngésző memóriahasználata",
   "Browser Processes": "Böngészőfolyamatok",
@@ -1431,7 +1417,7 @@
   "Renderer": "Megjelenítő",
   "Not checked": "Még nincs ellenőrizve",
   "Hardware Acceleration Check": "Hardveres gyorsítás ellenőrzése",
-  "Inspect WebGL context and software-renderer indicators. Electron/CEF uses GPU acceleration by default.": "A WebGL-környezet és a szoftveres megjelenítés jeleinek vizsgálata. A Electron/CEF alapból GPU-gyorsítást használ.",
+  "Inspect WebGL context and software-renderer indicators. Electron uses GPU acceleration by default.": "A WebGL-környezet és a szoftveres megjelenítés jeleinek vizsgálata. A Electron alapból GPU-gyorsítást használ.",
   "Check GPU": "GPU ellenőrzése",
   "WebGL renderer": "WebGL-megjelenítő",
   "Press Check GPU to test WebGL": "Kattints a GPU ellenőrzése gombra a WebGL teszteléséhez",
@@ -1475,7 +1461,7 @@
   "Custom": "Egyéni",
   "Custom accent color": "Egyedi kiemelőszín",
   "Font family": "Betűtípus",
-  "Fonts already available in Windows / Electron/CEF": "A Windowsban / Electron/CEF-ben elérhető betűtípusok",
+  "Fonts already available in Windows / Electron": "A Windowsban / Electron-ben elérhető betűtípusok",
   "Uploaded font (Resources)": "Feltöltött betűkészlet (Erőforrások)",
   "Client font size": "Kliens betűmérete",
   "Menu animations": "Menüanimációk",
@@ -1565,10 +1551,10 @@
   "Personalize the KS Client menu colors, panels and fonts. Advanced game HTML styling is under CSS Editor.": "Szabd testre a KS Client menüjének színeit, paneljeit és betűtípusait. A haladó játékbeli HTML-stílusok a CSS-szerkesztőben találhatók.",
   "Match monitor / automatic": "Monitorhoz igazítás / automatikus",
   "Auto-fit the current monitor work area, or select a fixed window size.": "Az aktuális monitor használható területéhez igazítja az ablakot, vagy fix méretet állít be.",
-  "Automatic uses monitor DPI and engine native scaling; fixed modes set a raster target.": "Automatikusan a monitor DPI- és Electron/CEF-skálázását használja; a fix módok megjelenítési célméretet állítanak.",
-  "Automatic is recommended: the menu fits your monitor work area and the game uses the native engine/Windows display scale. When monitor information is unavailable, 1080p is used as a fallback. Fixed presets adjust browser page zoom, not the game engine’s internal render resolution.": "Az automatikus mód ajánlott: a menü a monitor használható területéhez igazodik, a játék pedig a natív Windows/Electron/CEF képernyőskálázást követi. Ha nem érhetők el monitoradatok, a tartalék felbontás 1080p. A fix módok a megjelenítési sűrűséget módosítják, nem a játékmotor belső felbontását.",
+  "Automatic uses monitor DPI and engine native scaling; fixed modes set a raster target.": "Automatikusan a monitor DPI- és Electron-skálázását használja; a fix módok megjelenítési célméretet állítanak.",
+  "Automatic is recommended: the menu fits your monitor work area and the game uses the native engine/Windows display scale. When monitor information is unavailable, 1080p is used as a fallback. Fixed presets adjust browser page zoom, not the game engine’s internal render resolution.": "Az automatikus mód ajánlott: a menü a monitor használható területéhez igazodik, a játék pedig a natív Windows/Electron képernyőskálázást követi. Ha nem érhetők el monitoradatok, a tartalék felbontás 1080p. A fix módok a megjelenítési sűrűséget módosítják, nem a játékmotor belső felbontását.",
   "Audio test": "Hang tesztelése",
-  "Play the uploaded menu sound now to confirm Electron/CEF allows playback.": "A feltöltött menühang lejátszásával ellenőrizheted, hogy a Electron/CEF engedélyezi-e a hangot.",
+  "Play the uploaded menu sound now to confirm Electron allows playback.": "A feltöltött menühang lejátszásával ellenőrizheted, hogy a Electron engedélyezi-e a hangot.",
   "Test sound": "Hang kipróbálása",
   "Local assets check": "Helyi erőforrások ellenőrzése",
   "Verify which uploaded resources are currently available in this profile.": "Ellenőrzi, hogy a profilban mely feltöltött erőforrások érhetők el.",
@@ -1605,8 +1591,8 @@
   Object.assign(hu, {
     'Browser':'Böngésző',
     'Saving browser settings…':'Böngészőbeállítások mentése…',
-    'chrome://settings/system — the equivalent settings for this embedded runtime are here.':'chrome://settings/system — a beépített Electron/CEF megfelelő beállításai itt találhatók.',
-    'chrome://flags/#use-angle — applies only when Electron/CEF starts.':'chrome://flags/#use-angle — csak a Electron/CEF indításakor alkalmazható.',
+    'chrome://settings/system — the equivalent settings for this embedded runtime are here.':'chrome://settings/system — a beépített Electron megfelelő beállításai itt találhatók.',
+    'chrome://flags/#use-angle — applies only when Electron starts.':'chrome://flags/#use-angle — csak a Electron indításakor alkalmazható.',
     'Browser settings loaded':'Böngészőbeállítások betöltve',
     'Browser settings saved. Live options applied.':'A böngészőbeállítások mentve. A közvetlenül módosítható opciók alkalmazva.',
     'Saved. Restart KS Client to apply GPU/ANGLE changes.':'Mentve. A GPU/ANGLE módosítások alkalmazásához indítsd újra a KS Clientet.',
@@ -1616,7 +1602,7 @@
     'Browser Controls':'Böngészőfunkciók bongeszo vezerles eszkozok',
     'Browser GPU Info':'GPU diagnosztika videokartya gpu',
     'Graphics engine':'Grafikus motor',
-    'Chromium / Electron/CEF Graphics':'Chromium / Electron/CEF grafika',
+    'Chromium / Electron Graphics':'Chromium / Electron grafika',
     'GPU hardware acceleration':'GPU-hardvergyorsítás',
     'Enabled (recommended)':'Bekapcsolva (ajánlott)',
     'Disabled (compatibility test)':'Kikapcsolva (hibakereséshez)',
@@ -1624,23 +1610,23 @@
     'Automatic / Default':'Automatikus / Alapértelmezett',
     'D3D11 (DirectX 11)':'D3D11 (DirectX 11)',
     'OpenGL (experimental)':'OpenGL (kísérleti)',
-    'Chrome flags are applied to the embedded Electron/CEF process, not your installed Google Chrome.':'A Chromium-indítási opciók a beépített Electron/CEF folyamatra vonatkoznak, nem a telepített Google Chrome-ra.',
+    'Chrome flags are applied to the embedded Electron process, not your installed Google Chrome.':'A Chromium-indítási opciók a beépített Electron folyamatra vonatkoznak, nem a telepített Google Chrome-ra.',
     'Disable GPU acceleration only to troubleshoot rendering defects; Kirka.io 3D can become slow or stop working.':'Csak grafikai hibakereséshez kapcsold ki a GPU-gyorsítást; a Kirka.io 3D lassulhat vagy működésképtelenné válhat.',
     'ANGLE changes and GPU startup flags require restarting KS Client.':'Az ANGLE és a GPU indítási beállításai a KS Client újraindítását igénylik.',
     'Restart KS Client now':'KS Client újraindítása',
     'Restart and apply changes?':'Újraindítod a klienst a grafikai módosítások alkalmazásához?',
     'Reset browser settings':'Böngészőbeállítások visszaállítása',
-    'Restore only these browser settings to defaults.':'A Electron/CEF beállításainak visszaállítása az alapértékekre.',
+    'Restore only these browser settings to defaults.':'A Electron beállításainak visszaállítása az alapértékekre.',
     'Reset all browser settings?':'Visszaállítod az összes böngészőbeállítást?',
-    'Waiting for native Electron/CEF settings…':'A Electron/CEF beállításainak lekérése…',
+    'Waiting for native Electron settings…':'A Electron beállításainak lekérése…',
     'GPU or ANGLE changes are pending a restart. The old backend is still active.':'A GPU- vagy ANGLE-módosítás újraindításra vár. A korábbi grafikus motor még aktív.',
-    'Electron/CEF Browser Controls':'Electron/CEF böngészőfunkciók',
+    'Electron Browser Controls':'Electron böngészőfunkciók',
     'Context menu':'Jobb kattintásos menü',
-    'Enable the native Electron/CEF right-click menu.':'A Electron/CEF saját jobb kattintásos menüjének bekapcsolása.',
+    'Enable the native Electron right-click menu.':'A Electron saját jobb kattintásos menüjének bekapcsolása.',
     'Developer tools (F12)':'Fejlesztői eszközök (F12)',
     'Allow opening Chromium DevTools for debugging.':'A Chromium fejlesztői eszközeinek engedélyezése hibakereséshez.',
-    'These settings use the native Electron/CEF Settings API. Some changes become fully visible after reloading the page.':'Ezek a Electron/CEF natív beállítási API-ját használják. Egyes módosítások oldalfrissítés után válnak teljesen láthatóvá.',
-    'Electron/CEF GPU Diagnostics':'Electron/CEF GPU-diagnosztika',
+    'These settings use the native Electron Settings API. Some changes become fully visible after reloading the page.':'Ezek a Electron natív beállítási API-ját használják. Egyes módosítások oldalfrissítés után válnak teljesen láthatóvá.',
+    'Electron GPU Diagnostics':'Electron GPU-diagnosztika',
     'Run WebGL checks on this exact embedded browser process.':'WebGL-teszt futtatása a kliens saját beépített böngészőjében.',
     'Run GPU check':'GPU-ellenőrzés indítása',
     'WebGL status':'WebGL állapota',
@@ -1660,7 +1646,7 @@
     'The Kirka.io FPS reader recognizes visible HTML text only, not FPS painted inside a WebGL canvas. If unavailable it shows no value; use the in-game counter.':'A KS Client nem tudja kiolvasni a Kirka.io belső FPS-adatát. Kirka.io módban a kliens FPS-kijelzője eltűnik; kapcsold be a játék saját FPS-mutatóját a játék beállításaiban.',
     'Browser animation callback FPS':'Böngészős animációhívások FPS-értéke',
     'Game engine FPS (Kirka.io)':'Játékmotor FPS (Kirka.io)',
-    'Available only in the Kirka.io game settings, not accessible through Electron/CEF.':'Csak a Kirka.io játékbeállításaiban érhető el; Electron/CEF-n keresztül nem olvasható ki.',
+    'Available only in the Kirka.io game settings, not accessible through Electron.':'Csak a Kirka.io játékbeállításaiban érhető el; Electron-n keresztül nem olvasható ki.',
     'Applied on browser startup':'Böngészőindításkor alkalmazva',
     'The Chromium engine chooses automatically.':'A Chromium motor automatikusan választ.',
     'Enable the ANGLE D3D11 graphics path.':'Az ANGLE D3D11 grafikus útvonalának engedélyezése.',
@@ -1742,7 +1728,7 @@
     'Requests Chromium FPS unlocking and removes the KS JavaScript callback cap. Restart required; actual Kirka.io FPS is not guaranteed above monitor Hz.': 'Kéri a Chromium FPS-feloldását és megszünteti a KS JavaScript-korlátját. Újraindítás kell; a Kirka.io tényleges FPS-értéke nem garantált a monitor Hz-e fölött.',
     'Attempts to remove Chromium rAF/vsync limits. Requires a restart and may cause tearing, higher CPU load or network input delays.': 'Megpróbálja feloldani a Chromium rAF/VSync korlátját. Újraindítást igényel; képtörést, nagyobb CPU-terhelést vagy hálózati/egérkésést okozhat.',
     'Unlimited here only removes the KS JavaScript cap. For above-monitor-Hz FPS enable Experimental Chromium Uncap below and restart.': 'A korlátlan mód itt csak a KS JavaScript-korlátját oldja fel. A monitor Hz-értéke fölötti FPS kipróbálásához engedélyezd lent a kísérleti Chromium-feloldást, majd indítsd újra a klienst.',
-    'Experimental uncap is a Electron/CEF startup request; the browser may ignore it. Test the Kirka.io in-game FPS counter (Show FPS, typically I).': 'A kísérleti feloldás a Electron/CEF-nek küldött indítási kérés; a böngésző figyelmen kívül hagyhatja. Ellenőrizd a Kirka.io saját FPS-mutatójával (Show FPS, általában I).',
+    'Experimental uncap is a Electron startup request; the browser may ignore it. Test the Kirka.io in-game FPS counter (Show FPS, typically I).': 'A kísérleti feloldás a Electron-nek küldött indítási kérés; a böngésző figyelmen kívül hagyhatja. Ellenőrizd a Kirka.io saját FPS-mutatójával (Show FPS, általában I).',
     'Requested on startup': 'Indításkor kérve',
     'Off / normal sync': 'Ki / normál szinkron',
     'Kirka.io HUD FPS (HTML only, experimental)': 'Kirka.io HUD FPS (csak HTML, kísérleti)',
@@ -1752,7 +1738,7 @@
     'Kirka.io HUD FPS unavailable (possibly drawn on canvas)': 'A Kirka.io HUD FPS nem olvasható (lehet, hogy canvasra rajzolt)',
     'The game FPS indicator can be enabled in Kirka.io (Show FPS, usually I). Auto-reading only works for DOM/HTML text, not WebGL canvas.': 'A Kirka.io saját FPS-mutatója a játékban bekapcsolható (Show FPS, általában I). Automatikus kiolvasás csak DOM/HTML-szövegből működik, WebGL-canvasból nem.',
     'Browser FPS unlock': 'Böngészős FPS-feloldás',
-    'Your selected engine startup request': 'A jelenlegi Electron/CEF indítási kérés',
+    'Your selected engine startup request': 'A jelenlegi Electron indítási kérés',
     'Kirka HUD FPS value': 'Kirka HUD FPS-érték',
     'Searching visible HTML for FPS…': 'Látható HTML-ben FPS keresése…',
     'Enable experimental uncapped FPS in Performance or Browser Graphics. Restart required.': 'Kapcsold be a kísérleti korlátlan FPS-t a Teljesítmény vagy a Böngésző grafika részben. Újraindítás szükséges.'
@@ -1837,6 +1823,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.21',en:['Electron is now the installed engine. Legacy engine choices open Electron. Added game-canvas edge smoothing and retained the engine selector.'],hu:['Az Electron az egyetlen telepített motor. A régi motorválasztás is Electronnal indul. Új játékvászon-élsimítás és megőrzött motorválasztó.']},
     {v:'Beta 1.0.20',en:['Display-aligned frame pacing, measured callback averages per limit and a match-only crosshair centered on the game canvas.'],hu:['Kijelzőhöz igazított időzítés, limitenként újramért átlag és a játékvászon közepére igazított, csak meccsen látható célkereszt.']},
     {v:'Beta 1.0.19',en:['Reduced per-frame and HUD overhead. Added a 90 FPS smoothness profile and reading and motion options.'],hu:['Kevesebb képkockánkénti munka, 90 FPS-es profil, olvasást és mozgáscsökkentést segítő beállítások.']},
     {v:'Beta 1.0.18',en:['Pace fixed game-loop targets independently of monitor Hz. Reduced Settings and lobby rendering work and removed the independent FPS sampling loop.'],hu:['A fix játékciklus-célérték független a monitor Hz-étől. A menük és az FPS-mérő kevesebb képkockát kérnek.']},
@@ -1975,10 +1962,10 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', 'KS Client '+CLIENT_LABEL+' starts in Electron by default. Switching engines restarts the application.') +
+        return title('Client Overview', 'KS Client '+CLIENT_LABEL+' uses Electron.') +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
-          `<div class="ks-row"><div><div class="ks-label">Switch browser engine</div><div class="ks-desc">Choose CEF for potentially higher FPS, but it may be less stable. Choose Electron for potentially lower FPS, but generally more stable behavior. Actual FPS depends on your PC and game settings. Switching restarts KS Client; browser profiles may differ. Shortcuts: Ctrl+Alt+E for Electron, Ctrl+Alt+C for CEF.</div></div><div class="ks-stack"><button class="ks-btn" data-action="engine-electron" title="Electron: usually more stable, may run at lower FPS">Electron · Stable</button><button class="ks-btn" data-action="engine-cef" title="CEF: potentially higher FPS, may be less stable">CEF · Higher FPS (experimental)</button></div></div>` +
+          `<div class="ks-row"><div class="ks-label">Switch browser engine</div><div class="ks-stack"><button class="ks-btn" disabled aria-pressed="true" data-action="engine-switch" data-engine="electron">Electron</button><button class="ks-btn" disabled>KS saját motorja cooming soon</button></div></div>` +
           `<div class="ks-row"><div><div class="ks-label">Kirka account sign-in</div><div class="ks-desc">Sign-in windows for supported providers stay inside KS Client, sharing the game's browser session. Google can refuse authentication in embedded apps by its own policy; KS does not spoof the browser or send you away to play in Chrome. A Chrome login alone does not sign in this separate profile. If you already have a Kirka game session in Chrome, the optional local import below can transfer it into the client.</div></div><span class="ks-pill">IN CLIENT</span></div>` +
           `<div class="ks-row"><div style="min-width:0;flex:1"><div class="ks-label">Import Kirka.io session (advanced)</div><div class="ks-desc">First sign in to https://kirka.io/ in your regular browser. On that exact page, open Developer Tools Console and run <code>copy(localStorage.getItem('token'))</code>. Paste below. Treat this session token like a password: never share it, including in chat or support. It is saved only in this engine's Kirka.io local storage, not sent to KS Client servers. Kirka may reject or expire it.</div><input class="ks-input" id="ks-account-session-token" type="password" maxlength="8192" autocomplete="new-password" spellcheck="false" placeholder="Kirka.io token (keep secret)" aria-label="Kirka.io session token" style="width:100%;margin-top:8px"><label class="ks-desc" style="display:block;margin-top:8px"><input id="ks-account-session-consent" type="checkbox"> I understand that a session token grants access to my Kirka account.</label><div id="ks-account-session-status" class="ks-desc" role="status" aria-live="polite"></div></div><button class="ks-btn" data-action="auth-import-session">Import session locally</button></div>` +
           (engineSwitchStatus ? `<p class="ks-hint" id="ks-engine-switch-status">${esc(engineSwitchStatus)}</p>` : '') +
@@ -2006,6 +1993,7 @@
             { value: '1440', label: '2560 × 1440 (1440p)' },
             { value: '2160', label: '3840 × 2160 (4K)' }
           ]) +
+          toggleRow(state.language==='hu'?'Játékvászon élsimítása':'Smooth game edges',state.language==='hu'?'WebGL-élsimítás a játék következő betöltésétől.':'Request native WebGL edge smoothing on the next game load.','smoothGameEdges') +
           selectRow('Game resolution preset', 'Automatic uses monitor DPI and engine native scaling; fixed modes set a raster target.', 'gameResolution', [
             { value: 'native', label: 'Match monitor / automatic' },
             { value: '720', label: '1280 × 720 (720p)' },
@@ -2025,7 +2013,6 @@
       case 'Game Integration':
         return title('Kirka.io Game Integration','Optional browser-side game extras. All changes are visual/read-only, no gameplay automation.') +
           `<div class="ks-card"><h3 class="ks-section-heading">Mouse & keyboard</h3>`+
-          toggleRow('Auto-capture mouse in game','Click the game canvas to request native pointer lock; ESC releases it. Browsers require a real user click.','gameAutoMouseCapture')+
           `<div class="ks-row"><div><div class="ks-label">Pointer lock status</div><div class="ks-desc">The cursor disappears only after the game canvas receives real browser pointer lock.</div></div><span id="ks-pointer-status" class="ks-code">Checking…</span></div>`+
           toggleRow('Keystroke overlay','Show held movement keys (WASD, space, shift) while playing.','gameKeystrokes')+
           selectRow('Keystroke position','Where the keys appear on top of the game.','gameKeysPosition',[
@@ -2095,9 +2082,9 @@
           `</div>` +
           `<div id="ks-graphs"><div class="ks-section-heading">FPS history (last ~60 samples)</div><canvas id="ks-graph-fps" aria-label="FPS graph"></canvas>` +
           `<div class="ks-section-heading">Frametime history (milliseconds)</div><canvas id="ks-graph-ms" aria-label="Frametime graph"></canvas></div>` +
-          `<p class="ks-hint">The FPS limit is a best-effort JavaScript frame pacing mechanism. The optional Chromium uncap may allow FPS above monitor Hz, but Electron/CEF may ignore it or introduce mouse/network stalls. Verify with the game's own FPS HUD.</p>`;
+          `<p class="ks-hint">The FPS limit is a best-effort JavaScript frame pacing mechanism. The optional Chromium uncap may allow FPS above monitor Hz, but Electron may ignore it or introduce mouse/network stalls. Verify with the game's own FPS HUD.</p>`;
       case 'Diagnostics':
-        return title('Advanced Diagnostics', 'Live measurements of KS Client and its Chromium/Electron/CEF child processes. Refreshes every two seconds.') +
+        return title('Advanced Diagnostics', 'Live measurements of KS Client and its Chromium/Electron child processes. Refreshes every two seconds.') +
           `<div class="ks-metric-grid">` +
           `<div class="ks-metric"><div class="ks-metric-name">Game WebGL draws/s</div><div class="ks-metric-value" id="ks-game-draws">—</div></div>` +
           `<div class="ks-metric"><div class="ks-metric-name">Browser CPU</div><div class="ks-metric-value" id="ks-browser-cpu">—</div></div>` +
@@ -2108,9 +2095,9 @@
           `<div class="ks-metric"><div class="ks-metric-name">Renderer</div><div class="ks-metric-value" style="font-size:13px;line-height:1.35;overflow-wrap:anywhere" id="ks-gpu-state">${esc(gpuInfo.status)}</div></div>` +
           `</div>` +
           `<div class="ks-card">` +
-          `<div class="ks-row"><div><div class="ks-label">Hardware Acceleration Check</div><div class="ks-desc">Inspect WebGL context and software-renderer indicators. Electron/CEF uses GPU acceleration by default.</div></div><button class="ks-btn primary" data-action="check-gpu">Check GPU</button></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Hardware Acceleration Check</div><div class="ks-desc">Inspect WebGL context and software-renderer indicators. Electron uses GPU acceleration by default.</div></div><button class="ks-btn primary" data-action="check-gpu">Check GPU</button></div>` +
           `<div class="ks-row"><div class="ks-label">WebGL renderer</div><span class="ks-code" style="max-width:62%;text-align:right" id="ks-gpu-renderer">${esc(gpuInfo.renderer)}</span></div>` +
-          `<div class="ks-stat-details" id="ks-diagnostics-note">CPU percentages are fractions of total logical CPU capacity. Browser RAM is summed working-set memory of the client-owned Electron/CEF process tree. First CPU sample may show zero.</div>` +
+          `<div class="ks-stat-details" id="ks-diagnostics-note">CPU percentages are fractions of total logical CPU capacity. Browser RAM is summed working-set memory of the client-owned Electron process tree. First CPU sample may show zero.</div>` +
           `</div>` +
           `<div class="ks-card" style="margin-top:12px"><div class="ks-row"><div><div class="ks-label">Local Crash Reporter</div><div class="ks-desc">Logs app errors and identifies previously unclean shutdowns. Reports remain on your PC.</div></div><button class="ks-btn" data-action="open-logs">Open log folder</button></div><div class="ks-stat-details" id="ks-crash-status">${esc(crashStatus)}</div></div>` +
           `<p class="ks-hint">A visible WebGL renderer is not conclusive proof of full GPU acceleration. Fatal native crashes may not yield a full dump. Diagnostics are not uploaded.</p>`;
@@ -2215,7 +2202,7 @@
           rangeRow('Corner rounding','themeRadius',6,24,'px') +
           `<p class="ks-hint">Visual-only effects: no changes to game rendering, mouse control, hit detection, network or performance presets.</p></div>` +
           `<div class="ks-card"><h3 class="ks-section-heading">Typography & motion</h3>`+
-          selectRow('Font family','Fonts already available in Windows / Electron/CEF','fontFamily',[{value:'Segoe UI',label:'Segoe UI'},{value:'Arial',label:'Arial'},{value:'Verdana',label:'Verdana'},{value:'Tahoma',label:'Tahoma'},{value:'Consolas',label:'Consolas'},{value:'KS Custom Font',label:'Uploaded font (Resources)'}]) +
+          selectRow('Font family','Fonts already available in Windows / Electron','fontFamily',[{value:'Segoe UI',label:'Segoe UI'},{value:'Arial',label:'Arial'},{value:'Verdana',label:'Verdana'},{value:'Tahoma',label:'Tahoma'},{value:'Consolas',label:'Consolas'},{value:'KS Custom Font',label:'Uploaded font (Resources)'}]) +
           rangeRow('Client font size','fontSize',90,150,'%') +
           toggleRow('Menu animations','Enable client transitions and blur effects.','uiAnimations') +
           `<p class="ks-hint">Colors update instantly. Settings are saved automatically on this device.</p>`+
@@ -2228,7 +2215,7 @@
           uploadRow('UI Image / Logo','Replaces the KS Client header logo; optional game selector in CSS Editor.','uiImage','image/png,image/jpeg,image/webp') +
           uploadRow('Menu Sound','A short local sound played when opening Settings, if enabled.','menuSound','audio/mpeg,audio/wav,audio/ogg,audio/mp4') +
           toggleRow('Play custom menu sound','Requires a selected sound; browser playback policy applies.','menuSoundEnabled') +
-          `<div class="ks-row"><div><div class="ks-label">Audio test</div><div class="ks-desc">Play the uploaded menu sound now to confirm Electron/CEF allows playback.</div></div><button class="ks-btn primary" data-action="test-menu-sound">Test sound</button></div>` +
+          `<div class="ks-row"><div><div class="ks-label">Audio test</div><div class="ks-desc">Play the uploaded menu sound now to confirm Electron allows playback.</div></div><button class="ks-btn primary" data-action="test-menu-sound">Test sound</button></div>` +
           `<div class="ks-row"><div><div class="ks-label">Local assets check</div><div class="ks-desc">Verify which uploaded resources are currently available in this profile.</div></div><button class="ks-btn" data-action="verify-assets">Verify assets</button></div>` +
           uploadRow('Custom Font','Upload a .woff or .woff2 font for use in Appearance.','localFont','.woff,.woff2,font/woff,font/woff2') +
           `</div><p class="ks-hint" id="ks-resource-status">${esc(resourceStatus)}</p>` +
@@ -2257,7 +2244,7 @@
           `</div>` +
           `<p class="ks-hint">The KS menu theme now follows your black / orange KirkaStats and clan tracker style, including the darker panel cards and outlined action buttons.</p>`;
       case 'Browser Graphics':
-        return title('Chromium / Electron/CEF Graphics', 'Chrome flags are applied to the embedded Electron/CEF process, not your installed Google Chrome.') +
+        return title('Chromium / Electron Graphics', 'Chrome flags are applied to the embedded Electron process, not your installed Google Chrome.') +
           `<div class="ks-settings-columns"><div class="ks-card"><h3 class="ks-section-heading">GPU hardware acceleration</h3>`+
           browserSelect('GPU hardware acceleration','Disable GPU acceleration only to troubleshoot rendering defects; Kirka.io 3D can become slow or stop working.','gpu',[
             {value:'enabled',label:'Enabled (recommended)'},{value:'disabled',label:'Disabled (compatibility test)'}])+
@@ -2265,7 +2252,7 @@
           `<div class="ks-card"><h3 class="ks-section-heading">ANGLE graphics backend</h3>`+
           browserSelect('ANGLE graphics backend','ANGLE changes and GPU startup flags require restarting KS Client.','angle',[
             {value:'default',label:'Automatic / Default'},{value:'d3d11',label:'D3D11 (DirectX 11)'},{value:'opengl',label:'OpenGL (experimental)'}])+
-          `<p class="ks-hint">chrome://flags/#use-angle — applies only when Electron/CEF starts.</p>`+
+          `<p class="ks-hint">chrome://flags/#use-angle — applies only when Electron starts.</p>`+
           browserCheckbox('Experimental Unlimited FPS (Chromium)','Attempts to remove Chromium rAF/vsync limits. Requires a restart and may cause tearing, higher CPU load or network input delays.','uncapFps')+
           `</div></div>`+
           browserStatusBox()+
@@ -2273,14 +2260,14 @@
           browserResetButton('graphics')+
           `<p class="ks-hint">Changes are stored per Windows user. Restart is required only for GPU/ANGLE.</p>`;
       case 'Browser Controls':
-        return title('Electron/CEF Browser Controls','These settings use the native Electron/CEF Settings API. Some changes become fully visible after reloading the page.')+
+        return title('Electron Browser Controls','These settings use the native Electron Settings API. Some changes become fully visible after reloading the page.')+
           `<div class="ks-settings-columns"><div class="ks-card">`+
-          browserCheckbox('Context menu','Enable the native Electron/CEF right-click menu.','contextMenu')+
+          browserCheckbox('Context menu','Enable the native Electron right-click menu.','contextMenu')+
           `</div><div class="ks-card">`+
           browserCheckbox('Developer tools (F12)','Allow opening Chromium DevTools for debugging.','devTools')+
           `</div></div>`+browserStatusBox()+browserResetButton('controls');
       case 'Browser GPU Info':
-        return title('Electron/CEF GPU Diagnostics','Run WebGL checks on this exact embedded browser process.')+
+        return title('Electron GPU Diagnostics','Run WebGL checks on this exact embedded browser process.')+
           `<div class="ks-card"><div class="ks-row"><div><div class="ks-label">Graphics engine</div><div class="ks-desc">WebGL / WebGL2 / renderer</div></div><button class="ks-btn primary" data-action="browser-check-gpu">Run GPU check</button></div>`+
           `<div class="ks-row"><div class="ks-label">WebGL status</div><span class="ks-code" id="ks-browser-webgl">${esc(L(browserWebGL.webgl))}</span></div>`+
           `<div class="ks-row"><div class="ks-label">WebGL2 status</div><span class="ks-code" id="ks-browser-webgl2">${esc(L(browserWebGL.webgl2))}</span></div>`+
@@ -2339,7 +2326,7 @@
       else parts.push(`<circle cx="${mid}" cy="${mid}" r="${r}" fill="${cc}" ${da}/>`);
     }
     const blur=clamp(state.shadowBlur,0,12),dx=clamp(state.shadowOffsetX,-8,8),dy=clamp(state.shadowOffsetY,-8,8);
-    // CSS drop-shadow works reliably inside Electron/CEF Shadow DOM. SVG url(#filter)
+    // CSS drop-shadow works reliably inside Electron Shadow DOM. SVG url(#filter)
     // references can fail to resolve across that boundary and hide the drawing.
     svg.setAttribute('viewBox',`0 0 ${size} ${size}`);
     svg.style.filter=state.shadowEnabled?`drop-shadow(${dx}px ${dy}px ${blur}px ${hex(state.shadowColor)})`:'none';
@@ -2997,17 +2984,11 @@
     // This is a postprocessing color/softness effect, NOT WebGL anti-aliasing.
     let eyeStyle=document.getElementById('ks-client-eye-filter');
     if(!eyeStyle) {eyeStyle=document.createElement('style');eyeStyle.id='ks-client-eye-filter';(document.head||document.body).appendChild(eyeStyle);}
-    // CEF renders the game canvas in a native child HWND. CSS compositing
-    // filters can add a separate GPU layer; exclude the live #game canvas
-    // in CEF to isolate potential focus/mouse regressions. The setting and
-    // local preview remain available, and Electron behavior is unchanged.
-    const cefInputCompatibility=typeof window.CefSharp?.PostMessage==='function';
-    const filters=isGamePage && state.eyeEnabled ?
-      (cefInputCompatibility ? `canvas:not(#game){filter:${comfortFilterCSS()} !important;}`
-        : `canvas{filter:${comfortFilterCSS()} !important;}`) : '';
+    const filters=isGamePage && state.eyeEnabled ? `canvas#game{filter:${comfortFilterCSS()} !important;}` : '';
     const motion=isGamePage && state.comfortStillMenus
       ? ':is(.interface,.servers,.friends,.inventory,.market) :is(button,.btn,.button,.item-card){animation:none!important;transition:none!important;scroll-behavior:auto!important}' : '';
-    const comfortCSS=filters+motion;
+    const smoothing=isGamePage && state.smoothGameEdges ? 'canvas#game{image-rendering:auto!important}' : '';
+    const comfortCSS=filters+motion+smoothing;
     if(eyeStyle.textContent!==comfortCSS)eyeStyle.textContent=comfortCSS;
     updateComfortPreview();
     updateBreakReminderState();
@@ -3486,38 +3467,9 @@
       else {list.splice(index,1);state.customCrosshairPresets=list;}
       save();renderTab();apply();
     }
-    if(a==='engine-electron' && !activeEngine.toLowerCase().includes('electron') && confirm('Restart KS Client with Electron?')){
-      engineSwitchStatus='Requesting Electron startup...';
-      engineSwitchAcknowledged=false;
-      const delivered=notify('engine-switch',{engine:'electron'});
-      if(!delivered)engineSwitchStatus='Native bridge unavailable. Try Ctrl+Alt+E to switch engines.';
-      renderTab();
-      // CefSharp can expose PostMessage while a navigation/frame transition
-      // prevents native receipt. Use a trusted, intercepted same-origin URL as
-      // a one-shot fallback. The native request handler BLOCKS the navigation.
-      if(window.CefSharp?.PostMessage){
-        setTimeout(()=>{
-          if(engineSwitchStatus!=='Requesting Electron startup...' || engineSwitchAcknowledged)return;
-          engineSwitchStatus='Trying alternative native Electron start...';
-          if(selectedTab==='General')renderTab();
-          try{window.location.assign('https://kirka.io/__ksclient_internal_switch_electron__');}
-          catch(_){engineSwitchStatus='Fallback unavailable. Press Ctrl+Alt+E.';if(selectedTab==='General')renderTab();}
-        },1800);
-      }
-      setTimeout(()=>{
-        if(!engineSwitchAcknowledged && engineSwitchStatus.startsWith('Requesting')){
-          engineSwitchStatus='No response from native host. Press Ctrl+Alt+E, or open the local KS Client logs.';
-          if(selectedTab==='General')renderTab();
-        }else if(!engineSwitchAcknowledged && engineSwitchStatus.startsWith('Trying alternative')){
-          engineSwitchStatus='Native engine did not confirm startup. Press Ctrl+Alt+E and check local logs.';
-          if(selectedTab==='General')renderTab();
-        }
-      },10500);
-    }
-    if(a==='engine-cef' && !activeEngine.toLowerCase().includes('cef') && confirm('Restart KS Client with CEF?')){
-      engineSwitchStatus='Requesting CEF startup...';
-      if(!notify('engine-switch',{engine:'cef'}))engineSwitchStatus='Native connection unavailable; engine switch cannot start.';
-      renderTab();
+    if(a==='engine-switch' && !el.disabled && el.dataset.engine){
+      notify('engine-switch',{engine:el.dataset.engine});
+      return;
     }
     if(a==='enable-unlimited-fps'){
       if(!browserPrefsLoaded){notify('browser-config');return;}
@@ -3548,11 +3500,7 @@
     if (a === 'auth-import-session') { importKirkaSession(); return; }
     if (a === 'auth-help') { window.__KS_CLIENT__?.openAccountHelp?.(); return; }
     if (a === 'game-screenshot') notify('game-screenshot');
-    if (a === 'fullscreen') {
-      if(isGamePage && !window.__KS_NATIVE__?.post && (window.CefSharp?.PostMessage || (typeof activeEngine==='string' && activeEngine.toLowerCase().includes('cef'))))
-        location.assign('https://kirka.io/__ksclient_internal_toggle_fullscreen__');
-      else notify('fullscreen');
-    }
+    if (a === 'fullscreen') notify('fullscreen');
     if (a === 'check-gpu') checkGPU();
     if (a === 'browser-check-gpu') checkBrowserGPU();
     if (a === 'update-check') {
@@ -3958,7 +3906,7 @@
       notify('engine-info');notify('browser-config');
       if(handshakeCount===8 && activeEngine.startsWith('Detecting')){
         activeEngine=window.__KS_RUNTIME__?.engine ||
-          (window.CefSharp?.PostMessage?'CEF (CefSharp)':'Native engine unavailable');
+          'Native engine unavailable';
         if(selectedTab==='General')renderTab();
       }
     },500);

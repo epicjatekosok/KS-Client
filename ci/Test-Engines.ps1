@@ -1,9 +1,9 @@
 # Meaningful smoke tests: actually start each engine on a Windows runner.
 [CmdletBinding()]
-param([ValidateSet('Electron','CEF','Both')][string]$Engine='Both')
+param([ValidateSet('Electron')][string]$Engine='Electron')
 $ErrorActionPreference='Stop'
 $repo = Split-Path -Parent $PSScriptRoot
-$releaseVersion = '1.0.20'
+$releaseVersion = '1.0.21'
 function Test-Executable([string]$exe,[string]$working,[string]$name,[hashtable]$variables) {
   Write-Host "Starting $name self-test on this Windows runner: $exe"
   if (-not (Test-Path $exe)) { throw "$name EXE not found: $exe" }
@@ -27,20 +27,6 @@ function Test-Executable([string]$exe,[string]$working,[string]$name,[hashtable]
       $hex=[System.BitConverter]::ToUInt32([System.BitConverter]::GetBytes([int]$process.ExitCode),0).ToString('X8')
       if($hex -eq 'C0000005'){
         # Debug a native crash without ignoring the release-safety gate.
-        if($name -eq 'CEF'){
-          $clientLogs=Join-Path $env:LOCALAPPDATA 'KSClient'
-          foreach($logName in @('cef-1.0.20.log','cef-native-debug.log')){
-            $logFile=Join-Path $clientLogs $logName
-            if(Test-Path -LiteralPath $logFile -PathType Leaf){
-              Write-Host "CEF crash diagnostics: $logName"
-              Get-Content -LiteralPath $logFile -Tail 100 | ForEach-Object { Write-Host $_ }
-            }else{Write-Host "CEF crash diagnostics unavailable: $logName"}
-          }
-          try{
-            Get-WinEvent -FilterHashtable @{LogName='Application';Id=1000;StartTime=(Get-Date).AddMinutes(-10)} -MaxEvents 3 -ErrorAction Stop |
-              ForEach-Object { Write-Host ('Windows application crash event: '+($_.Message -replace '\r|\n',' ')) }
-          }catch{Write-Host 'Windows crash event not accessible'}
-        }
         throw "$name 0xC0000005 native access violation. Offline packaging blocked."
       }
       throw "$name self-test failed: exit=$($process.ExitCode) hex=$hex"
@@ -50,15 +36,6 @@ function Test-Executable([string]$exe,[string]$working,[string]$name,[hashtable]
   $passMarker | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $working 'ks-smoke-pass.json') -Encoding utf8
   Write-Host "PASS: $name runtime startup and EXE hash recorded."
 }
-if ($Engine -eq 'Electron' -or $Engine -eq 'Both') {
+
   $dir=Join-Path $repo 'runtime\Electron'
   Test-Executable (Join-Path $dir 'electron.exe') $dir 'Electron' @{}
-}
-if ($Engine -eq 'CEF' -or $Engine -eq 'Both') {
-  $dir=Join-Path $repo 'runtime\CEF'
-  $dotnet=Join-Path $dir 'dotnet'
-  foreach ($required in @('dotnet.exe','host\fxr','shared\Microsoft.NETCore.App','shared\Microsoft.WindowsDesktop.App')) {
-    if (-not (Test-Path (Join-Path $dotnet $required))) { throw "CEF bundled .NET runtime is incomplete: missing $required" }
-  }
-  Test-Executable (Join-Path $dir 'KS.Cef.Client.exe') $dir 'CEF' @{DOTNET_ROOT=$dotnet; DOTNET_ROOT_X64=$dotnet; DOTNET_MULTILEVEL_LOOKUP='0'}
-}

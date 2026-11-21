@@ -9,8 +9,6 @@ names=("advanced_integration.js","webgl_cosmetics.js","freeze_guard.js")
 scripts={}
 for name in names:
  a=(root/"electron-app/overlay"/name).read_text(encoding="utf-8")
- b=(root/"cef/overlay"/name).read_text(encoding="utf-8")
- assert a==b, name+" differs between CEF and Electron"
  assert "kirka.io" in a and "location.protocol" in a
  # Only strip the explicit allowlist for the deliberately offline test page.
  guard="if(location.protocol!=='https:'||!['kirka.io','www.kirka.io'].includes(location.hostname)||"

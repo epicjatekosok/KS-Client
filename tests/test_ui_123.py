@@ -16,7 +16,7 @@ def check(browser,engine):
       getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),
       removeItem:k=>storage.delete(k)}});
   }""")
-  src=(root/('cef/overlay/overlay.js' if engine=='CEF' else 'electron-app/overlay/overlay.js')).read_text(encoding='utf-8')
+  src=(root/('electron-app/overlay/overlay.js')).read_text(encoding='utf-8')
   page.add_script_tag(content=src.replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1))
   page.wait_for_function('!!window.__KS_CLIENT__')
   data=page.evaluate("""() => {
@@ -40,7 +40,7 @@ def check(browser,engine):
   assert data['gearHeight']==data['discordHeight']==36,data
   for field in ('border','bg','radius','shadow'):
     assert data[field][0]==data[field][1],(field,data)
-  assert data['interactive'] and data['version']=='KS · 1.0.20',data
+  assert data['interactive'] and data['version']=='KS · 1.0.21',data
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-gear').click()""")
   anim=page.evaluate("""() => {
     const s=document.querySelector('#ks-client-root').shadowRoot;
@@ -83,8 +83,8 @@ def check(browser,engine):
     document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-body').textContent""")
   assert not errors,errors
   page.close()
-  print('PASS: KS alpha 1.0.20 UI button visual parity, menu animations, reduced motion, Discord and updater',engine)
+  print('PASS: KS alpha 1.0.21 UI button visual parity, menu animations, reduced motion, Discord and updater',engine)
 with sync_playwright() as p:
   browser=p.chromium.launch(headless=True)
-  for engine in ('Electron','CEF'):check(browser,engine)
+  for engine in ('Electron',):check(browser,engine)
   browser.close()

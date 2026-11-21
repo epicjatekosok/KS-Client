@@ -9,8 +9,6 @@ files = ("integration_bootstrap.js", "webgl_cosmetics.js", "advanced_integration
 src = {}
 for name in files:
     electron = (root / "electron-app/overlay" / name).read_text(encoding="utf-8")
-    cef = (root / "cef/overlay" / name).read_text(encoding="utf-8")
-    assert electron == cef, name + " diverged between browser engines"
     src[name] = electron
 
 guard = "if (location.protocol !== 'https:' || !['kirka.io', 'www.kirka.io'].includes(location.hostname)) return;"

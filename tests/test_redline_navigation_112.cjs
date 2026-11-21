@@ -7,12 +7,7 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const electron=read('electron-app/main.cjs');
-const cef=read('cef/ClientForm.cs');
-const links=read('cef/ClientCommunityLinks.cs');
 const overlay=read('electron-app/overlay/overlay.js');
-assert.equal(overlay,read('cef/overlay/overlay.js'),'Both engines must retain the same settings/HUD');
-assert(!fs.existsSync(path.join(root,'cef/ClientAuthentication.cs')),
- 'Obsolete CEF OAuth/domain allowlist must be removed');
 for(const s of ['AUTH_HOSTS','AUTH_SUFFIXES','GOOGLE_ACCOUNT_HOSTS','validAuthURL',
   'configureAuthPopup','authPopupOptions','allowOAuthStoragePermission',
   'guardMainNavigation','__ksKirkaAuthChain','authContents=new WeakSet()'])
@@ -37,21 +32,6 @@ assert(electron.includes("case 'discord-community':openKSDiscord();break;"),
  'Native KS Discord shortcut remains functional');
 assert(electron.includes('await win.webContents.executeJavaScript(nativeLoginGateJS,true)'),
  'Keep native Kirka login passthrough on unauthenticated pages');
-assert(!cef.includes('browser.LifeSpanHandler ='), 'CEF must use native popup lifecycle');
-assert(!cef.includes('ClientCommunityPopupHandler'),'No custom CEF OAuth popup management');
-assert(!cef.includes('ClientAuthentication'),'No provider domain filtering in CEF');
-assert(!cef.includes('authMainFrameNavigation'),'No CEF provider navigation chain');
-const req=cef.slice(cef.indexOf('internal sealed class ClientRequestHandler'),
-  cef.indexOf('internal sealed class ClientGamePermissionHandler'));
-assert(req.includes('return false;'),'Native Chromium HTTPS navigation must proceed');
-assert(req.includes('KSResourceSwap.Match('),'Preserve the resource swapper');
-assert(req.includes('__ksclient_internal_switch_electron__'),'Preserve engine switch');
-assert(req.includes('ClientCommunityLinks.IsDiscordTarget(request.Url)'),
-  'Preserve explicit community-invite routing');
-assert(!req.includes('accounts.google.com') && !req.includes('.firebaseapp.com'),
- 'No provider hostname rules in CEF');
-assert(!links.includes('OnBeforePopup') && !links.includes('noJavascriptAccess'),
- 'Remove custom CEF popup opener configuration');
 assert(overlay.includes('ks-workshop-experimental'),'Keep Workshop Experimental');
 assert(overlay.includes("openAccountHelp: showAccountHelpDialog"),
  'Leave optional manual local-session recovery accessible, but not on provider click');

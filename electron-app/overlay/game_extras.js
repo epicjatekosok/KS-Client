@@ -63,14 +63,7 @@
   const pressed=new Set();
   const keys=shadow.getElementById('keys'),stats=shadow.getElementById('stats');
   const nativeCursor=()=>Boolean(document.pointerLockElement);
-  // Chromium's real DOM pointer lock determines native cursor state. The CEF
-  // host never hides a cursor merely because a game URL was opened.
-  const cef=()=>typeof window.CefSharp?.PostMessage==='function';
-  const notifyInput=message=>{
-    if(!cef())return;
-    try{window.CefSharp.PostMessage(JSON.stringify({type:'game-input-diagnostics',message}))}catch(_){}
-  };
-  let lockRequests=0,lockErrors=0,relativeMoves=0,lastMoveReport=0;
+  let lockErrors=0,relativeMoves=0;
   // The KS shadow tree is closed; direct shadowRoot inspection always fails.
   // Read the public, read-only settings state instead of capturing clicks under
   // a visible menu.
@@ -100,54 +93,19 @@
   window.addEventListener('blur',()=>{pressed.clear();updateKeys();},true);
   document.addEventListener('pointerlockchange',()=>{
     refresh();
-    notifyInput(nativeCursor()?'locked':'released');
-    if(nativeCursor()) {relativeMoves=0;lastMoveReport=0;}
+
+    if(nativeCursor())relativeMoves=0;
   },true);
   document.addEventListener('pointerlockerror',()=>{
     lockErrors++;
-    notifyInput('pointerlockerror');
-    console.warn('[KS Client] CEF pointer lock failed: inspect native focus and permissions');
+
+    console.warn('[KS Client] Pointer lock failed: inspect native focus and permissions');
   },true);
   document.addEventListener('mousemove',event=>{
     if(!nativeCursor()||!event.isTrusted)return;
     if(event.movementX===0&&event.movementY===0)return;
     relativeMoves++;
-    if(!lastMoveReport||performance.now()-lastMoveReport>5000){
-      lastMoveReport=performance.now();
-      notifyInput('motion-ok');
-    }
   },true);
-  // Never request pointer lock during pointerdown capture. Kirka has its own
-  // pointerdown/mousedown/click input handlers; the previous early KS request
-  // could conflict with theirs and consume the user-activation gesture.
-  document.addEventListener('pointerdown',event=>{
-    if(event.button===0 && event.isTrusted && match() && inGame() &&
-       event.target instanceof HTMLCanvasElement && cef())notifyInput('gesture');
-  },true);
-  // Only if Kirka did NOT request pointer lock during the trusted click may
-  // the optional KS auto-capture act as a fallback. Run at window bubble phase
-  // after the page's own canvas/document handlers. No timer/synthetic event.
-  window.addEventListener('click',event=>{
-    if(event.button!==0 || !event.isTrusted || !match() || !inGame() ||
-       nativeCursor() || state.gameAutoMouseCapture===false)return;
-    const canvas=event.target;
-    if(!(canvas instanceof HTMLCanvasElement) || canvas.clientWidth<160 ||
-       canvas.clientHeight<100 || typeof canvas.requestPointerLock!=='function')return;
-    const observed=window.__KS_CEF_INPUT__?.getStatus?.()||null;
-    if(cef() && observed?.installed && observed.lastRequestMs>0 &&
-       performance.now()-observed.lastRequestMs < 850)return;
-    // Do not introduce a second capture path on Electron; Electron already
-    // handles Kirka's native permission flow correctly.
-    if(!cef())return;
-    lockRequests++;
-    try {
-      const pending=canvas.requestPointerLock();
-      notifyInput('fallback');
-      if(pending && typeof pending.catch==='function')pending.catch(error=>{
-        notifyInput('request-failed');
-      });
-    }catch(_){notifyInput('request-failed')}
-  },false);
   function firstText(selectors){
     for(const selector of selectors){
       const el=document.querySelector(selector);
@@ -187,9 +145,8 @@
     updateStats();
   }
   window.__KS_GAME_EXTRAS__=Object.freeze({refresh,getStatus:()=>({
-    pointerLocked:nativeCursor(),game:match(),lockRequests,lockErrors,relativeMoves,
-    cefNative:window.__KS_CEF_INPUT__?.getStatus?.()||null,
-    cefAutoCapture:cef(),keystrokes:!!state.gameKeystrokes,
+    pointerLocked:nativeCursor(),game:match(),lockErrors,relativeMoves,
+    keystrokes:!!state.gameKeystrokes,
     stats:!!state.gameStats
   })});
   if(document.body)install();else document.addEventListener('DOMContentLoaded',install,{once:true});

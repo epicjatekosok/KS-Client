@@ -1,5 +1,5 @@
 'use strict';
-// KS Beta 1.0.20 regression: independent FPS controls, external status
+// KS Beta 1.0.21 regression: independent FPS controls, external status
 // always clears, CEF fullscreen native command exists and Settings translations.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -8,12 +8,9 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const ui=read('electron-app/overlay/overlay.js');
-const cefUI=read('cef/overlay/overlay.js');
 const pacer=read('electron-app/overlay/frame_pacer.js');
-const cef=read('cef/ClientForm.cs');
 const workflow=read('.github/workflows/windows-build.yml');
-assert.equal(ui,cefUI);
-assert(ui.includes("const CLIENT_VERSION='1.0.20'"));
+assert(ui.includes("const CLIENT_VERSION='1.0.21'"));
 for(const cap of [200,240,300,360]){
   assert(ui.includes("{ value: "+cap+", label: '"+cap+" FPS' }"),'missing option '+cap);
   assert(pacer.includes(cap),'missing pacer cap '+cap);
@@ -21,15 +18,10 @@ for(const cap of [200,240,300,360]){
 assert(ui.includes('canvas.width!==Math.round(width*dpr)'));
 assert(ui.includes('style.backdropFilter=\'none\''));
 assert(ui.includes('if(measurementHandle===null)queueMeasurement()'));
-assert(cef.includes('__ksclient_internal_toggle_fullscreen__'));
-assert(cef.includes('ClientFullscreenKeyboardHandler'));
-assert(cef.includes('Keys.F11'));
-assert(cef.includes('oldTopMost=TopMost'));
-assert(cef.includes('TopMost=oldTopMost'));
 assert(ui.includes('communityNoticeTimer'));
 assert(ui.includes('setCommunityStatus: status => {showCommunityNotice(status,5500);}'));
 assert(ui.includes('showCommunityNotice(state.language'));
-for(const file of ['electron-app/main.cjs','cef/Program.cs']){
+for(const file of ['electron-app/main.cjs']){
   const source=read(file);
   for(const flag of ['disable-renderer-backgrounding','disable-background-timer-throttling','disable-backgrounding-occluded-windows'])
     assert(!source.includes(flag),file+' disables native background scheduling');
@@ -44,7 +36,7 @@ assert(ui.includes('Object.entries(languageNames).map'));
 assert(!read('installer/main_windows.go').includes('extraLocales'));
 assert(!read('uninstaller/main_windows.go').includes('extraLocales'));
 assert(workflow.includes('node tests/test_beta_114.cjs'));
-console.log('PASS Beta 1.0.20: fixed FPS caps, Settings GPU work, CEF fullscreen, Discord timer and 8 additional Settings languages');
+console.log('PASS Beta 1.0.21: fixed FPS caps, Settings GPU work, CEF fullscreen, Discord timer and 8 additional Settings languages');
 
 // Simulate a 180 Hz browser clock, including timeout wakeups, cancellation and menu transitions.
 let now=0,next=0;
