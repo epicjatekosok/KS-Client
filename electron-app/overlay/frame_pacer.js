@@ -99,7 +99,18 @@
     if(synced && !menuLimited && !activityLimit){
       if(retryAt && performance.now()>=retryAt)forgetDisplay();
       if(!retryAt){
-        wake={kind:'native',id:nativeRAF(ts=>onPaint(ts,cap,token))};
+        // Sleep through intermediate monitor refreshes for low targets. Keep the
+        // original repaint alignment and phase tolerance for the final wake.
+        const sleep=nativePeriod && deadline!==null
+          ? Math.floor(deadline-performance.now()-nativePeriod*1.5) : 0;
+        const paint=()=>{
+          if(token!==generation)return;
+          wake={kind:'native',id:nativeRAF(ts=>onPaint(ts,cap,token))};
+        };
+        if(sleep>=4){
+          previousPaint=null; // skipped refreshes must not enter the display estimator
+          wake={kind:'timer',id:setTimeout(paint,sleep)};
+        }else paint();
         return;
       }
     }

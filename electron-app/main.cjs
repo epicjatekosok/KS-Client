@@ -1,12 +1,12 @@
 'use strict';
-// KS Client Beta 1.0.24: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.25: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {execFile,spawn}=require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const APP_VERSION = 'Beta 1.0.24';
+const APP_VERSION = 'Beta 1.0.25';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.24.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.25.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -24,6 +24,8 @@ const localeDirectory = path.join(__dirname,'locales');
 const bundledLocales = Object.fromEntries(fs.readdirSync(localeDirectory)
   .filter(file=>/^[a-z]{2}\.json$/.test(file))
   .map(file=>[path.basename(file,'.json'),JSON.parse(fs.readFileSync(path.join(localeDirectory,file),'utf8'))]));
+const workshopLocales=JSON.parse(fs.readFileSync(path.join(__dirname,'workshop-locales.json'),'utf8'));
+for(const [code,messages] of Object.entries(workshopLocales))Object.assign(bundledLocales[code],messages);
 const overlayJS = 'window.__KS_LOCALES__=' + JSON.stringify(bundledLocales) + ';\n' +
   fs.readFileSync(path.join(__dirname,'overlay','overlay.js'),'utf8');
 const nativeLoginGateJS = fs.readFileSync(path.join(__dirname,'overlay','native_login_gate.js'),'utf8');
@@ -120,7 +122,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.24').slice(0,40),
+      current:String(payload.current||'1.0.25').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -312,7 +314,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.24 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.25 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
@@ -422,6 +424,36 @@ function switchEngine(target) {
     });
   }catch(e){fail('Failed to start '+target.toUpperCase()+': '+e.message);}
 }
+let packDialogOpen=false;
+async function managePack(command,id){
+  if(packDialogOpen)return;
+  const owner=win;
+  const reply=(message='')=>{
+    if(win===owner&&!owner.isDestroyed()&&validURL(owner.webContents.getURL(),true))
+      jsCall('setResourcePacks',{packs:SWAPPER.packs().list(),message});
+  };
+  packDialogOpen=true;
+  try{
+    const store=SWAPPER.packs();
+    const filters=[{name:'KS resource pack',extensions:['json']}];
+    if(command==='import'||command==='create'){
+      const folder=command==='create';
+      const chosen=await dialog.showOpenDialog(owner,{properties:[folder?'openDirectory':'openFile'],filters:folder?[]:filters});
+      if(chosen.canceled)return;
+      const file=chosen.filePaths[0];
+      if(!folder&&(await fs.promises.stat(file)).size>17*1024*1024)throw Error('Pack exceeds 17 MiB');
+      store.import(folder?SWAPPER.fromFolder(file,path.basename(file)):JSON.parse(await fs.promises.readFile(file,'utf8')));
+    }else if(command==='export'){
+      const doc=store.export(id);
+      const target=await dialog.showSaveDialog(owner,{defaultPath:'KS-resource-pack.json',filters});
+      if(target.canceled)return;
+      await fs.promises.writeFile(target.filePath,JSON.stringify(doc));
+    }else if(['first','toggle','remove'].includes(command))store.change(id,command);
+    else if(command!=='list')return;
+    reply();
+  }catch(error){try{reply(String(error.message).slice(0,180));}catch{jsCall('setWorkshopStatus','Cannot read resource pack index');}}
+  finally{packDialogOpen=false;}
+}
 function receiveMessage(event, raw){
   if(!win || event.sender!==win.webContents || event.senderFrame!==win.webContents.mainFrame)return;
   const source=event.senderFrame.url;
@@ -501,6 +533,7 @@ function receiveMessage(event, raw){
       }).catch(e=>{log('Screenshot failed: '+e.message);jsCall('setGameExtraStatus','Screenshot failed: '+e.message)});
       break;
     }
+    case 'resource-packs':void managePack(raw.command,raw.id);break;
     case 'resource-save':{
       try{
         const enabled=SWAPPER.setEnabled(raw.enabled===true);
