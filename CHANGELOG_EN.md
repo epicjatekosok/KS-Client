@@ -1,3 +1,7 @@
+# KS Client Beta 1.0.24
+
+[Pinned language picker and translations](RELEASE_BETA_124_EN.md)
+
 # KS Client Beta 1.0.23
 
 [Display languages and FPS restart guidance](RELEASE_BETA_123_EN.md)

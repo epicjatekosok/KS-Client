@@ -1,4 +1,4 @@
-"""Engine-independent KS Client 1.0.23 UI smoke test in local Chromium.
+"""Engine-independent KS Client 1.0.24 UI smoke test in local Chromium.
 Not a live test of Windows Electron, CEF, or FPS unlock.
 """
 from pathlib import Path
@@ -70,7 +70,7 @@ with sync_playwright() as play:
   page.locator('.ks-tab[data-group="Advanced"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
 
-  assert page.get_by_role('button', name='KS saját motorja cooming soon').is_disabled()
+  assert page.get_by_role('button', name='Hamarosan érkezik a KS saját motorja').is_disabled()
   assert not page.evaluate("window.__out.some(m=>m.type==='engine-switch')")
   # A missing native status must not keep the original Requesting banner forever.
   page.evaluate("window.__KS_CLIENT__.setEngineSwitchStatus('Native host reached')")
@@ -130,8 +130,8 @@ with sync_playwright() as play:
   assert page.locator('[data-setting="crosshairEnabled"]').count()==1
   page.locator('.ks-tab[data-group="Advanced"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
-  assert page.locator('.ks-release').first.inner_text().startswith('KS Client Beta 1.0.23')
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client Beta 1.0.24')
   assert not errors,(width,errors)
-  print('PASS 1.0.23 engine UI',width,height)
+  print('PASS 1.0.24 engine UI',width,height)
   page.close()
  browser.close()

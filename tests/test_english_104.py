@@ -12,24 +12,24 @@ publish=(root/'ci/Publish-Release.ps1').read_text(encoding='utf-8')
 notes=(root/'RELEASE_BETA_105_EN.md').read_text(encoding='utf-8')
 overlay=(root/'electron-app/overlay/overlay.js').read_text(encoding='utf-8')
 
-assert "RELEASE_BETA_123_EN.md" in publish
+assert "RELEASE_BETA_124_EN.md" in publish
 assert "RELEASE_BETA_103_HU.md" not in publish
-assert "v1.0.23-beta" in publish
+assert "v1.0.24-beta" in publish
 assert "Account sign-in: security and recovery" in notes and "Google" in notes
 assert "lang=\"en\"" in loading
 assert "LOADING KS CLIENT" in loading
 assert "KLIENS BETÖLTÉSE" not in loading and "Betöltés" not in loading
 assert "title:'KS Client — Loading',width:490,height:390" in main
-assert "BETA 1.0.3" not in shared and "BETA 1.0.23" not in shared
+assert "BETA 1.0.3" not in shared and "BETA 1.0.24" not in shared
 assert 'strings.TrimSpace(w.Version)' in shared
 assert 'w.Version=releaseLabel' in setup
 assert 'bundledVersionFromArchive' in setup
 assert 'runtime/Electron/resources/app/package.json' in setup
 assert 'runtime/Electron/ks-smoke-pass.json' in setup
 assert 'w.Version=installedReleaseLabel(folder)' in uninstall
-assert 'r.en.map(item' in overlay
+assert 'r.en.map(item=>`<li>${esc(L(item))}' in overlay
 assert "state.language==='hu'?r.hu:r.en" not in overlay
-assert "v:'Beta 1.0.23'" in overlay and "v:'Beta 1.0.13'" in overlay and "v:'Beta 1.0.9'" in overlay and "v:'Beta 1.0.8'" in overlay and "v:'Beta 1.0.7'" in overlay and "v:'Beta 1.0.6'" in overlay
+assert "v:'Beta 1.0.24'" in overlay and "v:'Beta 1.0.13'" in overlay and "v:'Beta 1.0.9'" in overlay and "v:'Beta 1.0.8'" in overlay and "v:'Beta 1.0.7'" in overlay and "v:'Beta 1.0.6'" in overlay
 with sync_playwright() as pw:
     browser=pw.chromium.launch(headless=True)
     page=browser.new_page(viewport={'width':490,'height':390},device_scale_factor=1)
