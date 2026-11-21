@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.21 – Electron unified game overlay. */
+/* KS Client Beta 1.0.22 – Electron unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.21';
+  const CLIENT_VERSION='1.0.22';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -69,6 +69,14 @@
   });
 
   function stored() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; } }
+  const graphicsProfiles = {
+    Low: {gameResolution:'720',smoothGameEdges:false,uiAnimations:false,lowLatency:true},
+    Balanced: {gameResolution:'1080',smoothGameEdges:true,uiAnimations:true,lowLatency:false},
+    'High Performance': {gameResolution:'2160',smoothGameEdges:true,uiAnimations:true,lowLatency:false}
+  };
+  function matchesGraphicsProfile(id) {
+    return Object.entries(graphicsProfiles[id]).every(([key,value])=>state[key]===value);
+  }
   const previousSettings = stored();
   let state = { ...defaults, ...previousSettings };
   // One-time Beta 1.0.0 migration: undo the previous forced 150% default.
@@ -1294,7 +1302,7 @@
   "Shadow Y offset":"Árnyék függőleges eltolása",
   "Independent color, size and shape.":"Külön állítható szín, méret és forma.",
   "Create a fully customized visual overlay. No aim assistance or gameplay automation.":"Teljesen személyre szabható célkereszt. Nem biztosít célzássegítést vagy játékautomatizálást.",
-  "Disable the original Kirka.io crosshair to avoid doubling.":"Kapcsold ki a Kirka.io saját célkeresztjét, hogy ne legyen két jelölés.",
+  "Restore the original reticle by switching this off.":"Kapcsold ki a Kirka.io saját célkeresztjét, hogy ne legyen két jelölés.",
   "Saved profiles":"Elmentett profilok",
   "Save, load or delete up to 12 complete presets, including outlines and shadows.":"Legfeljebb 12 teljes profilt menthetsz, betölthetsz vagy törölhetsz, körvonallal és árnyékkal együtt.",
   "Preview uses the same vector drawing as the in-game overlay. Center dot and outlines are independent.":"Az előnézet ugyanazt a vektoros rajzolást használja, mint a játék feletti jelölés. A középpont és a körvonal külön beállítható.",
@@ -1383,7 +1391,6 @@
   "Top left": "Bal felső sarok",
   "Top right": "Jobb felső sarok",
   "Bottom right": "Jobb alsó sarok",
-  "Automatic is recommended: the menu fits your monitor work area and the game uses the native engine/Windows display scale. When monitor information is unavailable, 1080p is used as a fallback. Fixed presets adjust browser page zoom, not the game engine’s internal render resolution.": "A játékfelbontás a Electron megjelenítési sűrűségét akár 4K-ig növeli. A menübeállítás a kliensablak célméretét módosítja; a tényleges méret a monitortól és a Windows nagyításától is függ.",
   "Performance Settings": "Teljesítménybeállítások",
   "Best-effort game animation pacing, measured frametimes, and client-side performance profiles.": "Kísérleti képkocka-időzítés, mért képkockaidők és kliensoldali teljesítményprofilok.",
   "FPS Limiter": "FPS-korlátozó",
@@ -1552,7 +1559,6 @@
   "Match monitor / automatic": "Monitorhoz igazítás / automatikus",
   "Auto-fit the current monitor work area, or select a fixed window size.": "Az aktuális monitor használható területéhez igazítja az ablakot, vagy fix méretet állít be.",
   "Automatic uses monitor DPI and engine native scaling; fixed modes set a raster target.": "Automatikusan a monitor DPI- és Electron-skálázását használja; a fix módok megjelenítési célméretet állítanak.",
-  "Automatic is recommended: the menu fits your monitor work area and the game uses the native engine/Windows display scale. When monitor information is unavailable, 1080p is used as a fallback. Fixed presets adjust browser page zoom, not the game engine’s internal render resolution.": "Az automatikus mód ajánlott: a menü a monitor használható területéhez igazodik, a játék pedig a natív Windows/Electron képernyőskálázást követi. Ha nem érhetők el monitoradatok, a tartalék felbontás 1080p. A fix módok a megjelenítési sűrűséget módosítják, nem a játékmotor belső felbontását.",
   "Audio test": "Hang tesztelése",
   "Play the uploaded menu sound now to confirm Electron allows playback.": "A feltöltött menühang lejátszásával ellenőrizheted, hogy a Electron engedélyezi-e a hangot.",
   "Test sound": "Hang kipróbálása",
@@ -1823,6 +1829,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.22',en:['Three graphics profiles, fitted render targets and automatic native crosshair suppression.'],hu:['Három grafikai profil, választható renderfelbontás és a Kirka-célkereszt automatikus elrejtése.']},
     {v:'Beta 1.0.21',en:['Electron is now the installed engine. Legacy engine choices open Electron. Added game-canvas edge smoothing and retained the engine selector.'],hu:['Az Electron az egyetlen telepített motor. A régi motorválasztás is Electronnal indul. Új játékvászon-élsimítás és megőrzött motorválasztó.']},
     {v:'Beta 1.0.20',en:['Display-aligned frame pacing, measured callback averages per limit and a match-only crosshair centered on the game canvas.'],hu:['Kijelzőhöz igazított időzítés, limitenként újramért átlag és a játékvászon közepére igazított, csak meccsen látható célkereszt.']},
     {v:'Beta 1.0.19',en:['Reduced per-frame and HUD overhead. Added a 90 FPS smoothness profile and reading and motion options.'],hu:['Kevesebb képkockánkénti munka, 90 FPS-es profil, olvasást és mozgáscsökkentést segítő beállítások.']},
@@ -2009,7 +2016,7 @@
           `<p class="ks-hint">The Kirka.io FPS reader recognizes visible HTML text only, not FPS painted inside a WebGL canvas. If unavailable it shows no value; use the in-game counter.</p>` +
           `<div class="ks-row"><div class="ks-label">FPS position</div><select class="ks-input" data-setting="fpsPosition"><option value="top-left" ${state.fpsPosition === 'top-left' ? 'selected' : ''}>Top left</option><option value="top-right" ${state.fpsPosition === 'top-right' ? 'selected' : ''}>Top right</option><option value="bottom-right" ${state.fpsPosition === 'bottom-right' ? 'selected' : ''}>Bottom right</option></select></div>` +
           `</div>` +
-          `<p class="ks-hint">Automatic is recommended: the menu fits your monitor work area and the game uses the native engine/Windows display scale. When monitor information is unavailable, 1080p is used as a fallback. Fixed presets adjust browser page zoom, not the game engine’s internal render resolution.</p>`;
+          `<p class="ks-hint">${state.language==='hu'?'A cél a játék képmagassága. A szélesség az ablak képarányát követi.':'The target sets the game image height. Width follows the window aspect ratio.'} <span id="ks-display-buffer"></span></p>`;
       case 'Game Integration':
         return title('Kirka.io Game Integration','Optional browser-side game extras. All changes are visual/read-only, no gameplay automation.') +
           `<div class="ks-card"><h3 class="ks-section-heading">Mouse & keyboard</h3>`+
@@ -2039,8 +2046,9 @@
           '<div class="ks-graphic-presets"><div class="ks-graphic-presets-label">Graphics presets</div>'+
           '<div class="ks-graphic-preset-grid">'+
           [{id:'Low',label:'Low',icon:'▣'}, {id:'Balanced',label:'Medium',icon:'◇'}, {id:'High Performance',label:'High',icon:'♕'}]
-            .map(p=>`<button type="button" class="ks-graphic-preset ${state.performancePreset===p.id?'active':''}" data-action="performance-preset" data-preset="${esc(p.id)}" aria-pressed="${state.performancePreset===p.id?'true':'false'}"><span class="ks-preset-landscape"></span><span class="ks-preset-name"><span>${p.icon}</span>${p.label}</span><span class="ks-preset-check">✓</span></button>`).join('')+
+            .map(p=>`<button type="button" class="ks-graphic-preset ${matchesGraphicsProfile(p.id)?'active':''}" data-action="performance-preset" data-preset="${esc(p.id)}" aria-pressed="${matchesGraphicsProfile(p.id)?'true':'false'}"><span class="ks-preset-landscape"></span><span class="ks-preset-name"><span>${p.icon}</span>${p.label}</span><span class="ks-preset-check">✓</span></button>`).join('')+
           '</div></div>'+
+          '<p class="ks-hint">'+(state.language==='hu'?'Alacsony: 720p, kevesebb effekt. Közepes: 1080p élsimítással. Magas: 4K élsimítással. Az FPS-korlát külön állítható. Az élsimítás újratöltéskor lép életbe.':'Low: 720p, fewer effects. Medium: 1080p with smoothing. High: 4K with smoothing. The FPS limit is independent. Edge smoothing takes effect on game reload.')+'</p>'+
           `<div class="ks-card">` +
           selectRow('FPS Limiter', 'Paces browser requestAnimationFrame callbacks. This can limit games using the main-thread rAF loop, but is not a GPU driver cap.', 'fpsLimit', [
             { value: 0, label: 'Unlimited / Native' },
@@ -2144,11 +2152,11 @@
           `<p class="ks-hint">Pixel-perfect mode uses native display scaling. WebGL anti-aliasing and internal render scale remain controlled by Kirka.io.</p>`;
       case 'Crosshair':
         return title('Custom Crosshair', 'Create a fully customized visual overlay. No aim assistance or gameplay automation.') +
-          `<div class="ks-note ks-crosshair-advice">${L('Tip: disable the default crosshair elements in Kirka.io settings to prevent a double crosshair.')}</div>` +
+          `<div class="ks-note ks-crosshair-advice">${state.language==='hu'?'A KS-célkereszt automatikusan elrejti a játék pontját, vonalait és körvonalát.':'The KS crosshair automatically hides the game dot, lines and outline.'}</div>` +
           `<div class="ks-crosshair-editor">` +
           `<div class="ks-crosshair-controls">` +
           `<div class="ks-card"><h3 class="ks-section-heading">Crosshair shape</h3>` +
-          toggleRow('Enable custom crosshair','Disable the original Kirka.io crosshair to avoid doubling.','crosshairEnabled') +
+          toggleRow('Enable custom crosshair','Restore the original reticle by switching this off.','crosshairEnabled') +
           selectRow('Shape','Select one of 12 shapes','shape',[
             {value:'cross',label:'Cross (4 arms)'},{value:'plus',label:'Plus (connected)'},{value:'x',label:'X (diagonal)'},
             {value:'t',label:'T-shaped'},{value:'chevron',label:'Chevron (4 corners)'},{value:'circle',label:'Circle'},
@@ -2511,13 +2519,8 @@
   }
 
   function applyPerformancePreset(preset) {
-    const profiles={
-      'Low': {gameResolution:'720',fpsLimit:60,uiAnimations:false,showGraph:false,lowLatency:true},
-      'Balanced': {gameResolution:'native',fpsLimit:0,uiAnimations:true,showGraph:true,lowLatency:false},
-      'High Performance': {gameResolution:'native',fpsLimit:0,uiAnimations:false,showGraph:false,lowLatency:true}
-    };
-    if (!profiles[preset]) return;
-    state={...state,...profiles[preset],smoothPreset:'Native',performancePreset:preset};
+    if (!graphicsProfiles[preset]) return;
+    state={...state,...graphicsProfiles[preset],performancePreset:preset};
     save();
     window.__KS_FRAME_PACER__?.setLimit(state.fpsLimit);
     notify('game-resolution',{preset:state.gameResolution});
@@ -2728,6 +2731,12 @@
   }
 
   function updateStabilityDiagnostics() {
+    if(open && selectedTab==='Display'){
+      const label=$('ks-display-buffer');
+      const size=window.__KS_RENDER_OBSERVER__?.getStats?.();
+      if(label)label.textContent=size?.canvasWidth && window.__KS_RENDER_OBSERVER__?.getGameBufferHeight?.()
+        ? 'WebGL: '+size.canvasWidth+' × '+size.canvasHeight+' px' : 'WebGL: —';
+    }
     if(!open||selectedTab!=='Frame Stability')return;
     const stabilitySamples=window.__KS_FRAME_PACER__?.getIntervals?.()||[];
     const m = id=>$(id);
@@ -2767,6 +2776,12 @@
   },60000);
   $('ks-break-dismiss').addEventListener('click',()=>{$('ks-break-reminder').hidden=true;});
 
+  const nativeReticleStyle=document.createElement('style');
+  nativeReticleStyle.textContent='.crosshair-cont :is(.crosshair-static,.crosshair-svg,.crosshair-dynamic,.crosshair-arm,.crosshair-dot){display:none!important}';
+  function replaceNativeReticle(visible){
+    if(visible && !nativeReticleStyle.isConnected)(document.head || document.documentElement).appendChild(nativeReticleStyle);
+    if(!visible && nativeReticleStyle.isConnected)nativeReticleStyle.remove();
+  }
   let watchedGameCanvas=null;
   const crosshairResize=new ResizeObserver(positionCrosshair);
   function positionCrosshair(){
@@ -2774,9 +2789,10 @@
     const cross=$('ks-crosshair');
     const rect=watchedGameCanvas.getBoundingClientRect();
     if(!rect.width || !rect.height || !watchedGameCanvas.isConnected){
-      cross.style.display='none';return;
+      replaceNativeReticle(false);cross.style.display='none';return;
     }
-    cross.style.left=(rect.left+rect.width/2)+'px';
+    replaceNativeReticle(true);
+    cross.style.left=(rect.left+rect.width/2+2/(window.__KS_OUTPUT_PIXEL_RATIO__ || window.devicePixelRatio || 1))+'px';
     cross.style.top=(rect.top+rect.height/2)+'px';
     cross.style.display='block';
   }
@@ -2790,7 +2806,7 @@
       watchedGameCanvas=canvas;
       if(canvas)crosshairResize.observe(canvas);
     }
-    if(!canvas){cross.style.display='none';return;}
+    if(!canvas){replaceNativeReticle(false);cross.style.display='none';return;}
     positionCrosshair();
     const signature=JSON.stringify(crosshairFields.map(key=>state[key]));
     if(signature!==crosshairSignature){

@@ -1,3 +1,7 @@
+# KS Client Beta 1.0.22
+
+[Graphics profiles, render resolution and crosshair](RELEASE_BETA_122_EN.md)
+
 # KS Client Beta 1.0.21
 
 [Electron migration and edge smoothing](RELEASE_BETA_121_EN.md)

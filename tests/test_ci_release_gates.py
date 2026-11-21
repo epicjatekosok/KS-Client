@@ -10,7 +10,7 @@ def add(path,content=b'test'):
  path.write_bytes(content)
 def mark(folder,engine,filename):
  blob=(folder/filename).read_bytes()
- value={'version':'1.0.21','engine':engine,'exeName':filename,
+ value={'version':'1.0.22','engine':engine,'exeName':filename,
         'exeSha256':sha256(blob).hexdigest(),'runner':'windows','result':'PASS'}
  add(folder/'ks-smoke-pass.json',json.dumps(value).encode('utf8'))
 with TemporaryDirectory() as temp:
@@ -18,7 +18,7 @@ with TemporaryDirectory() as temp:
  add(root/'ci/package_offline.py',original.read_bytes())
  for rel in ('KS-Client.exe','Uninstall-KS-Client.exe','README_EN.md','LICENSE',
              'runtime/Electron/electron.exe','runtime/Electron/resources/app/main.cjs',
-             'runtime/Electron/resources/app/preload.cjs',
+             'runtime/Electron/resources/app/preload.cjs','runtime/Electron/resources/app/game-resolution.cjs',
              'runtime/Electron/resources/app/assets/loading.html',
              'runtime/Electron/resources/app/assets/ks-logo.png',
              'runtime/Electron/resources/app/overlay/native_login_gate.js',
@@ -44,5 +44,5 @@ with TemporaryDirectory() as temp:
  mark(root/'runtime/Electron','Electron','electron.exe')
  ok=run()
  assert ok.returncode==0,(ok.stdout,ok.stderr)
- assert (root/'KS-Client-beta-1.0.21-Portable.zip').is_file()
+ assert (root/'KS-Client-beta-1.0.22-Portable.zip').is_file()
  print('PASS: release requires a matching Electron Windows smoke marker')
