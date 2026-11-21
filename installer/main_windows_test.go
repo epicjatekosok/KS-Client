@@ -12,7 +12,7 @@ import (
  "testing"
 )
 
-func TestOfflinePayloadIncludesBothEngines(t *testing.T) {
+func TestOfflinePayloadIncludesOnlyElectron(t *testing.T) {
   if len(archive) < 1024 { t.Fatal("empty installer embed") }
   r, err := zip.NewReader(bytes.NewReader(archive),int64(len(archive)))
   if err != nil { t.Fatal(err) }
@@ -21,10 +21,8 @@ func TestOfflinePayloadIncludesBothEngines(t *testing.T) {
     "Uninstall-KS-Client.exe":false,
     "runtime/Electron/electron.exe":false,
     "runtime/Electron/resources/app/main.cjs":false,
-    "runtime/CEF/KS.Cef.Client.exe":false,
-    "runtime/CEF/dotnet/dotnet.exe":false,
   }
-  for _, f:=range r.File {if _,ok:=expected[f.Name];ok{expected[f.Name]=true}}
+  for _, f:=range r.File {if strings.HasPrefix(f.Name,"runtime/CEF/"){t.Fatal("legacy runtime packaged")};if _,ok:=expected[f.Name];ok{expected[f.Name]=true}}
   for name,ok:=range expected {if !ok {t.Errorf("offline payload missing %s",name)}}
 }
 
@@ -41,18 +39,22 @@ func TestExtractAndCopyOfflinePayload(t *testing.T) {
   stage:=t.TempDir()
   if err=extractPayload(stage);err!=nil {t.Fatal("cannot extract offline payload:",err)}
   if err=installFiles(stage,dir);err!=nil {t.Fatal("cannot install offline payload:",err)}
-  for _,rel:=range []string{"KS-Client.exe","runtime/Electron/electron.exe","runtime/CEF/KS.Cef.Client.exe","runtime/CEF/dotnet/dotnet.exe"} {
+  for _,rel:=range []string{"KS-Client.exe","runtime/Electron/electron.exe"} {
     info,err:=os.Stat(filepath.Join(dir,filepath.FromSlash(rel)))
     if err!=nil || info.Size()==0 {t.Errorf("installed runtime missing: %s: %v",rel,err)}
   }
+  legacy:=filepath.Join(dir,"runtime","CEF")
+  if err=os.MkdirAll(legacy,0755);err!=nil{t.Fatal(err)}
+  if err=os.WriteFile(filepath.Join(legacy,"KS.Cef.Client.exe"),[]byte("legacy"),0600);err!=nil{t.Fatal(err)}
   // Exercise the in-place replacement path without needing the GUI.
   if err=installFiles(stage,dir);err!=nil {t.Fatal("in-place upgrade failed:",err)}
+  if _,err=os.Stat(legacy);!os.IsNotExist(err){t.Fatal("former runtime still installed")}
 }
 
 
 // Test the version DISPLAYED in Setup against the actual embedded ZIP.
 // Include a synthetic later release to prove the UI has no hard-coded version.
-func TestBundledVersionMatchesBothEngines(t *testing.T){
+func TestBundledVersionMatchesElectron(t *testing.T){
   got,err:=bundledVersion()
   if err!=nil{t.Fatal(err)}
   // Derive the expected version from the source package used to build the
@@ -71,7 +73,7 @@ func TestBundledVersionIsNotHardCoded(t *testing.T){
     writer:=zip.NewWriter(&buf)
     for _,pair:=range [][2]string{
       {"runtime/Electron/resources/app/package.json",`{"version":"`+electron+`"}`},
-      {"runtime/CEF/ks-smoke-pass.json",`{"version":"`+cef+`"}`},
+      {"runtime/Electron/ks-smoke-pass.json",`{"version":"`+cef+`"}`},
     } {
       file,err:=writer.Create(pair[0]);if err!=nil{t.Fatal(err)}
       if _,err=file.Write([]byte(pair[1]));err!=nil{t.Fatal(err)}
@@ -83,7 +85,7 @@ func TestBundledVersionIsNotHardCoded(t *testing.T){
   got,err:=bundledVersionFromArchive(next)
   if err!=nil||got!="9.8.7"{t.Fatalf("version not derived from package metadata: got %q, err %v",got,err)}
   if _,err:=bundledVersionFromArchive(makeBundle("9.8.7-beta","9.8.6"));err==nil{
-    t.Fatal("mismatched Electron and CEF versions must be rejected")
+    t.Fatal("mismatched Electron package and smoke versions must be rejected")
   }
   if _,err:=bundledVersionFromArchive(makeBundle("invalid-version","9.8.7"));err==nil{
     t.Fatal("malformed release version must be rejected")

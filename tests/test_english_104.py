@@ -5,7 +5,6 @@ from playwright.sync_api import sync_playwright
 root=Path(__file__).resolve().parents[1]
 loading=(root/'electron-app/assets/loading.html').read_text(encoding='utf-8')
 main=(root/'electron-app/main.cjs').read_text(encoding='utf-8')
-cef=(root/'cef/KSLoadingPanel.cs').read_text(encoding='utf-8')
 setup=(root/'installer/main_windows.go').read_text(encoding='utf-8')
 uninstall=(root/'uninstaller/main_windows.go').read_text(encoding='utf-8')
 shared=(root/'ksui/ui_windows.go').read_text(encoding='utf-8')
@@ -13,27 +12,24 @@ publish=(root/'ci/Publish-Release.ps1').read_text(encoding='utf-8')
 notes=(root/'RELEASE_BETA_105_EN.md').read_text(encoding='utf-8')
 overlay=(root/'electron-app/overlay/overlay.js').read_text(encoding='utf-8')
 
-assert "RELEASE_BETA_120_EN.md" in publish
+assert "RELEASE_BETA_121_EN.md" in publish
 assert "RELEASE_BETA_103_HU.md" not in publish
-assert "v1.0.20-beta" in publish
+assert "v1.0.21-beta" in publish
 assert "Account sign-in: security and recovery" in notes and "Google" in notes
 assert "lang=\"en\"" in loading
 assert "LOADING KS CLIENT" in loading
 assert "KLIENS BETÖLTÉSE" not in loading and "Betöltés" not in loading
 assert "title:'KS Client — Loading',width:490,height:390" in main
-assert 'private string message = "LOADING KS CLIENT"' in cef
-assert "statusBounds" in cef and 'BETA 1.0.20' in cef
-assert "BETA 1.0.3" not in shared and "BETA 1.0.20" not in shared
+assert "BETA 1.0.3" not in shared and "BETA 1.0.21" not in shared
 assert 'strings.TrimSpace(w.Version)' in shared
 assert 'w.Version=releaseLabel' in setup
 assert 'bundledVersionFromArchive' in setup
 assert 'runtime/Electron/resources/app/package.json' in setup
-assert 'runtime/CEF/ks-smoke-pass.json' in setup
+assert 'runtime/Electron/ks-smoke-pass.json' in setup
 assert 'w.Version=installedReleaseLabel(folder)' in uninstall
 assert 'r.en.map(item' in overlay
 assert "state.language==='hu'?r.hu:r.en" not in overlay
-assert "v:'Beta 1.0.20'" in overlay and "v:'Beta 1.0.13'" in overlay and "v:'Beta 1.0.9'" in overlay and "v:'Beta 1.0.8'" in overlay and "v:'Beta 1.0.7'" in overlay and "v:'Beta 1.0.6'" in overlay
-assert overlay==(root/'cef/overlay/overlay.js').read_text(encoding='utf-8')
+assert "v:'Beta 1.0.21'" in overlay and "v:'Beta 1.0.13'" in overlay and "v:'Beta 1.0.9'" in overlay and "v:'Beta 1.0.8'" in overlay and "v:'Beta 1.0.7'" in overlay and "v:'Beta 1.0.6'" in overlay
 with sync_playwright() as pw:
     browser=pw.chromium.launch(headless=True)
     page=browser.new_page(viewport={'width':490,'height':390},device_scale_factor=1)

@@ -14,7 +14,6 @@ const safeRoom=v=>{
 };
 const nativePost=message=>{try{
  if(window.__KS_NATIVE__?.post){window.__KS_NATIVE__.post(message);return true;}
- if(window.CefSharp?.PostMessage){window.CefSharp.PostMessage(JSON.stringify(message));return true;}
  }catch(_){}return false;};
 let lastError='',lastJoin='',joinMode='none',matchId='',stats={kills:null,deaths:null,assists:null,headshotPercent:null},seenKills=0,seenAssists=0,seenHS=0,viewState='';
 function scene(){return window.__KS_GAME_RUNTIME__?.getStatus?.()?.scene||window.__KS_INTEGRATION__?.getStatus()?.scene||'unknown';}

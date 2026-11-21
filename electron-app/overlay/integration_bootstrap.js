@@ -1,5 +1,5 @@
 /* KS Client – single early Kirka WebGL context registry (Electron and CEF).
-   This passive layer never creates a WebGL context, alters rendering, or consumes
+   Tracks game-owned WebGL contexts and never consumes
    game input. Subscribers can attach to contexts created before they loaded. */
 (() => {
   'use strict';
@@ -8,6 +8,8 @@
 
   const proto = HTMLCanvasElement.prototype;
   const original = proto.getContext;
+  let smoothEdges=true;
+  try{smoothEdges=JSON.parse(localStorage.getItem('ksclient.settings.alpha')||'{}').smoothGameEdges!==false;}catch(_){}
   const contexts = new WeakSet();
   const known = new Set();
   function liveContexts(){
@@ -18,6 +20,32 @@
     }
     return result;
   }
+  const mipmapHooks=new WeakMap();
+  function improveTextureSampling(gl){
+    if(!smoothEdges || mipmapHooks.has(gl) || typeof gl.generateMipmap!=='function')return;
+    if(!gl.getExtension('EXT_texture_filter_anisotropic'))return;
+    const originalMipmap=gl.generateMipmap;
+    function generateMipmap(target){
+      const result=Reflect.apply(originalMipmap,this,arguments);
+      if(this!==gl || target!==gl.TEXTURE_2D || gl.isContextLost())return result;
+      // Sample only on mipmap creation. Leave nearest-neighbour pixel art,
+      // explicit stronger settings and textures rendered without mipmaps alone.
+      if(gl.getParameter(gl.TEXTURE_BINDING_2D)){
+        const filter=gl.getTexParameter(target,gl.TEXTURE_MIN_FILTER);
+        if(filter===gl.LINEAR_MIPMAP_LINEAR || filter===gl.LINEAR_MIPMAP_NEAREST){
+          // Context restoration invalidates previously enabled extensions.
+          const extension=gl.getExtension('EXT_texture_filter_anisotropic');
+          if(!extension)return result;
+          const level=Math.min(4,gl.getParameter(extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
+          const anisotropy=extension.TEXTURE_MAX_ANISOTROPY_EXT;
+          if(gl.getTexParameter(target,anisotropy)<level)gl.texParameterf(target,anisotropy,level);
+        }
+      }
+      return result;
+    }
+    gl.generateMipmap=generateMipmap;
+    mipmapHooks.set(gl,{originalMipmap,generateMipmap});
+  }
   const subscribers = new Set();
   let selected = null;
   const seen = { webgl: 0, webgl2: 0, contextLost: 0, restored: 0, lastCanvas: '', notifications: 0, subscriberErrors: 0 };
@@ -25,6 +53,7 @@
 
   function publish(canvas, kind, gl, receiver = null) {
     if (!gl || canvas.id !== 'game') return;
+    if(!receiver){try{improveTextureSampling(gl);}catch(_){/* Optional GPU extension. */}}
     for (const subscriber of receiver ? [receiver] : subscribers) {
       try { subscriber(gl, canvas, kind); seen.notifications++; }
       catch (_) { seen.subscriberErrors++; }
@@ -40,7 +69,7 @@
     try {
       const attrs = gl.getContextAttributes?.();
       const requested = canvas.__ksLastWebGLAttrs ?? null;
-      if (!selected || (canvas.width * canvas.height) >= (selected.canvas.width * selected.canvas.height)) {
+      if (!selected || canvas.id==='game' || (selected.canvas.id!=='game' && (canvas.width * canvas.height) >= (selected.canvas.width * selected.canvas.height))) {
         selected = { canvas, gl, kind, asked: requested?.antialias ?? null,
           reported: typeof attrs?.antialias === 'boolean' ? attrs.antialias : null };
       }
@@ -58,14 +87,17 @@
     }
   }
   function wrappedGetContext(kind, ...args) {
-    // Invoke the game's original getContext exactly once, with its original
-    // arguments and receiver. Never suppress errors from Chromium itself.
-    const gl = Reflect.apply(original, this, [kind, ...args]);
+    const gameGL=this.id==='game' && ['webgl','webgl2','experimental-webgl'].includes(kind);
+    const requestAA=gameGL && smoothEdges && args[0]?.antialias===false;
+    let options=args;
+    if(requestAA)options=[Object.create(args[0],{antialias:{value:true,enumerable:true}}),...args.slice(1)];
+    let gl=Reflect.apply(original,this,[kind,...options]);
+    if(!gl && requestAA){options=args;gl=Reflect.apply(original,this,[kind,...args]);}
     if (kind === 'webgl' || kind === 'experimental-webgl' || kind === 'webgl2') {
       try {
         if (!this.__ksLastWebGLAttrs && args.length && args[0] && typeof args[0] === 'object') {
           // Only keep a boolean snapshot, never retain game-owned option objects.
-          this.__ksLastWebGLAttrs = { antialias: typeof args[0].antialias === 'boolean' ? args[0].antialias : null };
+          this.__ksLastWebGLAttrs = { antialias: typeof options[0].antialias === 'boolean' ? options[0].antialias : null };
         }
         track(this, kind, gl);
       } catch (_) { seen.subscriberErrors++; }
@@ -97,6 +129,10 @@
       mode: 'passive', trackedContexts: liveContexts().length, subscribers: subscribers.size }),
     restore: () => {
       if (proto.getContext === wrappedGetContext) proto.getContext = original;
+      for(const [gl] of liveContexts()){
+        const hook=mipmapHooks.get(gl);
+        if(hook && gl.generateMipmap===hook.generateMipmap)gl.generateMipmap=hook.originalMipmap;
+      }
       subscribers.clear();
       known.clear();selected=null;
     }

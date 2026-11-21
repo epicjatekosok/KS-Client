@@ -1,6 +1,8 @@
-# KS Client Beta 1.0.20
+# KS Client Beta 1.0.21
 
-[Shared game integration and frame pacing](RELEASE_BETA_115_EN.md)
+This release ships Electron only. Older engine selections open Electron automatically. The previous releases below are historical.
+
+[Beta 1.0.21 release notes](RELEASE_BETA_121_EN.md)
 
 # KS Client Beta 1.0.14 — new FPS limits, CEF fullscreen and Settings languages
 

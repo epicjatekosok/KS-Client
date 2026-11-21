@@ -5,7 +5,6 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'cef/**'
       - 'electron-app/**'
       - 'launcher/**'
       - 'installer/**'
@@ -17,7 +16,6 @@ on:
   push:
     branches: [main]
     paths:
-      - 'cef/**'
       - 'electron-app/**'
       - 'launcher/**'
       - 'installer/**'
@@ -47,38 +45,28 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
-      - name: Cross-compile 1.0.20 Windows launcher and updater
+      - name: Cross-compile 1.0.21 Windows launcher and updater
         shell: bash
         run: |
           cd launcher
           GOOS=windows GOARCH=amd64 go build -trimpath -o ../KS-Client-Windows-Crosscheck.exe .
           test -s ../KS-Client-Windows-Crosscheck.exe
-      - name: JavaScript syntax, identical engine overlays
+      - name: Electron source and release checks
         run: |
           node --check electron-app/main.cjs
           node --check electron-app/overlay/native_login_gate.js
-          node --check cef/overlay/native_login_gate.js
           node --check electron-app/preload.cjs
           node --check electron-app/overlay/frame_pacer.js
           node --check electron-app/overlay/overlay.js
-          node --check cef/overlay/overlay.js
           node --check electron-app/overlay/game_extras.js
           node --check electron-app/overlay/workshop.js
           node --check electron-app/overlay/integration_bootstrap.js
           node --check electron-app/overlay/integration_core.js
           node --check electron-app/overlay/game_runtime.js
           node --check electron-app/overlay/render_telemetry.js
-          node --check cef/overlay/integration_bootstrap.js
-          node --check cef/overlay/integration_core.js
-          node --check cef/overlay/game_runtime.js
-          node --check cef/overlay/render_telemetry.js
           node --check electron-app/overlay/webgl_cosmetics.js
           node --check electron-app/overlay/advanced_integration.js
           node --check electron-app/overlay/freeze_guard.js
-          node --check cef/overlay/webgl_cosmetics.js
-          node --check cef/overlay/advanced_integration.js
-          node --check cef/overlay/cef_input_probe.js
-          node --check cef/overlay/freeze_guard.js
           node --check electron-app/swapper.cjs
           python ci/check_source.py
           python tests/test_ci_release_gates.py
@@ -93,8 +81,8 @@ jobs:
       - name: Verify clean private source snapshot (no Git history or keys)
         shell: pwsh
         run: |
-          ./ci/Package-Source.ps1 -Version '1.0.20'
-          if(-not (Test-Path 'KS-Client-beta-1.0.20-Source.zip')){throw 'Private source snapshot missing'}
+          ./ci/Package-Source.ps1 -Version '1.0.21'
+          if(-not (Test-Path 'KS-Client-beta-1.0.21-Source.zip')){throw 'Private source snapshot missing'}
       - name: Automated browser UI test
         run: |
           python -m pip install playwright
@@ -105,9 +93,9 @@ jobs:
           python tests/test_menu_pacing_118.py
           python tests/test_game_integration_112.py
           python tests/test_advanced_114.py
+          python tests/test_edge_smoothing.py
           python tests/test_runtime_integration.py
           python tests/test_loading_117.py
-          python tests/test_cef_input_117.py
           python tests/test_runtime_116.py
           python tests/test_ui_118.py
           python tests/test_ui_120.py
@@ -132,7 +120,7 @@ jobs:
 
   offline-installer:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    name: Build and verify BOTH engines, then publish Windows release
+    name: Build Electron and publish the verified Windows release
     needs: [source-check]
     permissions:
       contents: write
@@ -140,9 +128,6 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
@@ -157,21 +142,6 @@ jobs:
       - name: Real Windows Electron startup smoke test
         shell: pwsh
         run: ./ci/Test-Engines.ps1 -Engine Electron
-      - name: Publish CefSharp and bundle app-local Desktop runtime
-        shell: pwsh
-        run: ./ci/Build-CEF.ps1
-      - name: Authenticode sign KS CEF host when configured
-        shell: pwsh
-        env:
-          KS_SIGNING_PFX_BASE64: ${{ github.event_name != 'pull_request' && secrets.KS_SIGNING_PFX_BASE64 || '' }}
-          KS_SIGNING_PFX_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.KS_SIGNING_PFX_PASSWORD || '' }}
-        run: ./ci/Sign-Release.ps1 -Stage cef
-      - name: Real Windows CEF startup smoke test
-        shell: pwsh
-        run: ./ci/Test-Engines.ps1 -Engine CEF
-      - name: Verify real CEF JavaScript-to-native bridge
-        shell: pwsh
-        run: ./ci/Test-CEF-Bridge.ps1
       - name: Build KS Client launcher and uninstaller
         shell: pwsh
         run: ./ci/Build-Native.ps1
@@ -187,21 +157,18 @@ jobs:
       - name: Check native update command and JSON response
         shell: pwsh
         run: ./ci/Test-Updater.ps1
-      - name: Test native CEF to Electron and Electron to CEF switching
+      - name: Start Electron with a legacy CEF selection and shortcut
         shell: pwsh
         run: ./ci/Test-Switching.ps1
-      - name: Recheck real CEF bridge after switch tests
-        shell: pwsh
-        run: ./ci/Test-CEF-Bridge.ps1
       - name: Recheck Electron on the final runtime
         shell: pwsh
         run: ./ci/Test-Engines.ps1 -Engine Electron
-      - name: Bundle both VERIFIED runtimes into a single OFFLINE payload
+      - name: Bundle the verified Electron runtime into a single OFFLINE payload
         run: python ci/package_offline.py
       - name: Test real installer extraction and in-place update code
         working-directory: installer
         run: go test -timeout 20m -v .
-      - name: Compile offline setup embedding complete dual-engine payload
+      - name: Compile offline setup embedding complete Electron payload
         shell: pwsh
         run: ./ci/Build-Setup.ps1
       - name: Sign the final standalone setup after its embedded ZIP is compiled

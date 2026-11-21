@@ -1,4 +1,4 @@
-"""KS alpha 1.0.20: partial diagnostics must never break the gear or settings."""
+"""KS alpha 1.0.21: partial diagnostics must never break the gear or settings."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -23,9 +23,9 @@ def run(browser,engine):
         removeItem:k=>store.delete(k)
       }});
     }""")
-    src=(root/('cef/overlay/overlay.js' if engine=='CEF' else 'electron-app/overlay/overlay.js')).read_text(encoding='utf8')
+    src=(root/('electron-app/overlay/overlay.js')).read_text(encoding='utf8')
     page.add_script_tag(content=src.replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1))
-    page.evaluate("window.__KS_CLIENT__.setDiagnostics({browserRAM:103,engine:'CEF',sampling:'Partial native sample'})")
+    page.evaluate("window.__KS_CLIENT__.setDiagnostics({browserRAM:103,engine:'Electron',sampling:'Partial native sample'})")
     # A previously throwing .toFixed(undefined) must not prevent either engine's
     # fixed gear from reopening settings after long sessions.
     for _ in range(8):
@@ -85,16 +85,16 @@ def run(browser,engine):
       s.querySelector('[data-group="Advanced"]').click();
       s.querySelector('[data-tab="Updates"]').click();
       s.querySelector('[data-action="update-check"]').click();
-      window.__KS_CLIENT__.setUpdateStatus({state:'unavailable',message:'Public feed not published',current:'1.0.20'});
+      window.__KS_CLIENT__.setUpdateStatus({state:'unavailable',message:'Public feed not published',current:'1.0.21'});
       s.querySelector('[data-action="update-open-release"]').click();
     }""")
     assert page.evaluate("""() => window.__out.some(msg=>msg.type==='update-open-release')""")
     assert page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-update-status').textContent.includes('Public feed not published')""")
     assert not errors,errors
     page.close()
-    print('PASS: alpha 1.0.20 stable gear, diagnostics, profile migration, update UI',engine)
+    print('PASS: alpha 1.0.21 stable gear, diagnostics, profile migration, update UI',engine)
 
 with sync_playwright() as p:
     browser=p.chromium.launch(headless=True)
-    for engine in ('Electron','CEF'):run(browser,engine)
+    for engine in ('Electron',):run(browser,engine)
     browser.close()

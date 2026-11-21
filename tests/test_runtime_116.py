@@ -9,8 +9,6 @@ files=('game_runtime.js','render_telemetry.js')
 scripts={}
 for name in files:
     a=(root/'electron-app/overlay'/name).read_text(encoding='utf8')
-    b=(root/'cef/overlay'/name).read_text(encoding='utf8')
-    assert a==b,name+' differs across engines'
     scripts[name]=a
 
 with sync_playwright() as p:

@@ -150,7 +150,6 @@
       event.preventDefault();event.stopPropagation();
       if(window.__KS_DEEP__?.join)window.__KS_DEEP__.join(url,false);
       else if(window.__KS_NATIVE__?.post)window.__KS_NATIVE__.post({type:'game-join',url});
-      else if(window.CefSharp?.PostMessage)window.CefSharp.PostMessage(JSON.stringify({type:'game-join',url}));
       emit('quick-join',{url});
     }
     target.addEventListener('dragover',drag);
@@ -268,7 +267,6 @@
       const payload={type:'game-input-diagnostics',message};
       try{
         if(window.__KS_NATIVE__?.post)window.__KS_NATIVE__.post(payload);
-        else if(window.CefSharp?.PostMessage)window.CefSharp.PostMessage(JSON.stringify(payload));
       }catch(_){}
     };
     const changed=()=>{

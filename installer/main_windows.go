@@ -1,7 +1,7 @@
 //go:build windows
 
 // KS Client installer: the displayed version comes from the embedded release payload.
-// Upgrades registered installations in-place, preserves Electron/CEF runtimes,
+// Upgrades registered installations in-place, preserves user profiles,
 // and uses English-labelled native UI buttons regardless of Windows locale.
 package main
 
@@ -27,19 +27,19 @@ var installationVersion string // supplied by the embedded tested installer payl
 const uninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClientTwoEngine`
 const oldUninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClient`
 
-//go:embed KS-Client-beta-1.0.20-Portable.zip
+//go:embed KS-Client-beta-1.0.21-Portable.zip
 var archive []byte
 
 // Read the version actually present in the embedded, smoke-tested offline
-// package. Both engines must agree before setup touches an installation.
+// package. Electron package and smoke marker must agree before setup touches an installation.
 var betaPackageVersion=regexp.MustCompile("^[0-9]+[.][0-9]+[.][0-9]+-beta$")
 func bundledVersionFromArchive(payload []byte)(string,error){
     reader,err:=zip.NewReader(bytes.NewReader(payload),int64(len(payload)))
     if err!=nil{return "",fmt.Errorf("unreadable offline package: %w",err)}
-    var packageVersion,cefVersion string
+    var packageVersion,markerVersion string
     for _,file:=range reader.File{
         if file.Name!="runtime/Electron/resources/app/package.json" &&
-           file.Name!="runtime/CEF/ks-smoke-pass.json"{continue}
+           file.Name!="runtime/Electron/ks-smoke-pass.json"{continue}
         source,err:=file.Open()
         if err!=nil{return "",err}
         blob,readErr:=io.ReadAll(io.LimitReader(source,4096))
@@ -49,11 +49,11 @@ func bundledVersionFromArchive(payload []byte)(string,error){
         var metadata struct{Version string `json:"version"`}
         if err=json.Unmarshal(blob,&metadata);err!=nil{return "",fmt.Errorf("invalid embedded version metadata: %w",err)}
         if file.Name=="runtime/Electron/resources/app/package.json"{packageVersion=metadata.Version
-        }else{cefVersion=metadata.Version}
+        }else{markerVersion=metadata.Version}
     }
     if !betaPackageVersion.MatchString(packageVersion){return "",fmt.Errorf("invalid embedded Electron release version")}
     numeric:=strings.TrimSuffix(packageVersion,"-beta")
-    if cefVersion!=numeric{return "",fmt.Errorf("Electron/CEF version mismatch inside installer")}
+    if markerVersion!=numeric{return "",fmt.Errorf("Electron smoke marker version mismatch inside installer")}
     return numeric,nil
 }
 func bundledVersion()(string,error){return bundledVersionFromArchive(archive)}
@@ -104,7 +104,7 @@ func safeUpdateTarget(folder string) bool {
  cleaned:=filepath.Clean(folder)
  if strings.HasPrefix(cleaned,`\\\\`) || cleaned==filepath.VolumeName(cleaned)+string(filepath.Separator) {return false}
  if info,err:=os.Lstat(cleaned);err!=nil||!info.IsDir()||info.Mode()&os.ModeSymlink!=0{return false}
- for _,name:=range []string{"KS-Client.exe","runtime/Electron/electron.exe","runtime/CEF/KS.Cef.Client.exe"} {
+ for _,name:=range []string{"KS-Client.exe","runtime/Electron/electron.exe"} {
   stat,err:=os.Lstat(filepath.Join(cleaned,filepath.FromSlash(name)))
   if err!=nil||!stat.Mode().IsRegular(){return false}
  }
@@ -153,7 +153,7 @@ func selectInstallDir() (installSelection, error) {
 	if hasInstalledExe(oldPath) {
 		return installSelection{oldPath, true, true}, nil
 	}
-	return installSelection{stable, false, false}, nil
+	return installSelection{oldPath, false, false}, nil
 }
 
 // extractPayload unpacks the complete archive into a fresh staging directory.
@@ -210,7 +210,7 @@ func extractPayload(staging string) error {
 			return closeErr
 		}
 	}
-	for _, exe := range []string{"KS-Client.exe", "Uninstall-KS-Client.exe", "runtime/Electron/electron.exe", "runtime/Electron/resources/app/main.cjs", "runtime/CEF/KS.Cef.Client.exe", "runtime/CEF/dotnet/dotnet.exe"} {
+	for _, exe := range []string{"KS-Client.exe", "Uninstall-KS-Client.exe", "runtime/Electron/electron.exe", "runtime/Electron/resources/app/main.cjs"} {
 		if _, err := os.Stat(filepath.Join(staging, exe)); err != nil {
 			return fmt.Errorf("package is missing %s", exe)
 		}
@@ -327,7 +327,22 @@ func installFiles(staging, folder string) error {
 		}
 		applied = append(applied, rec)
 	}
-	for _, rec := range applied {
+	// Retire only KS's bundled runtime. Profiles live under LOCALAPPDATA/KSClient.
+    runtimeDir := filepath.Join(folder, "runtime")
+    legacy := filepath.Join(runtimeDir, "CEF")
+    if info, statErr := os.Lstat(legacy); statErr == nil {
+        parent, parentErr := os.Lstat(runtimeDir)
+        if parentErr != nil || !parent.Mode().IsDir() || parent.Mode()&os.ModeSymlink != 0 ||
+            !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+            return fail(fmt.Errorf("unexpected legacy runtime path"))
+        }
+        if file, err := os.Lstat(filepath.Join(legacy, "KS.Cef.Client.exe")); err == nil && file.Mode().IsRegular() {
+            retired := legacy+".ksold-"+token
+            if err := os.Rename(legacy, retired); err != nil { return fail(err) }
+            if err := os.RemoveAll(retired); err != nil { writeLog("Retired runtime cleanup: "+err.Error()) }
+        }
+    } else if !os.IsNotExist(statErr) { return fail(statErr) }
+    for _, rec := range applied {
 		if rec.hadOld {
 			_ = os.Remove(rec.backup)
 		}
@@ -362,7 +377,7 @@ func registerInstall(folder string) error {
 	exe := filepath.Join(folder, "KS-Client.exe")
 	uninstall := filepath.Join(folder, "Uninstall-KS-Client.exe")
 	fields := [][2]string{
-		{"DisplayName", "KS Client (Electron + CEF)"}, {"DisplayVersion", installationVersion},
+		{"DisplayName", "KS Client"}, {"DisplayVersion", installationVersion},
 		{"Publisher", "KS Client"}, {"InstallLocation", folder}, {"DisplayIcon", exe + ",0"},
 		{"UninstallString", "\"" + uninstall + "\""},
 	}
@@ -462,11 +477,11 @@ func main() {
 			description += "The old WebView2 host will be replaced.\n\n"
 		}
 	}
-	description += "Existing browser profiles and settings will be preserved.\n\nBoth prebuilt browser engines are INCLUDED. No build tools or download are needed during setup.\n\nProceed?"
+	description += "Existing browser profiles and settings will be preserved.\n\nThe Electron browser runtime is included. No build tools or download are needed during setup.\n\nProceed?"
 	if askEnglish("KS Client Setup - "+releaseLabel, description, dialogButton{"Yes", 6}, dialogButton{"No", 7}) != 6 {
 		return
 	}
-	w := ksui.New("KS Client • Setup "+installationVersion, "Installing KS Client", "Dark / Amber · both engines included")
+	w := ksui.New("KS Client • Setup "+installationVersion, "Installing KS Client", "Dark / Amber · Electron included")
   w.Version=releaseLabel
 	w.SetButtons(ksui.Button{Label: "Close", ID: "close", Enabled: false})
 	w.OnButton = func(id string) {
@@ -545,8 +560,8 @@ func main() {
 		for _, obsolete := range []string{"KS-Engine-Setup.exe", "Install-Engines.ps1", "Install-Engines.cmd"} {
 			_ = os.Remove(filepath.Join(folder, obsolete))
 		}
-		w.Update("INSTALLATION COMPLETE", "CEF and Electron were installed from the verified offline package.", 1)
-		w.AddLog("Both prebuilt browser engines were included in this installer.")
+		w.Update("INSTALLATION COMPLETE", "Electron was installed from the verified offline package.", 1)
+		w.AddLog("The prebuilt Electron runtime was included in this installer.")
 		w.SetButtons(ksui.Button{Label: "Close", ID: "close", Enabled: true}, ksui.Button{Label: "Launch KS Client", ID: "launch", Enabled: true})
 	}()
 	_ = w.Run()

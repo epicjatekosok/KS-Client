@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright
 r=Path(__file__).resolve().parents[1]
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True)
- for engine in ('Electron','CEF'):
+ for engine in ('Electron',):
   page=browser.new_page(viewport={'width':1600,'height':900})
   errors=[]
   page.on('pageerror',lambda e:errors.append(str(e)))
@@ -17,7 +17,7 @@ with sync_playwright() as p:
     getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)
    }});
   }""")
-  js=(r/('cef/overlay/overlay.js' if engine=='CEF' else 'electron-app/overlay/overlay.js')).read_text()
+  js=(r/('electron-app/overlay/overlay.js')).read_text()
   page.add_script_tag(content=js.replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1))
   page.wait_for_function("!!window.__KS_CLIENT__")
   page.evaluate('window.__KS_CLIENT__.open()')
