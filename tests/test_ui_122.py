@@ -32,6 +32,10 @@ with sync_playwright() as p:
   assert info['title']=='Settings' and info['groups']==7 and info['selected']=='Graphics',info
   assert info['icons']==7 and info['presets']==3 and info['width']>1100,info
   assert info['bg']=='rgb(8, 10, 14)',info
+  for preset,height,smooth in [('Low','720',False),('Balanced','1080',True),('High Performance','2160',True)]:
+   page.locator(f'[data-preset="{preset}"]').click()
+   saved=page.evaluate("JSON.parse(localStorage.getItem('ksclient.settings.alpha'))")
+   assert (saved['gameResolution'],saved['smoothGameEdges'],saved['fpsLimit'])==(height,smooth,0),saved
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-preset="Low"]').click()""")
   assert page.evaluate("JSON.parse(localStorage.getItem('ksclient.settings.alpha')).performancePreset")=='Low'
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-cancel').click()""")
