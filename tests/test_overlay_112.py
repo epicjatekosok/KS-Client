@@ -70,7 +70,7 @@ with sync_playwright() as play:
   page.locator('.ks-tab[data-group="Advanced"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
 
-  assert page.get_by_role('button', name='KS saját motorja cooming soon').is_disabled()
+  assert page.get_by_role('button', name='Hamarosan érkezik a KS saját motorja').is_disabled()
   assert not page.evaluate("window.__out.some(m=>m.type==='engine-switch')")
   # A missing native status must not keep the original Requesting banner forever.
   page.evaluate("window.__KS_CLIENT__.setEngineSwitchStatus('Native host reached')")

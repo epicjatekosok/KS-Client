@@ -75,7 +75,15 @@ with sync_playwright() as p:
    }''')
 
   assert page.locator('#ks-body [data-setting="language"]').count()==0
-  for code,label in [('de','Einstellungen'),('hi','सेटिंग्स'),('bn','সেটিংস'),('id','Pengaturan'),('ko','설정'),('tr','Ayarlar')]:
+  picker = language.element_handle()
+  page.locator('button[data-group="Interface"]').click()
+  assert picker.evaluate("el => el === el.getRootNode().querySelector('#ks-language')")
+  language.select_option('de')
+  page.locator('button[data-group="Display"]').click()
+  page.locator('.ks-subtab[data-tab="Display"]').click()
+  assert locales['de']['Game resolution preset'] in page.locator('#ks-body').inner_text()
+  assert 'Game resolution preset' not in page.locator('#ks-body').inner_text()
+  for code,label in [('de','Einstellungen'),('hi','सेटिंग्स'),('bn','সেটিংস'),('id','Pengaturan'),('ko','설정'),('hu','Beállítások'),('fr','Paramètres'),('es','Configuración'),('pt','Configurações'),('it','Impostazioni'),('ru','Настройки'),('zh','设置'),('ja','設定'),('tr','Ayarlar')]:
    language.select_option(code)
    assert page.locator('#ks-brand-main').text_content()==label
    assert page.locator('#ks-panel').get_attribute('lang')==code

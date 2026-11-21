@@ -1,7 +1,7 @@
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 a=(root/'electron-app/overlay/overlay.js').read_bytes()
-for needle in ['KS saját motorja cooming soon'.encode(),b'Eye Comfort',b'Crosshair']:
+for needle in [b'KS Engine coming soon',b'Eye Comfort',b'Crosshair']:
  assert needle in a, f'missing expected menu identifier: {needle!r}'
 ps=(root/'ci/Prepare-Electron.ps1').read_text()
 assert 'SHA256' in ps and 'libEGL.dll' in ps and 'Never require' in ps
@@ -76,3 +76,19 @@ assert summarize(StringIO(sample),42,'0xAB')==dict(samples=2,fps=100,p50_ms=10,p
 sample='Application,ProcessID,SwapChainAddress,DisplayedTime,FrameTime\n'
 sample+='electron.exe,42,0xab,5,2\nelectron.exe,42,0xab,15,2\nelectron.exe,42,0xab,NA,2\n'
 assert summarize(StringIO(sample),42,'0xAB')['application_fps']==500
+
+# All selectable UI languages must carry the same set of messages.
+import json
+import re
+locales = root / 'electron-app/locales'
+language_codes = {'hu','de','fr','es','pt','it','ru','zh','ja','hi','bn','id','ko','tr'}
+assert {p.stem for p in locales.glob('*.json')} == language_codes
+reference = json.loads((locales / 'de.json').read_text(encoding='utf-8'))
+for code in language_codes:
+    messages = json.loads((locales / f'{code}.json').read_text(encoding='utf-8'))
+    assert messages.keys() == reference.keys(), f'{code}: message coverage differs'
+    assert len(messages) >= 850, f'{code}: incomplete settings catalog'
+    for key, value in messages.items():
+        assert isinstance(value, str) and value.strip(), (code, key)
+        assert sorted(re.findall(r'\{\d+\}', value)) == sorted(re.findall(r'\{\d+\}', key)), (code, key)
+print('PASS: packaged language catalogs have matching messages and placeholders')

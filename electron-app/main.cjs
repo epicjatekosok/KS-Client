@@ -166,12 +166,14 @@ function checkKSUpdate(channel,automatic,autoDownload){
       });
   });
 }
-async function installKSUpdate(channel){
+async function installKSUpdate(channel,language){
   if(!win)return;
-  const decision=await dialog.showMessageBox(win,{type:'question',title:'KS Client Update',
-    message:'Download and install a verified KS Client update?',
-    detail:'The current game will close. Your settings, browser profiles and Workshop data are preserved.',
-    buttons:['Install & Close Game','Cancel'],defaultId:1,cancelId:1,noLink:true});
+  const catalog=typeof language==='string' && Object.hasOwn(bundledLocales,language)?bundledLocales[language]:null;
+  const tr=message=>catalog?.[message]||message;
+  const decision=await dialog.showMessageBox(win,{type:'question',title:tr('KS Client Update'),
+    message:tr('Download and install a verified KS Client update?'),
+    detail:tr('The current game will close. Your settings, browser profiles and Workshop data are preserved.'),
+    buttons:[tr('Install & Close Game'),tr('Cancel')],defaultId:1,cancelId:1,noLink:true});
   if(decision.response!==0)return;
   emitUpdateStatus({state:'downloading',message:'Starting verified update worker…'});
   execUpdater(['--ks-update-install','--channel='+channel],(error,result)=>{
@@ -449,7 +451,7 @@ function receiveMessage(event, raw){
       break;
     }
     case 'update-check':checkKSUpdate(['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta',raw.automatic===true,raw.autoDownload===true);break;
-    case 'update-install':void installKSUpdate(['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta');break;
+    case 'update-install':void installKSUpdate(['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta',raw.language);break;
     case 'frame-policy':{
       if(typeof raw.enabled!=='boolean'||raw.enabled===fixedTarget)break;
       try{
