@@ -14,7 +14,6 @@ def run(browser,engine):
     const original=Element.prototype.attachShadow;
     Element.prototype.attachShadow=function(opts){return original.call(this,this.id==='ks-game-extras'?{...opts,mode:'open'}:opts);};
   }""")
-  if engine=='CEF':page.evaluate('window.CefSharp={PostMessage:()=>{}}')
   folder=r/('electron-app/overlay')
   for file in ('overlay.js','game_extras.js'):
     source=(folder/file).read_text(encoding='utf8').replace("  'use strict';","  'use strict'; const location=window.__KS_TEST_LOCATION__;",1)
