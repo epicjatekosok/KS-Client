@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.19 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.20 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.19';
+  const CLIENT_VERSION='1.0.20';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -287,6 +287,7 @@
       position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
       display: none; line-height: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,.75));
     }
+    #ks-crosshair svg {display:block;}
     #ks-quick {
       position: absolute; top: 16px; left: 18px; display: flex; gap: 10px; pointer-events: auto;
     }
@@ -1836,6 +1837,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.20',en:['Display-aligned frame pacing, measured callback averages per limit and a match-only crosshair centered on the game canvas.'],hu:['Kijelzőhöz igazított időzítés, limitenként újramért átlag és a játékvászon közepére igazított, csak meccsen látható célkereszt.']},
     {v:'Beta 1.0.19',en:['Reduced per-frame and HUD overhead. Added a 90 FPS smoothness profile and reading and motion options.'],hu:['Kevesebb képkockánkénti munka, 90 FPS-es profil, olvasást és mozgáscsökkentést segítő beállítások.']},
     {v:'Beta 1.0.18',en:['Pace fixed game-loop targets independently of monitor Hz. Reduced Settings and lobby rendering work and removed the independent FPS sampling loop.'],hu:['A fix játékciklus-célérték független a monitor Hz-étől. A menük és az FPS-mérő kevesebb képkockát kérnek.']},
     {v:'Beta 1.0.17',en:['Search the native Friends and Servers lists. Hide locked rooms or enable F2 screenshots in Game Integration.'],hu:['Keresés a játék saját barát- és szobalistájában. A zárolt szobák szűrése és az F2-es képernyőmentés is elérhető.']},
@@ -2075,7 +2077,7 @@
           `<p class="ks-hint">For a 144 Hz display and a 180 target, compare the game counter, application presents and displayed frames separately.</p>`+
           `<div class="ks-row"><div><div class="ks-label">Browser FPS unlock</div><div class="ks-desc">Your selected engine startup request</div></div><span class="ks-code">${browserActive.uncapFps ? L('Requested on startup') : L('Off / normal sync')}</span></div>`+
           (browserPendingRestart ? `<p class="ks-hint">${L('Restart KS Client now')}</p><button class="ks-btn primary" data-action="browser-restart">${L('Restart KS Client now')}</button>` : '') +
-          `<p class="ks-hint">${state.language==='hu'?'Fix célértéknél a játék főszálas animációi a monitor frissítésétől függetlenül futnak. A képernyő frissítését és a GPU-fogyasztást külön mérd.':'Fixed targets pace the main-thread game loop independently of monitor Hz. Display refresh and GPU power are separate measurements.'}</p>`+
+          `<p class="ks-hint">${state.language==='hu'?'Normál szinkron mellett a limiter a kijelző frissítéséhez igazítja a játék animációit. A képernyő frissítését és a GPU-fogyasztást külön mérd.':'With normal sync, fixed targets align game animation steps with repaints where possible. Display refresh and GPU power are separate measurements.'}</p>`+
           (browserActive.uncapFps && state.fpsLimit>0 ? `<p class="ks-hint">${state.language==='hu'?'A korlátlan Chromium-kapcsolók még aktívak. Indítsd újra a klienst a fix mód normál kompozitor-időzítéséhez.':'Restart once to remove the active unlimited Chromium flags for this fixed target. Your Unlimited preference is remembered.'}</p>` : '') +
           selectRow('Smoothness profile','Choose a browser callback pacing target. It cannot guarantee the displayed GPU frame rate.','smoothPreset',[
             {value:'Native',label:'Native / no extra cap'},{value:'Steady90',label:'Steady – 90 FPS'},{value:'Comfort',label:'Comfort – 120 FPS'},{value:'Balanced',label:'Balanced – 144 FPS'},{value:'Smooth',label:'High Smoothness – 165 FPS'}]) +
@@ -2087,6 +2089,7 @@
           toggleRow('Limit unfocused rendering', 'Cap page animation callbacks at 30 when another window has focus.', 'limitUnfocusedFPS') +
           toggleRow('Real-time FPS & Frametime graphs', 'Show live sampled browser/game callback timing graphs while this tab is open.', 'showGraph') +
           `<div class="ks-row"><div><div class="ks-label">Measured callback rate</div><div class="ks-desc" id="ks-fps-source">${esc(measuredLabel)}</div></div><b class="ks-code" id="ks-current-gamefps">${displayedGameFPS} FPS</b></div>` +
+          `<div class="ks-row"><div class="ks-label">${state.language==='hu'?'Mért átlag az aktuális korláttal (rAF/s)':'Measured average under current limit (rAF/s)'}</div><b class="ks-code" id="ks-average-callback">—</b></div>` +
           `<div class="ks-row"><div class="ks-label">Most recent callback interval</div><b class="ks-code" id="ks-current-ms">${displayedFrameMs.toFixed(1)} ms</b></div>` +
           `<div class="ks-row"><div><div class="ks-label">Kirka HUD FPS value</div><div class="ks-desc">HTML HUD reading if exposed; otherwise use the game's own counter.</div></div><span class="ks-code" id="ks-kirka-fps-value">—</span></div>` +
           `</div>` +
@@ -2777,6 +2780,44 @@
   },60000);
   $('ks-break-dismiss').addEventListener('click',()=>{$('ks-break-reminder').hidden=true;});
 
+  let watchedGameCanvas=null;
+  const crosshairResize=new ResizeObserver(positionCrosshair);
+  function positionCrosshair(){
+    if(!watchedGameCanvas)return;
+    const cross=$('ks-crosshair');
+    const rect=watchedGameCanvas.getBoundingClientRect();
+    if(!rect.width || !rect.height || !watchedGameCanvas.isConnected){
+      cross.style.display='none';return;
+    }
+    cross.style.left=(rect.left+rect.width/2)+'px';
+    cross.style.top=(rect.top+rect.height/2)+'px';
+    cross.style.display='block';
+  }
+  function syncCrosshair(){
+    const cross=$('ks-crosshair');
+    const visible=isGamePage && !open && !document.hidden && state.showHUD &&
+      state.crosshairEnabled && window.__KS_GAME_RUNTIME__?.scene==='match';
+    const canvas=visible?document.querySelector('canvas#game'):null;
+    if(canvas!==watchedGameCanvas){
+      crosshairResize.disconnect();
+      watchedGameCanvas=canvas;
+      if(canvas)crosshairResize.observe(canvas);
+    }
+    if(!canvas){cross.style.display='none';return;}
+    positionCrosshair();
+    const signature=JSON.stringify(crosshairFields.map(key=>state[key]));
+    if(signature!==crosshairSignature){
+      const svgSize=crosshairExtent()*2;
+      cross.innerHTML=`<svg width="${svgSize}" height="${svgSize}" xmlns="http://www.w3.org/2000/svg"></svg>`;
+      drawCrosshair(cross.querySelector('svg'),svgSize);
+      crosshairSignature=signature;
+    }
+
+  }
+  window.addEventListener('resize',positionCrosshair);
+  window.addEventListener('scroll',positionCrosshair,{capture:true,passive:true});
+  document.addEventListener('fullscreenchange',syncCrosshair);
+  document.addEventListener('visibilitychange',syncCrosshair);
   let crosshairSignature;
   function apply() {
     syncMeasurement();
@@ -2943,17 +2984,7 @@
     $('ks-quick').style.display = 'flex';
     $('ks-discord-quick').style.display=isGamePage && !open && !/\/(games\/|hub\/ranked)/.test(location.pathname) && !document.pointerLockElement?'inline-flex':'none';
 
-    const cross = $('ks-crosshair');
-    cross.style.display = isGamePage && state.showHUD && state.crosshairEnabled ? 'block' : 'none';
-    if(cross.style.display==='block'){
-      const signature=JSON.stringify(crosshairFields.map(key=>state[key]));
-      if(signature!==crosshairSignature){
-        const svgSize=crosshairExtent()*2;
-        cross.innerHTML=`<svg width="${svgSize}" height="${svgSize}" xmlns="http://www.w3.org/2000/svg"></svg>`;
-        drawCrosshair(cross.querySelector('svg'),svgSize);
-        crosshairSignature=signature;
-      }
-    }
+    syncCrosshair();
     let custom = document.getElementById('ks-client-user-css');
     if (!custom) {
       custom = document.createElement('style');
@@ -3604,15 +3635,29 @@
     } catch(_) { /* DOM/HTML FPS is optional. */ }
     return value;
   }
-  let measurementHandle=null;
+  let measurementHandle=null, historyEpoch=-1, historySource='';
+  function syncSampleHistory(measured){
+    if(historyEpoch===measured?.epoch && historySource===state.fpsSource)return;
+    historyEpoch=measured?.epoch;historySource=state.fpsSource;
+    fpsHistory.length=frameHistory.length=0;
+    gameHUDValue=null;gameHUDReadAt=-Infinity;
+    displayedGameFPS=displayedFrameMs=0;
+    $('ks-fps').textContent='Page rAF —';
+    const avg=$('ks-average-callback');
+    if(avg)avg.textContent='—';
+  }
   function sampleMeasurement(){
     measurementHandle=null;
     if(!measureFrames())return;
     const ts=performance.now();
+    const measured=window.__KS_FRAME_PACER__?.getStats();
+    syncSampleHistory(measured);
     if(state.fpsSource==='kirka-hud' && ts-gameHUDReadAt>900) {
       gameHUDValue=readGameHUDValue();gameHUDReadAt=ts;
     }
-    const measured = window.__KS_FRAME_PACER__?.getStats();
+    const mean=measured?.averageCallbackFPS;
+    const averageNode=$('ks-average-callback');
+    if(averageNode)averageNode.textContent=mean>0?mean+' / s':'—';
     const policyEl=$('ks-fps-effective');
     if(policyEl && measured)policyEl.textContent=measured.effectiveLimit
       ? measured.effectiveLimit+' / s' : L('Native / no extra cap');
@@ -3640,13 +3685,13 @@
         measuredLabel='Kirka.io HUD FPS unavailable (possibly drawn on canvas)';
       }
     }
-    if(state.fpsSource!=='kirka-hud' || gameHUDValue!==null) {
+    if(displayedGameFPS>0 && displayedFrameMs>0) {
       fpsHistory.push(displayedGameFPS);
       frameHistory.push(displayedFrameMs);
     }
     if(fpsHistory.length>60) fpsHistory.shift();
     if(frameHistory.length>60) frameHistory.shift();
-    $('ks-fps').textContent=state.fpsSource==='kirka-hud' ? (gameHUDValue!==null ? `Kirka ${gameHUDValue} FPS` : L('Kirka.io HUD FPS unavailable (possibly drawn on canvas)')) : (displayedGameFPS>0?`Page rAF ${displayedGameFPS} FPS · ${displayedFrameMs.toFixed(1)} ms`:'Page rAF —');
+    $('ks-fps').textContent=state.fpsSource==='kirka-hud' ? (gameHUDValue!==null ? `Kirka ${gameHUDValue} FPS` : L('Kirka.io HUD FPS unavailable (possibly drawn on canvas)')) : (displayedGameFPS>0?`Page rAF ${displayedGameFPS} FPS · ${displayedFrameMs.toFixed(1)} ms · ${state.language==='hu'?'Átlag':'Avg'} ${mean||'—'}`:'Page rAF —');
     const fpsNode=$('ks-current-gamefps'); if(fpsNode)fpsNode.textContent=state.fpsSource==='kirka-hud'&&gameHUDValue===null?'—':(displayedGameFPS>0?displayedGameFPS+' FPS':'—');
     const kirkaNode=$('ks-kirka-fps-value');if(kirkaNode)kirkaNode.textContent=gameHUDValue!==null?gameHUDValue+' FPS':'—';
     const msNode=$('ks-current-ms'); if(msNode)msNode.textContent=displayedFrameMs>0?displayedFrameMs.toFixed(1)+' ms':'—';
@@ -3696,6 +3741,7 @@
     }else{
       clearTimeout(measurementHandle);measurementHandle=null;
     }
+    syncSampleHistory(window.__KS_FRAME_PACER__?.getStats());
     syncFixedMode();
   }
   let sentFixedMode=null;
@@ -3709,6 +3755,7 @@
   window.addEventListener('focus',syncActivityLimit);
   window.addEventListener('blur',syncActivityLimit);
   window.__KS_GAME_RUNTIME__?.on('scene',syncActivityLimit);
+  window.__KS_GAME_RUNTIME__?.on('refresh',syncCrosshair);
   function showAccountHelpDialog() {
     // Google OAuth is restricted in embedded browsers. Offer a direct,
     // user-consented Kirka session handoff, not a misleading Settings redirect.
@@ -3800,6 +3847,7 @@
       if (desired && ['enabled','disabled'].includes(desired.gpu) && ['default','d3d11','opengl'].includes(desired.angle)) {
         browserPrefs={gpu:desired.gpu,angle:desired.angle,devTools:!!desired.devTools,contextMenu:!!desired.contextMenu,uncapFps:!!desired.uncapFps};
         browserActive=active||browserPrefs;
+        window.__KS_FRAME_PACER__?.setDisplaySync?.(active?.uncapFps===false);
         browserPrefsLoaded=true;
         browserPendingRestart=!!needsRestart;
         syncFixedMode();syncActivityLimit();

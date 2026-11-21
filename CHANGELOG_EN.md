@@ -1,3 +1,7 @@
+# KS Client Beta 1.0.20
+
+[Frame pacing, measured averages and crosshair alignment](RELEASE_BETA_120_EN.md)
+
 # KS Client Beta 1.0.19
 
 [Game-loop and comfort improvements](RELEASE_BETA_119_EN.md)
