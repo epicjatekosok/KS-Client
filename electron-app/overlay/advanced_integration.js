@@ -158,16 +158,23 @@ async function join(value,spectate=false){
  finally{joining=false}
 }
 function addProfileNote(){
- const el=document.querySelector('.profile-cont,.card-profile,.profile-page');if(!el||el.querySelector('[data-ks-deep-profile]'))return;
- const note=document.createElement('div');note.dataset.ksDeepProfile='true';
- note.style.cssText='color:#e8b657;font:11px Segoe UI,Arial;margin:5px 0;pointer-events:none';
- note.textContent='KS Client: visible profile integration active';el.appendChild(note);
+ const el=document.querySelector('.profile-cont,.card-profile,.profile-page');if(!el)return;
+ const note=el.querySelector('[data-ks-deep-profile]')||document.createElement('div');
+ const message='KS Client: visible profile integration active';
+ const text=window.__KS_CLIENT__?.translate?.(message) ?? message;
+ if(note.textContent!==text)note.textContent=text;
+ if(!note.isConnected){
+  note.dataset.ksDeepProfile='true';
+  note.style.cssText='color:#e8b657;font:11px Segoe UI,Arial;margin:5px 0;pointer-events:none';
+  el.appendChild(note);
+ }
 }
 function addInventoryCount(){
  const el=document.querySelector('.inventory .items,.inventory .item-list,.inventory');if(!el)return;
  const note=el.querySelector('[data-ks-deep-inventory]')||document.createElement('div');note.dataset.ksDeepInventory='true';
  note.style.cssText='color:#e8b657;font:11px Segoe UI,Arial;margin:4px 0;pointer-events:none';
- const count=inventorySnapshot().visibleCount;const label='KS Client: '+count+' visible inventory items (not account total)';
+ const count=inventorySnapshot().visibleCount;const label=window.__KS_CLIENT__?.translate?.('KS Client: {0} visible inventory items (not account total)',count)
+   ?? ('KS Client: '+count+' visible inventory items (not account total)');
  if(note.textContent!==label)note.textContent=label;
  if(!note.isConnected)el.prepend(note);
 }
