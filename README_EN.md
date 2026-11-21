@@ -1,8 +1,8 @@
-# KS Client Beta 1.0.24
+# KS Client Beta 1.0.25
 
 This release ships Electron only. Older engine selections open Electron automatically. The previous releases below are historical.
 
-[Beta 1.0.24 release notes](RELEASE_BETA_124_EN.md)
+[Beta 1.0.25 release notes](RELEASE_BETA_125_EN.md)
 
 # KS Client Beta 1.0.14 — new FPS limits, CEF fullscreen and Settings languages
 

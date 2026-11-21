@@ -1,3 +1,7 @@
+# KS Client Beta 1.0.25
+
+[Workshop integrations and frame pacing](RELEASE_BETA_125_EN.md)
+
 # KS Client Beta 1.0.24
 
 [Pinned language picker and translations](RELEASE_BETA_124_EN.md)

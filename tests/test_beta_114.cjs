@@ -1,5 +1,5 @@
 'use strict';
-// KS Beta 1.0.24 regression: independent FPS controls, external status
+// KS Beta 1.0.25 regression: independent FPS controls, external status
 // always clears, CEF fullscreen native command exists and Settings translations.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -10,7 +10,7 @@ const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const ui=read('electron-app/overlay/overlay.js');
 const pacer=read('electron-app/overlay/frame_pacer.js');
 const workflow=read('.github/workflows/windows-build.yml');
-assert(ui.includes("const CLIENT_VERSION='1.0.24'"));
+assert(ui.includes("const CLIENT_VERSION='1.0.25'"));
 for(const cap of [200,240,300,360]){
   assert(ui.includes("{ value: "+cap+", label: '"+cap+" FPS' }"),'missing option '+cap);
   assert(pacer.includes(cap),'missing pacer cap '+cap);
@@ -36,7 +36,7 @@ assert(ui.includes('Object.entries(languageNames).map'));
 assert(!read('installer/main_windows.go').includes('extraLocales'));
 assert(!read('uninstaller/main_windows.go').includes('extraLocales'));
 assert(workflow.includes('node tests/test_beta_114.cjs'));
-console.log('PASS Beta 1.0.24: fixed FPS caps, Settings GPU work, CEF fullscreen, Discord timer and 8 additional Settings languages');
+console.log('PASS Beta 1.0.25: fixed FPS caps, Settings GPU work, CEF fullscreen, Discord timer and 8 additional Settings languages');
 
 // Simulate a 180 Hz browser clock, including timeout wakeups, cancellation and menu transitions.
 let now=0,next=0;
