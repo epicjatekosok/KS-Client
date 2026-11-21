@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.23 – Electron unified game overlay. */
+/* KS Client Beta 1.0.24 – Electron unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.23';
+  const CLIENT_VERSION='1.0.24';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -154,7 +154,7 @@
     'Eye Comfort': ['eyeEnabled','eyePreset','eyeBrightness','eyeContrast','eyeSaturation','eyeWarmth','eyeSoftness','comfortStillMenus','comfortReading','breakReminderMinutes'],
     Crosshair: [...crosshairFields,'previewBackground','customCrosshairPresets'],
     Appearance: ['themePreset','customAccent','customBackground','customPanel','customText','customMuted','themeSurface','themeGlow','themeRadius','themePattern','themeDensity','fontFamily','fontSize','uiAnimations'],
-    Interface: ['language','showHUD','showBadge','reduceMotion','minimalHUD'],
+    Interface: ['showHUD','showBadge','reduceMotion','minimalHUD'],
     Resources: ['menuImageEnabled','menuSelector','uiImageSelector','menuSoundEnabled'],
     'CSS Editor': ['gameThemeEnabled','gameFontEnabled','menuSelector','uiImageSelector','minimalSelectors','customCSSEnabled','customCSS'],
     Diagnostics: []
@@ -950,6 +950,18 @@
       pointer-events:none;z-index:4;
     }
     #ks-community-status[hidden] {display:none!important;}
+    #ks-panel #ks-nav {overflow:hidden;}
+    #ks-sidebar-content {min-height:0;overflow:auto;scrollbar-width:thin;padding:0 5px;}
+    #ks-sidebar-bottom {flex:none;margin-top:auto;padding:9px 9px 0;min-width:0;}
+    #ks-sidebar-bottom .ks-sidebar-foot {padding-left:0;padding-right:0;}
+    .ks-sidebar-language {display:grid;gap:5px;padding-bottom:10px;}
+    .ks-sidebar-language label {color:var(--ks-muted,#a3a5b2);font-size:12px;font-weight:650;}
+    #ks-language {width:100%;min-width:0;min-height:36px;color-scheme:dark;}
+    @media(max-width:650px){
+      #ks-sidebar-bottom {padding:4px 0 0;}
+      .ks-sidebar-language {grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);align-items:center;padding:0;}
+      #ks-language {min-height:32px;}
+    }
     @media(max-width:1250px){
       #ks-panel {width:calc((100vw - 20px)/var(--ks-ui-scale,1));height:calc((100vh - 20px)/var(--ks-ui-scale,1));}
       #ks-top {height:94px;padding:12px 24px;}
@@ -1178,7 +1190,7 @@
         <div id="ks-brand"><img id="ks-brand-icon" alt="KS Client Logo"><span id="ks-brand-rule"></span><div id="ks-brand-copy"><div id="ks-brand-main">Settings</div><div id="ks-brand-sub">Customize your game experience</div></div></div>
         <div class="ks-stack"><button id="ks-discord-menu" class="ks-top-discord" type="button" aria-label="Open KS Client Discord in default browser">KS Discord</button><button id="ks-close" aria-label="Close Settings">✕</button></div>
       </div>
-      <div id="ks-main"><div id="ks-nav"></div>
+      <div id="ks-main"><div id="ks-nav"><div id="ks-sidebar-content"></div><div id="ks-sidebar-bottom"></div></div>
       <div id="ks-body"></div></div>
       <div id="ks-foot"><button type="button" id="ks-reset-main" class="ks-btn ks-reset-button">↺ &nbsp; Reset to Default</button><div id="ks-foot-actions"><span id="ks-autosave-status">Settings preview instantly</span><button type="button" id="ks-cancel" class="ks-btn">Cancel</button><button type="button" id="ks-apply" class="ks-btn primary">✓ &nbsp; Apply</button></div></div>
     </div></div>
@@ -1230,12 +1242,12 @@
     let note=shadow.querySelector('#ks-update-notice');
     if(!note){note=document.createElement('div');note.id='ks-update-notice';note.setAttribute('role','status');
       note.style.cssText='position:fixed;bottom:20px;left:18px;max-width:330px;padding:11px 14px;border:1px solid rgba(255,157,24,.65);border-radius:10px;background:rgba(14,13,13,.94);color:#f5eadd;font:600 12px Segoe UI,Arial,sans-serif;box-shadow:0 8px 25px rgba(0,0,0,.35);z-index:2147483647;pointer-events:none;';shadow.appendChild(note);}
-    note.textContent='KS Client '+release+' available · F1 → Updates';note.hidden=false;
+    note.textContent=formatText('KS Client {0} available · F1 → Updates',release);note.hidden=false;
     if(updateNoticeTimer)clearTimeout(updateNoticeTimer);
     updateNoticeTimer=setTimeout(()=>{if(note)note.hidden=true;},13000);
   }
   function updateStateText(){
-    if(updateStatus.state==='available')return 'New release available: '+String(updateStatus.version||'');
+    if(updateStatus.state==='available')return formatText('New release available: {0}',String(updateStatus.version||''));
     if(updateStatus.state==='current')return 'You are up to date.';
     if(updateStatus.state==='checking')return 'Checking GitHub Releases…';
     return String(updateStatus.message||'Not checked');
@@ -1243,12 +1255,12 @@
   let browserStatus = 'Waiting for native Electron settings…';
   let fpsNativeInfo=null;
   function fpsDiagnosticText(){
-    if(!fpsNativeInfo)return 'Native startup flags: waiting for engine response';
+    if(!fpsNativeInfo)return L('Native startup flags: waiting for engine response');
     const x=fpsNativeInfo;
     return String(x.engine||'Unknown')+
-      ' · Chromium uncap switches: '+(x.frameRateLimitSwitch&&x.gpuVsyncSwitch?'REQUESTED':'NOT BOTH REQUESTED')+
-      ' · Applied at launch: '+(x.activeAtStartup?'ON':'OFF')+
-      ' · Saved setting: '+(x.requested?'ON':'OFF');
+      ' · '+L('Chromium uncap switches:')+' '+L(x.frameRateLimitSwitch&&x.gpuVsyncSwitch?'REQUESTED':'NOT BOTH REQUESTED')+
+      ' · '+L('Applied at launch:')+' '+L(x.activeAtStartup?'ON':'OFF')+
+      ' · '+L('Saved setting:')+' '+L(x.requested?'ON':'OFF');
   }
   let browserWebGL = { webgl:'Not tested', webgl2:'Not tested', renderer:'Not checked', compositing:'Not accessible from WebGL' };
   const browserGroups = new Set(['Browser Graphics','Browser Controls','Browser GPU Info']);
@@ -2203,15 +2215,35 @@
     "Settings Backup": "設定のバックアップ",
     [unlimitedRestartNote]: "無制限 FPS をオフにしたり上限を変更したりした後で再び有効にする場合は、KS Client を再起動してください。ゲームも再起動します。",
   });
+  const bundledLocales = window.__KS_LOCALES__ || {};
+  delete window.__KS_LOCALES__;
+  function formatText(message,...values) {
+    return L(message).replace(/\{(\d+)\}/g,(token,index)=>values[index] ?? token);
+  }
+  const translatedStatusPrefixes = [
+    'Import failed: ', 'Export failed: ', 'Update check failed: ', 'Download failed: ',
+    'Installation could not start: ', 'Unsupported file or too large. Limit: ',
+    'Unable to store the file: ', 'Unable to delete local file: ', 'Quick join: ',
+    'Could not save: ', 'Could not save frame policy: ', 'Could not open swapper folder: ',
+    'Cannot save workshop data: ', 'Plugin message: '
+  ];
   function L(input) {
     const str=String(input ?? '');
     if(state.language==='en')return str;
     const v=str.trim();
+    const bundled=bundledLocales[state.language];
+    const key=v.replace(/\s+/g,' ');
+    if(bundled && Object.hasOwn(bundled,key))return str.replace(v,()=>bundled[key]);
+    if(bundled){
+      const prefix=translatedStatusPrefixes.find(part=>v.startsWith(part));
+      const localizedPrefix=prefix && bundled[prefix.trim()];
+      if(localizedPrefix)return str.replace(v,()=>localizedPrefix+' '+L(v.slice(prefix.length)));
+    }
     if(state.language!=='hu') {
       const dict=extraLocales[state.language];
-      return dict && Object.hasOwn(dict,v) ? str.replace(v,dict[v]) : str;
+      return dict && Object.hasOwn(dict,v) ? str.replace(v,()=>dict[v]) : str;
     }
-    if(Object.hasOwn(hu,v))return str.replace(v,hu[v]);
+    if(Object.hasOwn(hu,v))return str.replace(v,()=>hu[v]);
     let m;
     if((m=/^Imported (\d+) settings\. Review Custom CSS before enabling it\.$/.exec(v)))
       return `${m[1]} beállítás importálva. Engedélyezés előtt ellenőrizd az egyedi CSS-t.`;
@@ -2231,12 +2263,12 @@
     let node;
     while((node=walker.nextNode())) {
       const source=node.nodeValue.trim();
-      if(source)node.nodeValue=L(node.nodeValue);
+      if(source && !node.parentElement?.closest('code,pre,textarea,[translate=no]'))node.nodeValue=L(node.nodeValue);
     }
-    for(const el of root.querySelectorAll('[placeholder],[aria-label],[title]')) {
-      for(const attr of ['placeholder','aria-label','title']) {
+    for(const el of root.querySelectorAll('[placeholder],[aria-label],[title],img[alt]')) {
+      for(const attr of ['placeholder','aria-label','title','alt']) {
         const v=el.getAttribute(attr);
-        if(v)el.setAttribute(attr,L(v));
+        if(v && !el.closest('[translate=no]'))el.setAttribute(attr,L(v));
       }
     }
   }
@@ -2244,6 +2276,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.24',en:['Pinned the language picker to the Settings sidebar and expanded the interface translations.'],hu:['A nyelvválasztó fix helyet kapott a beállítások oldalsávjában, és bővültek a felület fordításai.']},
     {v:'Beta 1.0.23',en:['Moved Display language to Interface and added Hindi, Bengali, Indonesian, Korean and Turkish.','Added restart guidance for re-enabling Unlimited FPS.'],hu:['Új helyen a nyelvválasztó. Hindi, bengáli, indonéz, koreai és török felület.','A korlátlan FPS-nél újraindítási tájékoztató jelenik meg.']},
     {v:'Beta 1.0.22',en:['Three graphics profiles, fitted render targets and automatic native crosshair suppression.'],hu:['Három grafikai profil, választható renderfelbontás és a Kirka-célkereszt automatikus elrejtése.']},
     {v:'Beta 1.0.21',en:['Electron is now the installed engine. Legacy engine choices open Electron. Added game-canvas edge smoothing and retained the engine selector.'],hu:['Az Electron az egyetlen telepített motor. A régi motorválasztás is Electronnal indul. Új játékvászon-élsimítás és megőrzött motorválasztó.']},
@@ -2304,7 +2337,7 @@
   function historyHTML() {
     return `<section class="ks-history" aria-label="Release history"><div class="ks-history-heading">Version history – click a version</div>`+
       releaseHistory.map(r=>`<details class="ks-release"><summary>${r.v.startsWith("Beta ")?"KS Client ":"KS Client alpha "}${esc(r.v)}</summary><div class="ks-release-body"><ul>`+
-        r.en.map(item=>`<li>${esc(item)}</li>`).join('')+
+        r.en.map(item=>`<li>${esc(L(item))}</li>`).join('')+
       `</ul></div></details>`).join('')+`</section>`;
   }
 
@@ -2386,7 +2419,7 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', 'KS Client '+CLIENT_LABEL+' uses Electron.') +
+        return title('Client Overview', esc(formatText('KS Client {0} uses Electron.',CLIENT_LABEL))) +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div class="ks-label">Switch browser engine</div><div class="ks-stack"><button class="ks-btn" disabled aria-pressed="true" data-action="engine-switch" data-engine="electron">Electron</button><button class="ks-btn" disabled>KS saját motorja cooming soon</button></div></div>` +
@@ -2659,8 +2692,6 @@
       case 'Interface':
         return title('Client HUD & Style', 'Choose which KS Client widgets appear over the game.') +
           `<div class="ks-card">` +
-          selectRow('Display language','Choose the KS Client interface language. Some advanced text remains in English.','language',
-            Object.entries(languageNames).map(([value,label])=>({value,label}))) +
           toggleRow('Client HUD enabled', 'Master switch for FPS counter, badge, crosshair and quick settings button', 'showHUD') +
           toggleRow('Show KS Client badge', 'Small KS Client label in the lower-left corner', 'showBadge') +
           toggleRow('Reduce client animations', 'Disable blur and decorative transitions in the KS interface', 'reduceMotion') +
@@ -2895,7 +2926,7 @@
     set('ks-browser-processes',Number.isInteger(d?.browserProcesses)&&d.browserProcesses>=0?String(d.browserProcesses):'—');
     set('ks-gpu-state',L(gpuInfo.status));
     set('ks-gpu-renderer',gpuInfo.renderer);
-    set('ks-diagnostics-note',[d?.sampling,L(gpuInfo.note)].filter(Boolean).join('. '));
+    set('ks-diagnostics-note',[L(d?.sampling),L(gpuInfo.note)].filter(Boolean).join('. '));
   }
 
   function drawLineGraph(canvasId, values, label, maxValue, suffix) {
@@ -3004,12 +3035,17 @@
     syncMeasurement();
     closeCustomSelect();
     const group=currentGroup();
-    $('ks-nav').innerHTML = `<div class="ks-sidebar-caption">${L('SETTINGS')}</div>`+
-      `<div id="ks-menu-search-wrap"><input id="ks-menu-search" type="search" autocomplete="off" spellcheck="false" aria-label="${L('Search settings')}" placeholder="${state.language==='hu'?'Keresés a beállításokban…':'Search settings…'}"></div>`+
+    $('ks-sidebar-content').innerHTML = `<div class="ks-sidebar-caption">${L('SETTINGS')}</div>`+
+      `<div id="ks-menu-search-wrap"><input id="ks-menu-search" type="search" autocomplete="off" spellcheck="false" aria-label="${L('Search settings')}" placeholder="${esc(L('Search settings'))}"></div>`+
       `<div id="ks-search-results" role="group" hidden></div>`+
       `<div id="ks-sidebar-groups">`+
-      groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon" aria-hidden="true">${groupIcon(g.key)}</span><span>${translateTab(g.key)}</span>${g.key==='Workshop'?'<span class="ks-experimental-badge">EXPERIMENTAL</span>':''}</button>`).join('')+
-      `</div><div class="ks-sidebar-foot">KS CLIENT <span>${esc(CLIENT_LABEL.toUpperCase())}</span><div style="opacity:.7;margin-top:5px">F1 · ${L('Settings')} &nbsp; F10 · HUD</div></div>`;
+      groups.map(g=>`<button class="ks-tab ${group.key===g.key?'active':''}" data-group="${esc(g.key)}" aria-current="${group.key===g.key?'page':'false'}"><span class="ks-tab-icon" aria-hidden="true">${groupIcon(g.key)}</span><span>${translateTab(g.key)}</span>${g.key==='Workshop'?`<span class="ks-experimental-badge">${esc(L('EXPERIMENTAL'))}</span>`:''}</button>`).join('')+
+      `</div>`;
+    $('ks-sidebar-bottom').innerHTML = `<div class="ks-sidebar-language">
+      <label for="ks-language">${esc(L('Display language'))}</label>
+      <select class="ks-input" id="ks-language" data-setting="language">${Object.entries(languageNames).map(([value,label])=>
+        `<option value="${value}" lang="${value}" ${(Object.hasOwn(languageNames,state.language)?state.language:'en')===value?'selected':''}>${esc(label)}</option>`).join('')}</select>
+      </div><div class="ks-sidebar-foot">KS CLIENT <span>${esc(CLIENT_LABEL.toUpperCase())}</span><div style="opacity:.7;margin-top:5px">F1 · ${L('Settings')} &nbsp; F10 · HUD</div></div>`;
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
@@ -3053,7 +3089,7 @@
     const make=(heading,nodes)=>{
       const card=document.createElement('section');
       card.className='ks-card';
-      const h=document.createElement('h3');h.className='ks-section-heading';h.textContent=heading;
+      const h=document.createElement('h3');h.className='ks-section-heading';h.textContent=L(heading);
       card.appendChild(h);
       nodes.forEach(node=>card.appendChild(node));
       return card;
@@ -3080,7 +3116,7 @@
       const selected=select.options[select.selectedIndex];
       button.innerHTML=`<span class="ks-select-value"></span><span class="ks-select-chevron">▾</span>`;
       button.querySelector('.ks-select-value').textContent=selected?.textContent||'';
-      button.setAttribute('aria-label',select.dataset.setting||'Choose option');
+      button.setAttribute('aria-label',select.getAttribute('aria-label')||select.closest('.ks-row')?.querySelector('.ks-label')?.textContent||L('Choose option'));
       shell.appendChild(button);
       button.addEventListener('click',()=>{if(activeSelect===shell) closeCustomSelect();else openCustomSelect(shell,select);});
       button.addEventListener('keydown',e=>{
@@ -3093,7 +3129,7 @@
     closeCustomSelect();
     const trigger=shell.querySelector('.ks-select-trigger');
     const popup=document.createElement('div');popup.className='ks-select-popup';popup.setAttribute('role','listbox');
-    popup.setAttribute('aria-label',select.dataset.setting||'Options');
+    popup.setAttribute('aria-label',trigger.getAttribute('aria-label')||L('Options'));
     Array.from(select.options).forEach((option,i)=>{
       const b=document.createElement('button');b.type='button';b.setAttribute('role','option');
       b.setAttribute('aria-selected',String(option.selected));b.textContent=option.textContent;
@@ -3548,6 +3584,7 @@
       if(selector) {selector.value='Custom';const choice=selector.options[selector.selectedIndex];const label=selector.parentNode.querySelector('.ks-select-value');if(choice&&label)label.textContent=choice.textContent;}
     }
     if(k==='fpsLimit')state.smoothPreset='Native';
+    if(k==='language' && !Object.hasOwn(languageNames,value))return;
     state[k] = value;
     if(k==='fpsLimit')window.__KS_FRAME_PACER__?.setLimit(value);
     save();
@@ -3629,7 +3666,7 @@
     }
     const workshop=wk.normalizeWorkshop(doc.workshop);
     workshop.swapEnabled=wk.getConfig().swapEnabled;
-    if(!confirm('Replace KS settings, Workshop entries and local media with this profile? Imported scripts require manual launch.'))return;
+    if(!confirm(L('Replace KS settings, Workshop entries and local media with this profile? Imported scripts require manual launch.')))return;
     const changes=[[KEY,restored],[workshopKey,workshop],[graphicsKey,graphics],[advancedKey,{freezeGuard:doc.advanced.freezeGuard===true}]];
     const previous=changes.map(([key])=>[key,localStorage.getItem(key)]);
     const db=await openAssetDB();
@@ -3760,7 +3797,7 @@
     const notice=$('ks-community-status');
     if(!notice)return;
     if(communityNoticeTimer)clearTimeout(communityNoticeTimer);
-    notice.textContent=String(message||'').slice(0,260);
+    notice.textContent=L(String(message||'').slice(0,260));
     notice.hidden=false;
     // CEF's fixed native-navigation fallback sends no reply: always dismiss.
     communityNoticeTimer=setTimeout(()=>{notice.hidden=true;communityNoticeTimer=null;},duration);
@@ -3821,6 +3858,12 @@
     catch(error) {resourceStatus='Unable to delete local file: '+String(error);updateResourcesInUI();}
   });
 
+  $('ks-sidebar-bottom').addEventListener('change',e=>{
+    if(e.target.id!=='ks-language' || !Object.hasOwn(languageNames,e.target.value))return;
+    setSetting('language',e.target.value);
+    $('ks-language')?.focus({preventScroll:true});
+  });
+
   $('ks-body').addEventListener('input', e => {
     const k = e.target.dataset.setting;
     if (!k) return;
@@ -3867,11 +3910,11 @@
         if(handled) {
           if(!/^wk-plugin-(run|stop)-?/.test(a))renderTab();
           const value=window.__KS_WORKSHOP__?.getStatus();
-          if(value && $('ks-wk-status'))$('ks-wk-status').textContent=value;
+          if(value && $('ks-wk-status'))$('ks-wk-status').textContent=L(value);
         }
       }catch(error){
         window.__KS_WORKSHOP__?.setStatus('Workshop action failed: '+String(error?.message||error));
-        const node=$('ks-wk-status');if(node)node.textContent=String(error?.message||error);
+        const node=$('ks-wk-status');if(node)node.textContent=L(String(error?.message||error));
       }
       return;
     }
@@ -3928,7 +3971,7 @@
         window.__KS_WORKSHOP__?.recordJoin(u.href);
         sharingStatus='Requested Kirka.io room join. Game page decides whether joining is allowed.';
       }catch(e){sharingStatus='Quick join: '+String(e.message||e);}
-      const el=$('ks-extra-status');if(el)el.textContent=sharingStatus;
+      const el=$('ks-extra-status');if(el)el.textContent=L(sharingStatus);
     }
     if (a === 'auth-import-session') { importKirkaSession(); return; }
     if (a === 'auth-help') { window.__KS_CLIENT__?.openAccountHelp?.(); return; }
@@ -3959,7 +4002,7 @@
     if(a==='import-profile')$('ks-profile-file')?.click();
     if(a==='export-profile'){
       try{await exportProfile();sharingStatus='Profile exported.';}catch(error){sharingStatus='Export failed: '+error.message;}
-      if($('ks-sharing-status'))$('ks-sharing-status').textContent=sharingStatus;
+      if($('ks-sharing-status'))$('ks-sharing-status').textContent=L(sharingStatus);
     }
     if (a === 'export-settings') exportSettings();
     if (a === 'import-settings') $('ks-import-file')?.click();
@@ -4175,6 +4218,7 @@
       <button type="button" data-account-dismiss style="background:#272d36;color:#fff;border:1px solid #404a53;border-radius:8px;padding:9px 12px;cursor:pointer">${hu?'Mégse':'Cancel'}</button>
     </div>
     <p style="color:#aab1bf;font-size:11px;margin-bottom:0">${hu?'A Google-jelszavadat soha ne írd ide. A Kirka dönti el, hogy az importált munkamenet érvényes-e.':'Never enter your Google password here. Kirka determines whether the imported game session is valid.'}</p>`;
+    localizePanel(root);
     for(const btn of root.querySelectorAll('[data-account-dismiss]'))
       btn.addEventListener('click',()=>{root.querySelector('[data-account-token]').value='';root.remove();});
     root.querySelector('[data-account-import]').addEventListener('click',()=>{
@@ -4215,11 +4259,12 @@
       engineSwitchStatus=String(status||'').slice(0,360);
       if(selectedTab==='General'){
         const label=$('ks-engine-switch-status');
-        if(label)label.textContent=engineSwitchStatus;
+        if(label)label.textContent=L(engineSwitchStatus);
         else renderTab();
       }
     },
     toggle: () => show(),
+    translate: L,
     isSettingsOpen: () => Boolean(open),
     open: () => show(true),
     close: () => show(false),
@@ -4245,11 +4290,11 @@
         ? ('Swapper: '+(response.count||0)+' files ('+Math.round((response.bytes||0)/1024)+' KiB). '+(response.enabled?'Enabled':'Disabled')+' · '+(response.served||0)+' local responses, '+(response.unmatched||0)+' unmatched requests'):'No response');
       window.__KS_WORKSHOP__?.setStatus(value);
       const node=$('ks-wk-status');
-      if(node)node.textContent=value;
+      if(node)node.textContent=L(value);
     },
     setGameExtraStatus: message => {
       const node=$('ks-extra-status');
-      if(node)node.textContent=String(message||'').slice(0,360);
+      if(node)node.textContent=L(String(message||'').slice(0,360));
     },
     setNativeFpsDiagnostics: d => {
       if(!d || !['CEF','Electron'].includes(d.engine))return;
@@ -4320,7 +4365,7 @@
     overlayDocumentObserver.observe(document.documentElement,{childList:true});
     document.addEventListener('pointerlockchange',()=>{
       const node=$('ks-pointer-status');
-      if(node)node.textContent=document.pointerLockElement?'CAPTURED — ESC releases':'RELEASED — click game to capture';
+      if(node)node.textContent=L(document.pointerLockElement?'CAPTURED — ESC releases':'RELEASED — click game to capture');
       apply();
     });
     renderTab();

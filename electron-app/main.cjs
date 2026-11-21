@@ -1,12 +1,12 @@
 'use strict';
-// KS Client Beta 1.0.23: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.24: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {execFile,spawn}=require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const APP_VERSION = 'Beta 1.0.23';
+const APP_VERSION = 'Beta 1.0.24';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,11 +16,16 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.23.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.24.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
-const overlayJS = fs.readFileSync(path.join(__dirname,'overlay','overlay.js'),'utf8');
+const localeDirectory = path.join(__dirname,'locales');
+const bundledLocales = Object.fromEntries(fs.readdirSync(localeDirectory)
+  .filter(file=>/^[a-z]{2}\.json$/.test(file))
+  .map(file=>[path.basename(file,'.json'),JSON.parse(fs.readFileSync(path.join(localeDirectory,file),'utf8'))]));
+const overlayJS = 'window.__KS_LOCALES__=' + JSON.stringify(bundledLocales) + ';\n' +
+  fs.readFileSync(path.join(__dirname,'overlay','overlay.js'),'utf8');
 const nativeLoginGateJS = fs.readFileSync(path.join(__dirname,'overlay','native_login_gate.js'),'utf8');
 const frameJS = fs.readFileSync(path.join(__dirname,'overlay','frame_pacer.js'),'utf8');
 const extrasJS = fs.readFileSync(path.join(__dirname,'overlay','game_extras.js'),'utf8');
@@ -115,7 +120,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.23').slice(0,40),
+      current:String(payload.current||'1.0.24').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -305,7 +310,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.23 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.24 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
