@@ -16,7 +16,8 @@ API 1 keeps the manual, opaque iframe preview and its existing message, tint and
 - ks.panel(text) and ks.message(text) update one non-interactive local overlay, limited to 180 characters.
 - await ks.snapshot() returns scene, settingsOpen, callbackFPS and callbackFrameMs. Unavailable performance samples may be null or zero. These are browser callback measurements.
 - ks.on("settings", fn) receives a boolean; ks.on("scene", fn) receives the observed scene; ks.on("shortcut", fn) receives "Alt+Shift+P" for a real key press. Each registration returns an unsubscribe function.
-- Stop ends the worker and removes its overlay. Hiding the document, navigation, a worker error, exceeding 32 messages per second, an unresponsive worker, or reaching five minutes also ends the run. The last 20 worker errors are kept for the document lifetime. Only one plugin runs at a time. Direct plugin-to-plugin messaging and a hard OS memory quota are unsupported.
+- ks.send(name, text) posts a 140-character message to a named API 2 plugin if the recipient explicitly lists the sender in its settings.allowFrom array. The recipient can use ks.on("message", fn) to receive {from, text}. Up to eight messages wait in memory until its next manual start.
+- Stop ends the worker and removes its overlay. Hiding the document, navigation, a worker error, exceeding 32 messages per second, an unresponsive worker, or reaching five minutes also ends the run. The last 20 worker errors are kept for the document lifetime. Only one plugin runs at a time. The worker watchdog does not impose an OS memory quota.
 
 Example worker plugin:
 

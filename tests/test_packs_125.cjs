@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {createStore,validate,fromFolder}=require('../electron-app/resource-packs.cjs');
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'ks-packs-'));
-const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
+const png='iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8v5SBgYGBiYGBgYGBAQAU2QGo4jF1qQAAAABJRU5ErkJggg==';
 const doc={format:'ks-resource-pack',version:1,name:'Test',files:[{path:'textures/rifle.ks-anyhash.png',data:png}]};
 try{
   const store=createStore(root);store.import(doc);store.import({...doc,name:'Other'});
