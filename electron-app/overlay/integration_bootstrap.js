@@ -20,6 +20,31 @@
     }
     return result;
   }
+  const mipmapHooks=new WeakMap();
+  function improveTextureSampling(gl){
+    if(!smoothEdges || mipmapHooks.has(gl) || typeof gl.generateMipmap!=='function')return;
+    const extension=gl.getExtension('EXT_texture_filter_anisotropic');
+    if(!extension)return;
+    const level=Math.min(4,gl.getParameter(extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
+    if(!(level>1))return;
+    const originalMipmap=gl.generateMipmap;
+    function generateMipmap(target){
+      const result=Reflect.apply(originalMipmap,this,arguments);
+      if(this!==gl || target!==gl.TEXTURE_2D || gl.isContextLost())return result;
+      // Sample only on mipmap creation. Leave nearest-neighbour pixel art,
+      // explicit stronger settings and textures rendered without mipmaps alone.
+      if(gl.getParameter(gl.TEXTURE_BINDING_2D)){
+        const filter=gl.getTexParameter(target,gl.TEXTURE_MIN_FILTER);
+        if(filter===gl.LINEAR_MIPMAP_LINEAR || filter===gl.LINEAR_MIPMAP_NEAREST){
+          const anisotropy=extension.TEXTURE_MAX_ANISOTROPY_EXT;
+          if(gl.getTexParameter(target,anisotropy)<level)gl.texParameterf(target,anisotropy,level);
+        }
+      }
+      return result;
+    }
+    gl.generateMipmap=generateMipmap;
+    mipmapHooks.set(gl,{originalMipmap,generateMipmap});
+  }
   const subscribers = new Set();
   let selected = null;
   const seen = { webgl: 0, webgl2: 0, contextLost: 0, restored: 0, lastCanvas: '', notifications: 0, subscriberErrors: 0 };
@@ -27,6 +52,7 @@
 
   function publish(canvas, kind, gl, receiver = null) {
     if (!gl || canvas.id !== 'game') return;
+    if(!receiver){try{improveTextureSampling(gl);}catch(_){/* Optional GPU extension. */}}
     for (const subscriber of receiver ? [receiver] : subscribers) {
       try { subscriber(gl, canvas, kind); seen.notifications++; }
       catch (_) { seen.subscriberErrors++; }
@@ -102,6 +128,10 @@
       mode: 'passive', trackedContexts: liveContexts().length, subscribers: subscribers.size }),
     restore: () => {
       if (proto.getContext === wrappedGetContext) proto.getContext = original;
+      for(const [gl] of liveContexts()){
+        const hook=mipmapHooks.get(gl);
+        if(hook && gl.generateMipmap===hook.generateMipmap)gl.generateMipmap=hook.originalMipmap;
+      }
       subscribers.clear();
       known.clear();selected=null;
     }

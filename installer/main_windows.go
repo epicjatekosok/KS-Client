@@ -481,7 +481,7 @@ func main() {
 	if askEnglish("KS Client Setup - "+releaseLabel, description, dialogButton{"Yes", 6}, dialogButton{"No", 7}) != 6 {
 		return
 	}
-	w := ksui.New("KS Client • Setup "+installationVersion, "Installing KS Client", "Dark / Amber · both engines included")
+	w := ksui.New("KS Client • Setup "+installationVersion, "Installing KS Client", "Dark / Amber · Electron included")
   w.Version=releaseLabel
 	w.SetButtons(ksui.Button{Label: "Close", ID: "close", Enabled: false})
 	w.OnButton = func(id string) {
@@ -561,7 +561,7 @@ func main() {
 			_ = os.Remove(filepath.Join(folder, obsolete))
 		}
 		w.Update("INSTALLATION COMPLETE", "Electron was installed from the verified offline package.", 1)
-		w.AddLog("Both prebuilt browser engines were included in this installer.")
+		w.AddLog("The prebuilt Electron runtime was included in this installer.")
 		w.SetButtons(ksui.Button{Label: "Close", ID: "close", Enabled: true}, ksui.Button{Label: "Launch KS Client", ID: "launch", Enabled: true})
 	}()
 	_ = w.Run()

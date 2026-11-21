@@ -1993,7 +1993,7 @@
             { value: '1440', label: '2560 × 1440 (1440p)' },
             { value: '2160', label: '3840 × 2160 (4K)' }
           ]) +
-          toggleRow(state.language==='hu'?'Játékvászon élsimítása':'Smooth game edges',state.language==='hu'?'WebGL-élsimítás a játék következő betöltésétől.':'Request native WebGL edge smoothing on the next game load.','smoothGameEdges') +
+          toggleRow(state.language==='hu'?'Élsimítás és textúraszűrés':'Smooth edges and textures',state.language==='hu'?'WebGL-élsimítás és legfeljebb 4×-es anizotrop szűrés a támogatott textúrákon. A következő játékbetöltéskor lép életbe.':'Request WebGL antialiasing and up to 4× anisotropic filtering for eligible textures on the next game load.','smoothGameEdges') +
           selectRow('Game resolution preset', 'Automatic uses monitor DPI and engine native scaling; fixed modes set a raster target.', 'gameResolution', [
             { value: 'native', label: 'Match monitor / automatic' },
             { value: '720', label: '1280 × 720 (720p)' },

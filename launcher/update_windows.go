@@ -300,7 +300,7 @@ func updateWorkerCLI(mode,target string,waitPID int){
   if e!=nil{appendLog("Update prefetch: "+e.Error())}
   return
  }
- w:=ksui.New("KS Client - Update "+choice.release.Tag,"Downloading KS Client update","Verified GitHub release · both engines · saved settings kept")
+ w:=ksui.New("KS Client - Update "+choice.release.Tag,"Downloading KS Client update","Verified GitHub release · saved settings kept")
  w.Version="Beta "+version
  w.SetButtons(ksui.Button{Label:"Close",ID:"close",Enabled:false})
  w.OnButton=func(id string){if id=="close"{w.Close()}}
