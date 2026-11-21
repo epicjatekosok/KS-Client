@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.24 – Electron unified game overlay. */
+/* KS Client Beta 1.0.25 – Electron unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.24';
+  const CLIENT_VERSION='1.0.25';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -2277,6 +2277,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.25',en:['Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.'],hu:['Helyi erőforráscsomagok, fegyvertextúrák hozzárendelése, megfigyelt árak, játékoscímkék és verziózott bővítmények.']},
     {v:'Beta 1.0.24',en:['Pinned the language picker to the Settings sidebar and expanded the interface translations.'],hu:['A nyelvválasztó fix helyet kapott a beállítások oldalsávjában, és bővültek a felület fordításai.']},
     {v:'Beta 1.0.23',en:['Moved Display language to Interface and added Hindi, Bengali, Indonesian, Korean and Turkish.','Added restart guidance for re-enabling Unlimited FPS.'],hu:['Új helyen a nyelvválasztó. Hindi, bengáli, indonéz, koreai és török felület.','A korlátlan FPS-nél újraindítási tájékoztató jelenik meg.']},
     {v:'Beta 1.0.22',en:['Three graphics profiles, fitted render targets and automatic native crosshair suppression.'],hu:['Három grafikai profil, választható renderfelbontás és a Kirka-célkereszt automatikus elrejtése.']},
@@ -2512,6 +2513,7 @@
             { value: 360, label: '360 FPS' },
             ...([0,60,120,144,165,180,200,240,300,360].includes(state.fpsLimit)?[]:[{value:state.fpsLimit,label:state.fpsLimit+' FPS'}])
           ]) +
+          (nativeGameCap(Number(state.fpsLimit))?'<button class="ks-btn" data-action="native-game-cap">Apply to visible game FPS control</button>':'')+
           `<label class="ks-row">Custom callback limit (1–1000, 0 = Unlimited)<input class="ks-input" type="number" min="0" max="1000" step="1" data-custom-cap value="${Number(state.fpsLimit)||0}"></label>` +
           `<div class="ks-row"><div><div class="ks-label">Activate Unlimited FPS</div><div class="ks-desc">Requests Chromium FPS unlocking and removes the KS JavaScript callback cap.</div><div class="ks-desc" id="ks-unlimited-restart-note">${unlimitedRestartNote}</div></div><button class="ks-btn primary" data-action="enable-unlimited-fps" ${!browserPrefsLoaded?'disabled':''}>Enable experimental unlock</button></div>` +
           `<div class="ks-row"><div><div class="ks-label">Experimental Unlimited FPS (Chromium)</div><div class="ks-desc">Uses Chromium startup settings to unlock FPS.</div></div><input type="checkbox" data-browser="uncapFps" ${browserPrefs.uncapFps?'checked':''} ${!browserPrefsLoaded?'disabled':''}></div>` +
@@ -3047,7 +3049,7 @@
   }
 
   function renderTab() {
-    window.__KS_WORKSHOP__?.stopPlugin?.();
+    window.__KS_WORKSHOP__?.stopPreview?.();
     syncMeasurement();
     closeCustomSelect();
     const group=currentGroup();
@@ -3066,6 +3068,8 @@
     if(group.key==='Workshop')$('ks-body').querySelector('.ks-subtabs')?.insertAdjacentHTML('afterend',
       '<div class="ks-workshop-experimental" role="note"><strong>EXPERIMENTAL · BETA</strong><span>Workshop features are still in testing. Back up your profiles before importing resources or running plugins.</span></div>');
     localizePanel($('ks-body'));
+    window.__KS_WORKSHOP__?.syncWork?.(open?selectedTab:null);
+    if(open&&['Inventory & Market','Friends & Profiles'].includes(selectedTab))window.__KS_WORKSHOP__?.refresh?.();
     layoutSettingsCards();
     enhanceCustomSelects();
     updateShellLanguage();
@@ -3525,7 +3529,8 @@
     const opening=next&&!open,closing=!next&&open;
     if(opening)priorFocus=document.activeElement;
     open=next;
-    if(!open)window.__KS_WORKSHOP__?.stopPlugin?.();
+    if(opening||closing)window.dispatchEvent(new CustomEvent('ks-settings-visible',{detail:next}));
+    if(!open){window.__KS_WORKSHOP__?.stopPreview?.();window.__KS_WORKSHOP__?.syncWork?.(null);}
     try {
       if(open && document.pointerLockElement)document.exitPointerLock?.();
       if(open) {
@@ -3681,6 +3686,11 @@
     for(const key of ['hue','saturation','brightness','scale','offsetX','offsetY','offsetZ']){
       if(Number.isFinite(g[key]))graphics[key]=g[key];
     }
+    const skinValue=v=>typeof v==='string' && ((v.length<=180000&&/^data:image\/webp;base64,[A-Za-z0-9+/]+=*$/.test(v))||(/^https:\/\//.test(v)&&v.length<500))?v:'';
+    graphics.skinURL=skinValue(g.skinURL);
+    graphics.slots=Array.isArray(g.slots)?g.slots.slice(0,8).filter(x=>x&&typeof x.assetURL==='string'&&skinValue(x.skinURL)).map(x=>({
+      name:String(x.name||'').slice(0,48),assetURL:x.assetURL.slice(0,450),skinURL:skinValue(x.skinURL),
+      hue:Number(x.hue)||0,saturation:Number(x.saturation)||100,brightness:Number(x.brightness)||100})):[];
     const workshop=wk.normalizeWorkshop(doc.workshop);
     workshop.swapEnabled=wk.getConfig().swapEnabled;
     if(!confirm(L('Replace KS settings, Workshop entries and local media with this profile? Imported scripts require manual launch.')))return;
@@ -3923,9 +3933,9 @@
     const a = el.dataset.action;
     if(a.startsWith('wk-')) {
       try {
-        const handled=window.__KS_WORKSHOP__?.action(a,shadow,workshopNotify);
+        const handled=await window.__KS_WORKSHOP__?.action(a,shadow,workshopNotify);
         if(handled) {
-          if(!/^wk-plugin-(run|stop)-?/.test(a))renderTab();
+          if(!/^wk-plugin-(run|stop|edit|export)-?/.test(a))renderTab();
           const value=window.__KS_WORKSHOP__?.getStatus();
           if(value && $('ks-wk-status'))$('ks-wk-status').textContent=L(value);
         }
@@ -3934,6 +3944,11 @@
         const node=$('ks-wk-status');if(node)node.textContent=L(String(error?.message||error));
       }
       return;
+    }
+    if(a==='native-game-cap'){
+      const match=nativeGameCap(Number(state.fpsLimit));
+      if(match){match.el.selectedIndex=match.choice.index;match.el.dispatchEvent(new Event('input',{bubbles:true}));match.el.dispatchEvent(new Event('change',{bubbles:true}));}
+      renderTab();return;
     }
     if (a === 'performance-preset' && ['Low','Balanced','High Performance'].includes(el.dataset.preset)) {setSetting('performancePreset',el.dataset.preset);return;}
     if (a === 'test-menu-sound') {void playMenuSound();}
@@ -4158,6 +4173,21 @@
     diagnosticTopic=topic;
     diagnosticTimer=topic?setInterval(()=>notify(topic),topic==='fps-diagnostics'?1800:2000):null;
   }
+  function nativeGameCap(target){
+    // Only a visible, labelled game-owned select with an exact numeric option.
+    // The host is in a shadow root and cannot be matched by this document query.
+    if(!isGamePage||!Number.isInteger(target)||target<=0)return null;
+    const candidates=[];
+    for(const el of document.querySelectorAll('select')){
+      if(el.disabled||!el.getClientRects().length||getComputedStyle(el).visibility!=='visible')continue;
+      const label=el.getAttribute('aria-label')||Array.from(el.labels||[],l=>l.textContent.replace(el.textContent,'')).join(' ');
+      if(!/^(?:fps (?:limit|cap|limiter)|(?:max(?:imum)?|target) fps|frame rate limit|képkockakorlát)$/i.test(label.trim()))continue;
+      const choices=Array.from(el.options).filter(o=>!o.disabled&&
+        (new RegExp('^'+target+'(?:\\s*fps)?$','i')).test(o.textContent.trim()));
+      if(choices.length===1)candidates.push({el,choice:choices[0]});
+    }
+    return candidates.length===1?candidates[0]:null;
+  }
   function syncActivityLimit(){
     const runtime=window.__KS_GAME_RUNTIME__;
     const scene=runtime?.scene;
@@ -4298,6 +4328,7 @@
       browserStatus=status || 'Applied on browser startup';
       if(browserGroups.has(selectedTab) || selectedTab==='Performance')renderTab();
     },
+    setResourcePacks: result=>window.__KS_WORKSHOP__?.setPacks?.(result),
     setWorkshopStatus: (response,requestId) => {
       if(requestId){
         if(requestId!==latestWorkshopRequest)return;

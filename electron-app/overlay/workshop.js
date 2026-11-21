@@ -41,9 +41,9 @@
    d.gameHudTheme=['original','compact','amber','ice'].includes(value.gameHudTheme)?value.gameHudTheme:'original';
    d.rooms=inArray(value.rooms,25,x=>{const url=kirkaURL(x.url),name=trim(x.name,45);return url?{name:name||'Saved room',url,settings:isObject(x.settings)?limitSettings(x.settings):{}}:null});
    d.history=inArray(value.history,20,x=>{const url=kirkaURL(x.url);return url?{url,time:trim(x.time,32)}:null});
-   d.friends=inArray(value.friends,60,x=>{const nick=trim(x.nick,55),note=trim(x.note,130);return nick?{nick,note,color:color(x.color,'#f0aa35')}:null});
+   d.friends=inArray(value.friends,60,x=>{const nick=trim(x.nick,55),note=trim(x.note,130);return nick?{nick,note,tag:trim(x.tag,32),favorite:x.favorite===true,color:color(x.color,'#f0aa35')}:null});
    d.inventory=inArray(value.inventory,100,x=>{const item=trim(x.item,80);return item?{item,note:trim(x.note,130),favorite:x.favorite===true,price:clamp(x.price,0,100000000,0)}:null});
-   d.plugins=inArray(value.plugins,12,x=>{const name=trim(x.name,45),code=trim(x.code,12000);return name&&code?{name,code}:null});
+   d.plugins=inArray(value.plugins,12,normalizePlugin);
    return d;
  }
  function clamp(v,min,max,fallback){const n=Number(v);return Number.isFinite(n)?Math.round(Math.max(min,Math.min(max,n))):fallback}
@@ -60,7 +60,7 @@
  let status='Workshop features are local to this browser profile.';
  const value=id=>document.getElementById('ks-client-root')?.shadowRoot?.getElementById(id)?.value||'';
  const checked=id=>!!document.getElementById('ks-client-root')?.shadowRoot?.getElementById(id)?.checked;
- const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(cfg));}catch(e){status='Cannot save workshop data: '+e.message}refresh();};
+ const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(cfg));}catch(e){status='Cannot save workshop data: '+e.message}refresh();syncWork(activeTab);};
  const btn=(action,name,extra='')=>'<button class="ks-btn" data-action="wk-'+action+'" '+extra+'>'+escape(name)+'</button>';
  const input=(id,label,v='',kind='text')=>'<label class="ks-row"><span class="ks-label">'+escape(label)+'</span><input class="ks-input" id="ks-wk-'+id+'" type="'+kind+'" value="'+escape(v)+'" maxlength="480"></label>';
  const card=(title,content)=>'<div class="ks-card"><h3 class="ks-section-heading">'+escape(title)+'</h3>'+content+'</div>';
@@ -77,6 +77,120 @@
    }
    return [...paths].slice(-100);
  }
+ const marketKey='ksclient.market.observations.v1';
+ let lastInventory=[],lastRead='',marketRows=[],friendRows=[],inventoryTime=0;
+ let query='',sortPrice=false,onlyFav=false;
+ let history=[];
+ try{const parsed=JSON.parse(localStorage.getItem(marketKey)||'[]');
+   if(Array.isArray(parsed))history=parsed.filter(x=>x&&typeof x.item==='string'&&typeof x.unit==='string'&&Number.isFinite(x.price)&&Number.isFinite(x.time)).slice(-400);
+ }catch{}
+ function priceOf(x){
+   // Ambiguous grouped/decimal prices are shown verbatim and excluded from comparisons.
+   const match=/^([0-9]+)(?:\s+([^\d\s][^\d]{0,24}))?$/.exec(x.price.trim());
+   if(!match||!Number.isSafeInteger(Number(match[1])))return null;
+   return {amount:Number(match[1]),unit:(x.unit||match[2]||'').trim().toLowerCase()};
+ }
+ function updateHistory(listings){
+   const minimum=new Map();
+   for(const x of listings){
+     const p=priceOf(x);if(!p||!p.unit)continue;
+     const key=JSON.stringify([x.item,p.unit]);
+     if(!minimum.has(key)||minimum.get(key).price>p.amount)minimum.set(key,{item:x.item,unit:p.unit,price:p.amount});
+   }
+   let changed=false;
+   for(const v of minimum.values()){
+     const prev=history.findLast(x=>x.item===v.item&&x.unit===v.unit);
+     if(prev?.price===v.price)continue;
+     history.push({...v,time:Date.now()});changed=true;
+   }
+   if(changed){history=history.slice(-400);try{localStorage.setItem(marketKey,JSON.stringify(history));}catch{}}
+ }
+ function lineChart(rows){
+   if(rows.length<2)return '';
+   const values=rows.slice(-24),times=values.map(x=>x.time),prices=values.map(x=>x.price);
+   const min=Math.min(...prices),span=Math.max(1,Math.max(...prices)-min),duration=Math.max(1,times.at(-1)-times[0]);
+   const points=values.map(x=>((x.time-times[0])/duration*100).toFixed(1)+','+(23-(x.price-min)/span*21).toFixed(1)).join(' ');
+   return '<svg width="100" height="25" viewBox="0 0 102 25" aria-hidden="true"><polyline fill="none" stroke="currentColor" points="'+points+'"/></svg> <small>'+prices[0]+' → '+prices.at(-1)+' '+escape(values[0].unit)+'</small>';
+ }
+ function marketAnchor(){
+   return [...document.querySelectorAll('a[href]')].find(a=>{
+     try{const u=new URL(a.href);return u.origin===location.origin&&/^\/market(?:place)?\/?$/.test(u.pathname)&&a.getClientRects().length&&getComputedStyle(a).visibility==='visible';}catch{return false;}
+   });
+ }
+ function nativeMarketLink(){return marketAnchor()?btn('open-market','Open market'):'';}
+ function tableControls(kind){
+   return input('query','Search',query)+'<label class="ks-row">Favorites <input id="ks-wk-only-fav" type="checkbox" '+(onlyFav?'checked':'')+'></label>'+
+     (kind==='market'?'<label class="ks-row">Sort by price <input id="ks-wk-price-sort" type="checkbox" '+(sortPrice?'checked':'')+'></label>':'')+btn('filter','Apply');
+ }
+ function updateLists(panel){
+   const deep=window.__KS_DEEP__;if(!deep)return;
+   const node=panel?.getElementById('ks-live-market')||panel?.getElementById('ks-live-friends');if(!node)return;
+   const needle=query.toLocaleLowerCase(),has=s=>s.toLocaleLowerCase().includes(needle);
+   let html='';
+   if(node.id==='ks-live-friends'){
+     const profile=deep.profileSnapshot?.(),profileNode=panel.getElementById('ks-live-profile');
+     if(profileNode){
+       const details=profile?[profile.nickname,...profile.visibleBadges,...profile.stats].filter(Boolean):[];
+       const summary=details.join(' · ')||window.__KS_CLIENT__?.translate?.('No visible entries on this game screen.')||'No visible entries on this game screen.';
+       if(profileNode.textContent!==summary)profileNode.textContent=summary;
+     }
+     friendRows=deep.friendsSnapshot?.().entries||[];
+     html=friendRows.map((x,i)=>{
+       const saved=cfg.friends.find(f=>f.nick.toLowerCase()===x.name.toLowerCase()||x.id&&f.nick===x.id);
+       if(!has([x.name,x.id,saved?.tag,saved?.note].join(' '))||onlyFav&&!saved?.favorite)return '';
+       return '<div class="ks-row"><span>'+escape([x.name,x.id,x.state?(window.__KS_CLIENT__?.translate?.(x.state==='online'?'Online':'Offline')||x.state):'',saved?.tag,saved?.note].filter(Boolean).join(' · '))+'</span>'+
+         (x.profile?btn('profile-'+i,'Open profile'):'')+'</div>';
+     }).join('');
+   }else{
+     const inventory=deep.inventorySnapshot?.();
+     if(inventory?.available){
+       const next=JSON.stringify(inventory.entries);
+       if(next!==lastRead){lastRead=next;lastInventory=inventory.entries;inventoryTime=Date.now();}
+     }
+     const fav=item=>cfg.inventory.some(x=>x.favorite&&x.item.toLowerCase()===item.toLowerCase());
+     const inventoryNode=panel.getElementById('ks-visible-inventory');
+     let cards=lastInventory.filter(x=>has(x.name+' '+x.type)&&(!onlyFav||fav(x.name))).sort((a,b)=>a.name.localeCompare(b.name))
+       .map(x=>'<div class="ks-row">'+(x.image?'<img loading="lazy" width="32" height="32" alt="" src="'+escape(x.image)+'">':'')+'<span>'+escape(x.name)+' '+escape(x.type)+'</span></div>').join('');
+     if(!inventory?.available&&inventoryTime)cards='<small>'+escape(new Date(inventoryTime).toLocaleString())+'</small>'+cards;
+     const empty='<p class="ks-hint">'+escape(window.__KS_CLIENT__?.translate?.('No visible entries on this game screen.')||'No visible entries on this game screen.')+'</p>';
+     const set=(n,markup)=>{if(n&&n._ksMarkup!==markup){n.innerHTML=markup;n._ksMarkup=markup;}};
+     set(inventoryNode,cards||empty);
+     marketRows=deep.marketSnapshot?.().listings||[];
+     updateHistory(marketRows);
+     const filtered=marketRows.filter(x=>has(x.item)&&(!onlyFav||fav(x.item)));
+     if(sortPrice)filtered.sort((a,b)=>{
+       const x=priceOf(a),y=priceOf(b);if(!x?.unit||!y?.unit)return Number(!x?.unit)-Number(!y?.unit);
+       return x.unit.localeCompare(y.unit)||x.amount-y.amount;
+     });
+     html=filtered.map(x=>'<div class="ks-row"><span>'+escape(x.item)+'</span><strong>'+escape(x.price)+' '+escape(x.unit||'')+'</strong></div>').join('');
+     const series=new Map();
+     for(const x of history.filter(x=>has(x.item)&&(!onlyFav||fav(x.item)))){
+       const key=JSON.stringify([x.item,x.unit]);if(!series.has(key))series.set(key,[]);series.get(key).push(x);
+     }
+     set(panel.getElementById('ks-price-history'),[...series.values()].slice(-30).map(rows=>'<div class="ks-row"><span>'+escape(rows[0].item)+'</span>'+
+       (lineChart(rows)||escape(rows[0].price+' '+rows[0].unit))+'</div>').join('')||empty);
+   }
+   if(!html)html=escape(window.__KS_CLIENT__?.translate?.('No visible entries on this game screen.')||'No visible entries on this game screen.');
+   if(node._ksMarkup!==html){node.innerHTML=html;node._ksMarkup=html;}
+ }
+
+ let packList=[];
+ function packRows(){
+   const tr=s=>window.__KS_CLIENT__?.translate?.(s)||s;
+   return packList.map((p,i)=>'<div class="ks-row"><div><strong>'+escape(p.name)+'</strong><div class="ks-desc">'+
+     escape(tr('Observed paths'))+' '+p.matched+'/'+p.total+' · '+escape(tr('Conflicts'))+' '+p.conflicts+'</div></div>'+
+     btn('pack-toggle-'+i,tr(p.enabled?'Disable':'Enable'))+btn('pack-first-'+i,tr('Highest priority'))+
+     btn('pack-export-'+i,tr('Export'))+btn('pack-remove-'+i,tr('Remove'))+'</div>'+
+     '<details><summary>'+escape(tr('Observed paths'))+'</summary><ul>'+p.details.map(f=>'<li>'+escape(f.path)+' · '+
+       escape(tr(!f.available?'Missing file':f.shadowed?'Conflicts':f.matched?'Observed paths':'Not observed yet'))+'</li>').join('')+'</ul></details>').join('');
+ }
+ function setPacks(result){
+   if(!Array.isArray(result?.packs))return;
+   packList=result.packs;
+   const panel=document.getElementById('ks-client-root')?.shadowRoot,node=panel?.getElementById('ks-wk-pack-list');
+   if(node)node.innerHTML=packRows();
+   if(result.message){status=trim(result.message,180);const n=panel?.getElementById('ks-wk-status');if(n)n.textContent=status;}
+ }
  function render(tab){
    if(tab==='Weapon Studio')return '<h2 class="ks-title">Weapon Studio / Custom Skin Link</h2><p class="ks-sub">Local weapon and inventory image cosmetics. 3D WebGL material replacement depends on exact supported game assets.</p>'+
      card('Weapon & inventory visual styling',input('weapon-hue','Hue rotation (0–360)',cfg.weapon.hue,'number')+
@@ -89,7 +203,10 @@
        '<p class="ks-hint">Replaces a matching WebGL image texture. The exact Kirka /assets/ URL and a CORS-compatible replacement image are required. Viewmodel transforms require a manually selected matrix signature.</p>'+
        btn('gl-probe','Identify visible weapon image')+' '+btn('gl-use-probe','Use observed texture')+
        input('gl-source','Original Kirka texture URL (exact HTTPS asset)',glCfg().assetURL||'')+
-       input('gl-skin','Custom 3D Skin Link (HTTPS CORS image)',glCfg().skinURL||'')+
+       input('gl-skin','Custom 3D Skin Link (HTTPS CORS image)',glCfg().skinURL?.startsWith('data:')?'':glCfg().skinURL||'')+
+       '<label class="ks-row"><span>Local skin image</span><input id="ks-wk-gl-file" type="file" accept="image/png,image/jpeg,image/webp"></label>'+
+       input('gl-name','Weapon preset name')+btn('gl-bind','Save weapon binding')+
+       (glCfg().slots||[]).map((slot,i)=>'<div class="ks-row"><span>'+escape(slot.name)+'</span>'+btn('gl-select-'+i,'Use')+btn('gl-remove-'+i,'Remove')+'</div>').join('')+
        input('gl-hue','Texture hue 0–360',glCfg().hue??0,'number')+
        input('gl-saturation','Texture saturation %',glCfg().saturation??100,'number')+
        input('gl-brightness','Texture brightness %',glCfg().brightness??100,'number')+
@@ -113,6 +230,8 @@
        '<label class="ks-row">Enable replacements at startup <input type="checkbox" id="ks-wk-swap-on" '+(cfg.swapEnabled?'checked':'')+'></label>'+
        btn('swap-toggle','Save swapper state')+' '+btn('swap-folder','Open asset folder')+' '+btn('swap-scan','Scan files')+
        '<p class="ks-hint">Exact Kirka image/audio/font/CSS resource matching only. Reload after changing files; no game JavaScript interception.</p>')+
+     card('Resource packs',btn('pack-import','Import pack')+' '+btn('pack-create','Create from folder')+' '+btn('pack-list','Refresh')+
+       '<div id="ks-wk-pack-list">'+packRows()+'</div>')+
      card('Observed asset paths','<p>For a versioned path such as img/logo.1234abcd.png, you can name your local file img/logo.ks-anyhash.png. Exact names take priority. Only the hexadecimal build suffix can change.</p>'+btn('asset-refresh','Refresh observed paths')+'<pre style="white-space:pre-wrap;overflow-wrap:anywhere">'+escape(observedAssets().join('\n')||'No supported assets observed in this document.')+'</pre>')+
      card('Mouse-held freeze workaround (experimental)',
        '<label class="ks-row">Enable optional frame-yield guard (reload required) <input type="checkbox" id="ks-wk-freeze-on" '+(advancedCfg().freezeGuard?'checked':'')+'></label>'+
@@ -120,9 +239,11 @@
        '<p class="ks-hint">Status: '+escape(JSON.stringify(window.__KS_FREEZE_GUARD__?.getStatus?.()||{}).slice(0,260))+'</p>')+notice;
    if(tab==='Plugins')return '<h2 class="ks-title">Safe JavaScript plugins</h2><p class="ks-sub">'+escape(srcmsg)+'</p>'+
      '<p class="ks-hint">Example: ks.message("Hello!"); ks.tint("hud","#ffaa22"); ks.snapshot().then(s=>ks.message(s.scene)); The snapshot includes only visible game data. Each run requires a click.</p>'+
-     card('Add local plugin',input('plugin-name','Plugin name')+'<textarea id="ks-wk-plugin-code" class="ks-input" rows="7" placeholder="document.body.textContent = &#39;Hello from a sandboxed plugin!&#39;"></textarea>'+btn('plugin-save','Save code'))+
-     card('Saved plugins',cfg.plugins.length?cfg.plugins.map((p,i)=>'<div class="ks-row"><div><strong>'+escape(p.name)+'</strong><div class="ks-desc">Sandboxed, manual start</div></div>'+btn('plugin-run-'+i,'Run')+btn('plugin-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No scripts saved.</p>')+
-     card('Plugin preview','<div id="ks-wk-plugin-preview" class="ks-note">Choose Run to open an isolated preview.</div>'+btn('plugin-stop','Stop preview'))+notice;
+     card('Add local plugin',input('plugin-name','Plugin name')+'<textarea id="ks-wk-plugin-code" class="ks-input" rows="7" placeholder="ks.message(&#39;Hello!&#39;)"></textarea>'+input('plugin-version','Plugin version','1.0.0')+input('plugin-settings','Plugin settings (JSON)','{}')+
+       '<label class="ks-row">Worker API 2 <input id="ks-wk-plugin-v2" type="checkbox"></label>'+btn('plugin-save','Save code')+
+       '<input id="ks-wk-plugin-file" type="file" accept=".json">'+btn('plugin-import','Import plugin'))+
+     card('Saved plugins',cfg.plugins.length?cfg.plugins.map((p,i)=>'<div class="ks-row"><div><strong>'+escape(p.name)+'</strong><div class="ks-desc">v'+escape(p.version)+' · API '+p.api+'</div></div>'+(p.enabled?btn('plugin-run-'+i,'Run'):'')+btn('plugin-toggle-'+i,p.enabled?'Disable':'Enable')+btn('plugin-edit-'+i,'Edit')+btn('plugin-export-'+i,'Export')+btn('plugin-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No scripts saved.</p>')+
+     card('Plugin preview','<div id="ks-wk-plugin-preview" class="ks-note">Choose Run to open an isolated preview.</div>'+btn('plugin-stop','Stop preview')+'<pre>'+escape(pluginLog.join('\n'))+'</pre>')+notice;
    if(tab==='Lobby')return '<h2 class="ks-title">Lobby / Quick Join</h2><p class="ks-sub">Save join links, room notes and supported HTML lobby form values.</p>'+
      card('Save current room',input('room-name','Room name')+input('room-url','Kirka.io room URL',kirkaURL(location.href)||'')+
        btn('room-save','Save room + visible form values')+' '+btn('room-capture','Capture current lobby options'))+
@@ -132,18 +253,20 @@
      '<p class="ks-hint">Applying lobby settings changes only matching visible HTML controls, never hidden server configuration. Joining still follows Kirka.io permissions.</p>';
    if(tab==='Friends & Profiles')return '<h2 class="ks-title">Friends & Profiles</h2><p class="ks-sub">Local labels and notes for profiles you actually see. No access to private friend lists or invented spectate links.</p>'+
      card('Create local player annotation',input('friend-nick','Visible nickname / player ID')+input('friend-note','Personal note')+
-       input('friend-color','Tag color', '#f0aa35','color')+btn('friend-save','Save note'))+
-     card('Visible friend list','<p id="ks-live-friends"></p>'+input('watch-name','Exact visible friend name',watchFriend?.name||'')+
+       input('friend-tag','Player tag')+'<label class="ks-row">Favorite <input id="ks-wk-friend-favorite" type="checkbox"></label>'+input('friend-color','Tag color', '#f0aa35','color')+btn('friend-save','Save note'))+
+     card('Visible friend list',tableControls('friends')+'<div id="ks-live-friends"></div>'+input('watch-name','Exact visible friend name',watchFriend?.name||'')+
        btn('watch-friend','Watch for native Spectate (60 seconds)')+' '+btn('watch-cancel','Cancel')+
        '<p class="ks-hint">Keep this panel open. The game must offer Spectate for this friend.</p>')+
-     card('Visible profile details','<p class="ks-hint">'+escape(JSON.stringify(deepSnapshot().profile||{}).slice(0,700))+'</p>')+
-     card('Saved annotations',cfg.friends.length?cfg.friends.map((f,i)=>'<div class="ks-row"><div><strong>'+escape(f.nick)+'</strong><div class="ks-desc">'+escape(f.note)+'</div></div>'+btn('friend-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved player notes.</p>')+notice;
+     card('Visible profile details','<div id="ks-live-profile"></div>')+
+     card('Saved annotations',cfg.friends.length?cfg.friends.map((f,i)=>
+       ((onlyFav&&!f.favorite)||!([f.nick,f.tag,f.note].join(' ').toLocaleLowerCase().includes(query.toLocaleLowerCase())))?'':'<div class="ks-row"><div><strong>'+escape((f.favorite?'★ ':'')+f.nick+' '+(f.tag||''))+'</strong><div class="ks-desc">'+escape(f.note)+'</div></div>'+btn('friend-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved player notes.</p>')+notice;
    if(tab==='Inventory & Market')return '<h2 class="ks-title">Inventory / Market</h2><p class="ks-sub">Personal item favorites, notes and manually entered estimates. No trades, purchases or prices are fabricated.</p>'+
      card('Add item to your list',input('item-name','Item / skin name')+input('item-note','Personal note')+
        input('item-price','Estimated price (manual only)',0,'number')+
        '<label class="ks-row">Favorite <input type="checkbox" id="ks-wk-item-favorite" checked></label>'+btn('item-save','Save item'))+
-     card('Visible inventory details','<p class="ks-hint">'+escape(JSON.stringify(deepSnapshot().inventory||{}).slice(0,1200))+'</p>')+
+     card('Visible inventory details',nativeMarketLink()+btn('kirka-stats','Open KirkaStats')+tableControls('market')+'<div id="ks-visible-inventory"></div>')+
      card('Visible market listings (read-only)','<div id="ks-live-market"></div>')+
+     card('Observed price history','<div id="ks-price-history"></div>')+
      card('Saved collection',cfg.inventory.length?cfg.inventory.map((x,i)=>'<div class="ks-row"><div><strong>'+(x.favorite?'★ ':'')+escape(x.item)+'</strong><div class="ks-desc">'+escape(x.note)+' · Manual estimate: '+x.price+'</div></div>'+btn('item-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved items.</p>')+notice;
    return '';
  }
@@ -216,6 +339,22 @@
    else status=deep?.getStatus().lastError||'Room action unavailable.';
    const node=ui.getElementById('ks-wk-status');if(node)node.textContent=window.__KS_CLIENT__?.translate(status) ?? status;
  }
+ async function localSkin(file){
+   if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>1024*1024)throw Error('Choose a PNG, JPEG or WebP up to 1 MiB');
+   const image=await createImageBitmap(file);
+   try{
+     if(Math.max(image.width,image.height)>2048)throw Error('Maximum skin dimension is 2048 pixels');
+     const ratio=Math.min(1,512/Math.max(image.width,image.height)),canvas=document.createElement('canvas');
+     canvas.width=Math.max(1,Math.round(image.width*ratio));canvas.height=Math.max(1,Math.round(image.height*ratio));
+     canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);
+     const encoded=canvas.toDataURL('image/webp',.85);
+     if(encoded.length>180000)throw Error('Choose a smaller skin image');
+     return encoded;
+   }finally{image.close();}
+ }
+ function saveGraphics(config){
+   localStorage.setItem(WG,JSON.stringify(config));window.dispatchEvent(new Event('ks-webgl-settings'));
+ }
  function action(a,ui,notify){
    if(a==='wk-asset-refresh')return true;
    if(!a.startsWith('wk-'))return false;
@@ -223,7 +362,22 @@
    const val=id=>ui.getElementById('ks-wk-'+id)?.value??'';
    const flag=id=>!!ui.getElementById('ks-wk-'+id)?.checked;
    const number=(id,min,max,def)=>clamp(val(id),min,max,def);
-   if(a==='watch-friend'){
+   if(a.startsWith('pack-')){
+     const [,command,index]=a.split('-'),id=packList[Number(index)]?.id;
+     if(command==='remove'&&!confirm(window.__KS_CLIENT__?.translate?.('Remove')||'Remove'))return true;
+     notify('resource-packs',{command,id});return true;
+   }
+   if(a==='kirka-stats'){notify('stats');return true;}
+   if(a==='open-market'){marketAnchor()?.click();return true;}
+   if(a==='filter'){query=trim(val('query'),80);onlyFav=flag('only-fav');sortPrice=flag('price-sort');}
+   else if(a.startsWith('profile-')){
+     const row=friendRows[Number(a.slice(8))];
+     const current=window.__KS_DEEP__?.friendsSnapshot?.().entries.find(x=>x.name===row?.name&&x.id===row?.id&&x.profile===row?.profile);
+     if(current?.profile){
+       const link=[...document.querySelectorAll('.friends a[href]')].find(a=>a.getClientRects().length&&a.href===new URL(current.profile,location.origin).href);
+       link?.click();
+     }
+   }else if(a==='watch-friend'){
      const name=trim(val('watch-name'),60);
      watchFriend=name?{name,until:Date.now()+60000}:null;
      status=name?'Waiting for the native Spectate control for '+name:'Enter the exact visible name.';
@@ -240,22 +394,35 @@
    }else if(a==='freeze-save'){
      localStorage.setItem(ADV,JSON.stringify({freezeGuard:flag('freeze-on')}));
      status='Frame-yield setting saved. Reload Kirka to apply safely.';
-   }else if(a==='gl-apply'){
-     const x={enabled:flag('gl-enabled'),assetURL:trim(val('gl-source'),450),skinURL:imgURL(val('gl-skin'))||'',
+   }else if(a.startsWith('gl-select-')||a.startsWith('gl-remove-')){
+     const config=glCfg(),idx=Number(a.split('-').pop()),slot=config.slots?.[idx];
+     if(slot){if(a.startsWith('gl-select-'))Object.assign(config,slot,{matrixSignature:''});else config.slots.splice(idx,1);saveGraphics(config);}
+   }else if(a==='gl-apply'||a==='gl-bind'){
+     return (async()=>{
+     const prev=glCfg(),file=ui.getElementById('ks-wk-gl-file')?.files?.[0];
+     const x={enabled:flag('gl-enabled'),assetURL:trim(val('gl-source'),450),skinURL:file?await localSkin(file):imgURL(val('gl-skin'))||(prev.skinURL?.startsWith('data:')?prev.skinURL:''),slots:prev.slots||[],
        hue:number('gl-hue',0,360,0),saturation:number('gl-saturation',20,300,100),
        brightness:number('gl-brightness',20,250,100),scale:number('gl-scale',50,150,100),
        offsetX:Math.min(2,Math.max(-2,Number(val('gl-x'))||0)),
        offsetY:Math.min(2,Math.max(-2,Number(val('gl-y'))||0)),
        offsetZ:Math.min(2,Math.max(-2,Number(val('gl-z'))||0)),
        matrixSignature:trim(val('gl-matrix'),90)};
-     if(x.enabled&&(!/^https:\/\/(?:www\.)?kirka\.io\/assets\/(?:img|media|textures|skins|ui)\//i.test(x.assetURL)||!x.skinURL)){
+     if((x.enabled||a==='gl-bind')&&(!/^https:\/\/(?:www\.)?kirka\.io\/assets\/(?:img|media|textures|skins|ui)\//i.test(x.assetURL)||!x.skinURL)){
        status='3D texture replacement needs exact Kirka asset URL and HTTPS skin URL.';return true;
      }
      if(x.matrixSignature&&!/^[\d., -]{1,90}$/.test(x.matrixSignature)){status='Invalid calibration signature';return true;}
-     localStorage.setItem(WG,JSON.stringify(x));window.dispatchEvent(new Event('ks-webgl-settings'));
+     if(a==='gl-bind'){
+       const name=trim(val('gl-name'),48);if(!name)throw Error('Preset name required');
+       const slots=x.slots.filter(p=>p.assetURL!==x.assetURL);
+       if(slots.length>=8)throw Error('Maximum eight weapon bindings');
+       x.slots=[...slots,{name,assetURL:x.assetURL,skinURL:x.skinURL,hue:x.hue,saturation:x.saturation,brightness:x.brightness}];
+     }
+     saveGraphics(x);
      status='3D cosmetics saved; reload gameplay if the texture was already loaded.';
+     return true;
+     })();
    }else if(a==='gl-reset'){
-     localStorage.removeItem(WG);window.dispatchEvent(new Event('ks-webgl-settings'));
+     saveGraphics({enabled:false,slots:glCfg().slots||[]});
      status='3D cosmetics disabled. Reload game to restore previously uploaded textures.';
    }else if(a==='weapon-apply'){
      Object.assign(cfg.weapon,{enabled:flag('weapon-on'),hue:number('weapon-hue',0,360,0),saturation:number('weapon-saturation',40,200,100),
@@ -281,11 +448,29 @@
    else if(a==='swap-scan'){notify('resource-scan');status='Scanning local assets…';}
    else if(a==='plugin-save'){
      const name=trim(val('plugin-name'),45),code=trim(val('plugin-code'),12000);
-     if(!name||!code||cfg.plugins.length>=12){status='Enter a name and code (maximum 12 plugins).';return true}
-     cfg.plugins=[...cfg.plugins.filter(x=>x.name!==name),{name,code}];save();status='Plugin saved; not running.';
+     const p=normalizePlugin({name,code,version:val('plugin-version'),settings:JSON.parse(val('plugin-settings')||'{}'),api:flag('plugin-v2')?2:1});
+     if(!p||(!cfg.plugins.some(x=>x.name===name)&&cfg.plugins.length>=12))throw Error('Invalid plugin or plugin limit reached');
+     if(activePlugin===name)stopPlugin();
+     cfg.plugins=[...cfg.plugins.filter(x=>x.name!==name),p];save();status='Plugin saved; not running.';
+   }else if(a==='plugin-import'){
+     return (async()=>{
+       const file=ui.getElementById('ks-wk-plugin-file')?.files?.[0];if(!file||file.size>65536)throw Error('Select a plugin JSON up to 64 KiB');
+       const doc=JSON.parse(await file.text()),p=normalizePlugin(doc);
+       if(doc.format!=='ks-plugin'||!p||cfg.plugins.length>=12||cfg.plugins.some(x=>x.name===p.name))throw Error('Incompatible or duplicate plugin');
+       cfg.plugins.push({...p,enabled:false});save();return true;
+     })();
+   }else if(a.startsWith('plugin-toggle-')){
+     const p=cfg.plugins[Number(a.slice(14))];if(p){mailbox.delete(p.name);if(activePlugin===p.name)stopPlugin();p.enabled=!p.enabled;save();}
+   }else if(a.startsWith('plugin-edit-')){
+     const p=cfg.plugins[Number(a.slice(12))];if(p){
+       for(const [id,text] of Object.entries({name:p.name,code:p.code,version:p.version,settings:JSON.stringify(p.settings)}))ui.getElementById('ks-wk-plugin-'+id).value=text;
+       ui.getElementById('ks-wk-plugin-v2').checked=p.api===2;
+     }
+   }else if(a.startsWith('plugin-export-')){
+     const p=cfg.plugins[Number(a.slice(14))];if(p)exportPlugin(p);
    }else if(a.startsWith('plugin-run-')){
      const p=cfg.plugins[Number(a.slice(11))];if(p)runPlugin(p,ui);
-   }else if(a.startsWith('plugin-delete-')){cfg.plugins.splice(Number(a.slice(14)),1);save();}
+   }else if(a.startsWith('plugin-delete-')){const [p]=cfg.plugins.splice(Number(a.slice(14)),1);if(p){mailbox.delete(p.name);if(p.name===activePlugin)stopPlugin();}save();}
    else if(a==='plugin-stop'){stopPlugin();const wrap=ui.getElementById('ks-wk-plugin-preview');if(wrap)wrap.replaceChildren(document.createTextNode('Preview stopped.'));}
    else if(a==='room-capture'){status='Captured '+Object.keys(captureLobby()).length+' editable native lobby controls; save a room to retain them.';}
    else if(a==='room-save'){
@@ -305,7 +490,7 @@
    else if(a.startsWith('history-delete-')){cfg.history.splice(Number(a.slice(15)),1);save();}
    else if(a==='friend-save'){
      const nick=trim(val('friend-nick'),55);if(!nick){status='A nickname is required.';return true}
-     const entry={nick,note:trim(val('friend-note'),130),color:color(val('friend-color'),'#f0aa35')};
+     const entry={nick,tag:trim(val('friend-tag'),32),favorite:flag('friend-favorite'),note:trim(val('friend-note'),130),color:color(val('friend-color'),'#f0aa35')};
      cfg.friends=[...cfg.friends.filter(x=>x.nick.toLowerCase()!==nick.toLowerCase()),entry].slice(-60);save();
    }else if(a.startsWith('friend-delete-')){cfg.friends.splice(Number(a.slice(14)),1);save();}
    else if(a==='item-save'){
@@ -317,13 +502,100 @@
    return true;
  }
  let pluginListener=null,pluginCSS=null,pluginFrame=null;
+ function normalizePlugin(x){
+   const version=trim(x.version||'1.0.0',24),api=x.api??1;
+   const name=trim(x.name,45),code=trim(x.code,12000);
+   if(!name||!code||![1,2].includes(api)||!/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(version))return null;
+   const settings=isObject(x.settings)?x.settings:{};
+   if(JSON.stringify(settings).length>2000)return null;
+   return {name,code,api,version,enabled:x.enabled!==false,settings};
+ }
+ const pluginLog=[],mailbox=new Map();
+ let activePlugin=null,cleanupWorker=null,workerStop=null;
+ function recordError(text){pluginLog.push(trim(text,160));if(pluginLog.length>20)pluginLog.shift();}
+ function exportPlugin(p){
+   const url=URL.createObjectURL(new Blob([JSON.stringify({format:'ks-plugin',...p},null,2)],{type:'application/json'}));
+   const a=document.createElement('a');a.href=url;a.download='KS-plugin.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ }
+ // Serialized into an opaque-origin iframe. Only its dedicated worker executes imported v2 code.
+ function isolatedRunner(){
+   let worker=null;
+   addEventListener('message',e=>{
+     if(e.source!==parent)return;
+     if(e.data?.type==='start'&&!worker){
+       const boot='const post=self.postMessage.bind(self),handlers=new Map();let init,request=0;const pending=new Map();'+
+         'self.onmessage=e=>{const d=e.data;if(d.type==="ping"){post({type:"alive"});return}if(d.type==="reply"){pending.get(d.id)?.(d.value);pending.delete(d.id);return}if(d.type==="event"){for(const cb of handlers.get(d.name)||[])cb(d.value);return}if(d.type==="init"&&!init){init=true;'+
+         'self.ks=Object.freeze({apiVersion:2,settings:Object.freeze(d.settings),send:(to,text)=>post({type:"send",to:String(to).slice(0,45),text:String(text).slice(0,140)}),message:text=>post({type:"panel",text:String(text).slice(0,180)}),panel:text=>post({type:"panel",text:String(text).slice(0,180)}),on:(name,fn)=>{if(!["scene","settings","shortcut","message"].includes(name)||typeof fn!=="function")throw Error("Unknown event");if(!handlers.has(name))handlers.set(name,new Set());handlers.get(name).add(fn);return ()=>handlers.get(name).delete(fn)},snapshot:()=>new Promise(resolve=>{if(pending.size>=4)return resolve(null);const id=++request;pending.set(id,resolve);post({type:"snapshot",id})})});(new Function(d.code))()}}';
+       const url=URL.createObjectURL(new Blob([boot],{type:'text/javascript'}));
+       worker=new Worker(url);URL.revokeObjectURL(url);
+       worker.onmessage=event=>parent.postMessage({ksV2:event.data},'*');
+       worker.onerror=err=>parent.postMessage({ksV2:{type:'error',text:String(err.message).slice(0,160)}},'*');
+       worker.postMessage({type:'init',settings:e.data.settings,code:e.data.code});
+     }else if(worker)worker.postMessage(e.data);
+   });
+ }
+ function startWorker(plugin){
+   stopPlugin();
+   const frame=document.createElement('iframe'),out=document.createElement('output');
+   frame.hidden=true;frame.setAttribute('sandbox','allow-scripts');
+   out.hidden=true;out.style.cssText='position:fixed;bottom:3em;right:1em;z-index:2147483600;pointer-events:none;color:white;background:#13151b;padding:.5em;font:14px system-ui';
+   let ping=null,alive=Date.now(),period=Date.now(),calls=0;
+   const post=msg=>frame.contentWindow?.postMessage(msg,'*');
+   const event=(name,value)=>post({type:'event',name,value});
+   const off=window.__KS_GAME_RUNTIME__?.on?.('scene',e=>event('scene',e.detail?.to||'unknown'));
+   function key(e){if(!e.repeat&&e.isTrusted&&e.altKey&&e.shiftKey&&e.code==='KeyP'&&!document.hidden)event('shortcut','Alt+Shift+P');}
+   function settings(e){event('settings',!!e.detail);}
+   function listen(e){
+     if(e.source!==frame.contentWindow||e.origin!=='null')return;
+     const m=e.data?.ksV2;if(!m||typeof m!=='object')return;
+     if(Date.now()-period>1000){calls=0;period=Date.now();}
+     if(++calls>32||m.type==='error'){recordError(m.type==='error'?m.text:'Plugin message limit exceeded');stopPlugin();return;}
+     if(m.type==='alive'){alive=Date.now();return;}
+     if(m.type==='send'){
+       const recipient=cfg.plugins.find(p=>p.name===m.to&&p.api===2&&p.enabled);
+       if(recipient&&Array.isArray(recipient.settings.allowFrom)&&recipient.settings.allowFrom.includes(plugin.name)){
+         const message={from:plugin.name,text:trim(m.text,140)};
+         if(recipient.name===activePlugin)event('message',message);
+         else mailbox.set(recipient.name,[...(mailbox.get(recipient.name)||[]).slice(-7),message]);
+       }
+     }
+     if(m.type==='panel'){out.textContent=trim(m.text,180);out.hidden=!out.textContent;}
+     if(m.type==='snapshot'&&Number.isSafeInteger(m.id)){
+       const p=window.__KS_FRAME_PACER__?.getStats();
+       post({type:'reply',id:m.id,value:{scene:window.__KS_GAME_RUNTIME__?.scene||'unknown',
+         settingsOpen:!!window.__KS_CLIENT__?.isSettingsOpen(),callbackFPS:p?.estimatedCallbackFPS??null,
+         callbackFrameMs:p?.estimatedCallbackFrameMs??null}});
+     }
+   }
+   const shutdown=()=>{recordError('Plugin time budget reached');stopPlugin();};
+   window.addEventListener('message',listen);window.addEventListener('keydown',key);window.addEventListener('ks-settings-visible',settings);
+   activePlugin=plugin.name;
+   cleanupWorker=()=>{
+     clearInterval(ping);clearTimeout(workerStop);off?.();window.removeEventListener('message',listen);
+     window.removeEventListener('keydown',key);window.removeEventListener('ks-settings-visible',settings);frame.remove();out.remove();
+   };
+   frame.onload=()=>{
+     post({type:'start',code:plugin.code,settings:plugin.settings});
+     const opening=!!window.__KS_CLIENT__?.isSettingsOpen();event('settings',opening);
+     for(const m of mailbox.get(plugin.name)||[])if(plugin.settings.allowFrom?.includes?.(m.from))event('message',m);
+     mailbox.delete(plugin.name);
+     ping=setInterval(()=>{if(!document.hidden&&Date.now()-alive>6500){shutdown();return;}post({type:'ping'});},1500);
+   };
+   frame.srcdoc='<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\' \'unsafe-eval\'; worker-src blob:; connect-src \'none\'; form-action \'none\'"><script>('+isolatedRunner.toString()+')()</script>';
+   document.body.append(frame,out);workerStop=setTimeout(shutdown,300000);
+ }
+
+ function stopPreview(){if(!cleanupWorker)stopPlugin();}
  function stopPlugin(){
+   cleanupWorker?.();cleanupWorker=null;activePlugin=null;
    if(pluginListener){window.removeEventListener('message',pluginListener);pluginListener=null;}
    pluginFrame?.remove();pluginFrame=null;
    pluginCSS?.remove();pluginCSS=null;
  }
  function runPlugin(plugin,ui){
-   stopPlugin();
+   if(plugin.enabled===false)return;
+   if(plugin.api===2){startWorker(plugin);status='Plugin started';return;}
+   stopPlugin();activePlugin=plugin.name;
    const wrap=ui.getElementById('ks-wk-plugin-preview');if(!wrap)return;
    const frame=document.createElement('iframe');
    pluginFrame=frame;
@@ -334,7 +606,7 @@
    const html='<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;unsafe-inline&#39; &#39;unsafe-eval&#39;; style-src &#39;unsafe-inline&#39;; img-src data:; connect-src &#39;none&#39;; form-action &#39;none&#39;">'+
      '<style>body{background:#0d1219;color:#f0aa35;font:14px system-ui;padding:12px}</style></head><body>'+
      '<div id="plugin-status">Isolated plugin preview</div>'+
-     '<script>let id=0;const pending=new Map();window.addEventListener("message",e=>{if(e.source===parent&&e.data?.ksWorkshopReply===1&&pending.has(e.data.id)){pending.get(e.data.id)(e.data.snapshot);pending.delete(e.data.id)}});window.ks=Object.freeze({message:function(text){parent.postMessage({ksWorkshopPlugin:1,action:"message",text:String(text).slice(0,140)},"*")},tint:function(target,color){parent.postMessage({ksWorkshopPlugin:1,action:"tint",target:String(target),color:String(color)},"*")},snapshot:function(){return new Promise(resolve=>{let n=++id;pending.set(n,resolve);parent.postMessage({ksWorkshopPlugin:1,action:"snapshot",id:n},"*")})}});</script>'+     '<script>try{(new Function(atob("'+code64+'")))()}catch(e){document.getElementById("plugin-status").textContent="Plugin error: "+String(e.message).slice(0,150)}</script></body></html>';
+     '<script>let id=0;const pending=new Map();window.addEventListener("message",e=>{if(e.source===parent&&e.data?.ksWorkshopReply===1&&pending.has(e.data.id)){pending.get(e.data.id)(e.data.snapshot);pending.delete(e.data.id)}});window.ks=Object.freeze({message:function(text){parent.postMessage({ksWorkshopPlugin:1,action:"message",text:String(text).slice(0,140)},"*")},tint:function(target,color){parent.postMessage({ksWorkshopPlugin:1,action:"tint",target:String(target),color:String(color)},"*")},snapshot:function(){return new Promise(resolve=>{let n=++id;pending.set(n,resolve);parent.postMessage({ksWorkshopPlugin:1,action:"snapshot",id:n},"*")})}});</script>'+     '<script>try{(new Function(new TextDecoder().decode(Uint8Array.from(atob("'+code64+'"),c=>c.charCodeAt(0)))))()}catch(e){document.getElementById("plugin-status").textContent="Plugin error: "+String(e.message).slice(0,150)}</script></body></html>';
    const presets={hud:'.script-ui',chat:'#chat',killfeed:'.kill-bar-cont',inventory:'.inventory'};
    let calls=0;
    pluginListener=e=>{
@@ -385,11 +657,7 @@
      }
    }
    if(!document.hidden && window.__KS_CLIENT__?.isSettingsOpen() && (market||friendsNode)){
-     const data=deepSnapshot();
-     const node=market||friendsNode;
-     const lines=market?data.market?.listings?.map(x=>x.item+' — '+x.price):data.friends?.names;
-     const summary=lines?.length?lines.join(' · '):'No visible entries on this game screen.';
-     if(node.textContent!==summary)node.textContent=summary;
+     updateLists(panel);
    }
    const w=cfg.weapon;
    const filter='hue-rotate('+w.hue+'deg) saturate('+(w.saturation/100)+') brightness('+(w.brightness/100)+')';
@@ -442,11 +710,23 @@
      decorated.set(el,fields);
    }
  }
- window.addEventListener("pagehide",stopPlugin);
+ window.addEventListener("pagehide",()=>{stopPlugin();mailbox.clear();});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden&&cleanupWorker)stopPlugin();});
  window.__KS_GAME_RUNTIME__?.on("route",stopPlugin);
- function loop(){if(!document.hidden && Date.now()-lastUpdate>2200){lastUpdate=Date.now();refresh();}setTimeout(loop,1500);}
- window.__KS_WORKSHOP__=Object.freeze({render,action,refresh,stopPlugin,cancelWatch:()=>{watchFriend=null;},recordJoin,normalizeWorkshop,reloadProfile:()=>{stopPlugin();cfg=read();refresh();},getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
+ let activeTab=null,offRefresh=null,fallbackTimer=null;
+ function syncWork(tab){
+   if(tab==='Resource Swapper'&&activeTab!==tab)window.__KS_NATIVE__?.post?.({type:'resource-packs',command:'list'});
+   activeTab=tab;
+   const needed=!document.hidden&&(tab==='Inventory & Market'||tab==='Friends & Profiles'||cfg.weapon.enabled||
+     cfg.friends.length||cfg.inventory.some(x=>x.favorite));
+   if(needed&&!offRefresh&&!fallbackTimer){
+     if(window.__KS_GAME_RUNTIME__?.on)offRefresh=window.__KS_GAME_RUNTIME__.on('refresh',refresh);
+     else fallbackTimer=setInterval(refresh,1200);
+   }else if(!needed){offRefresh?.();offRefresh=null;clearInterval(fallbackTimer);fallbackTimer=null;}
+ }
+ document.addEventListener('visibilitychange',()=>syncWork(activeTab));
+ window.__KS_WORKSHOP__=Object.freeze({setPacks,render,action,refresh,syncWork,stopPlugin,stopPreview,cancelWatch:()=>{watchFriend=null;},recordJoin,normalizeWorkshop,reloadProfile:()=>{stopPlugin();mailbox.clear();cfg=read();refresh();syncWork(activeTab);},getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
   setStatus:message=>{status=trim(message,400);},getRoom:idx=>cfg.rooms[idx]||null});
  if(document.body){refresh();}else document.addEventListener('DOMContentLoaded',refresh,{once:true});
- loop();
+ syncWork(null);
 })();

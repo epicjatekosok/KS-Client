@@ -4,7 +4,7 @@ from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 import hashlib, json
 root=Path(__file__).resolve().parents[1]
-version='1.0.24'
+version='1.0.25'
 zipname=f'KS-Client-beta-{version}-Portable.zip'
 zipfile=root/zipname
 def verify_engine(name, exe_name):
@@ -14,7 +14,7 @@ def verify_engine(name, exe_name):
  if not exe.is_file() or not marker.is_file():raise SystemExit(f'{name}: missing smoke-test marker; refusing release')
  data=json.loads(marker.read_text(encoding='utf-8-sig'))
  digest=hashlib.sha256(exe.read_bytes()).hexdigest()
- if not (data.get('version')=='1.0.24' and data.get('engine')==name and data.get('exeName')==exe_name and data.get('runner')=='windows' and data.get('result')=='PASS' and data.get('exeSha256')==digest):
+ if not (data.get('version')=='1.0.25' and data.get('engine')==name and data.get('exeName')==exe_name and data.get('runner')=='windows' and data.get('result')=='PASS' and data.get('exeSha256')==digest):
   raise SystemExit(f'{name}: test marker does not match executable')
  return folder
 verify_engine('Electron','electron.exe')
@@ -22,13 +22,13 @@ required=[
  'runtime/Electron/ks-smoke-pass.json','runtime/Electron/resources/app/overlay/frame_pacer.js','runtime/Electron/resources/app/overlay/overlay.js','runtime/Electron/resources/app/overlay/game_extras.js',
  'KS-Client.exe','Uninstall-KS-Client.exe',
  'runtime/Electron/electron.exe','runtime/Electron/resources/app/main.cjs','runtime/Electron/resources/app/game-resolution.cjs',
- 'runtime/Electron/resources/app/assets/loading.html','runtime/Electron/resources/app/assets/ks-logo.png','runtime/Electron/resources/app/overlay/native_login_gate.js','runtime/Electron/resources/app/overlay/workshop.js','runtime/Electron/resources/app/overlay/integration_core.js','runtime/Electron/resources/app/overlay/game_runtime.js','runtime/Electron/resources/app/overlay/render_telemetry.js','runtime/Electron/resources/app/overlay/integration_bootstrap.js','runtime/Electron/resources/app/overlay/webgl_cosmetics.js','runtime/Electron/resources/app/overlay/advanced_integration.js','runtime/Electron/resources/app/overlay/freeze_guard.js','runtime/Electron/resources/app/swapper.cjs',
+ 'runtime/Electron/resources/app/assets/loading.html','runtime/Electron/resources/app/assets/ks-logo.png','runtime/Electron/resources/app/overlay/native_login_gate.js','runtime/Electron/resources/app/overlay/workshop.js','runtime/Electron/resources/app/overlay/integration_core.js','runtime/Electron/resources/app/overlay/game_runtime.js','runtime/Electron/resources/app/overlay/render_telemetry.js','runtime/Electron/resources/app/overlay/integration_bootstrap.js','runtime/Electron/resources/app/overlay/webgl_cosmetics.js','runtime/Electron/resources/app/overlay/advanced_integration.js','runtime/Electron/resources/app/overlay/freeze_guard.js','runtime/Electron/resources/app/swapper.cjs','runtime/Electron/resources/app/resource-packs.cjs',
 ]
 for rel in required:
  p=root/rel
  if not p.is_file() or p.stat().st_size==0: raise SystemExit(f'Missing/empty build dependency: {rel}')
 with ZipFile(zipfile,'w',ZIP_DEFLATED,compresslevel=6,allowZip64=True) as z:
- for rel in ['KS-Client.exe','Uninstall-KS-Client.exe','README_EN.md','LICENSE']:
+ for rel in ['KS-Client.exe','Uninstall-KS-Client.exe','README_EN.md','LICENSE','tools/Measure-KSClient.ps1','tools/analyze_presentmon.py','WORKSHOP_125.md']:
   z.write(root/rel,rel)
  for file in sorted((root/'runtime'/'Electron').rglob('*')):
   if file.is_file(): z.write(file,file.relative_to(root).as_posix())

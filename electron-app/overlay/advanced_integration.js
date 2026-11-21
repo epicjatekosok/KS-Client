@@ -66,27 +66,44 @@ function profileSnapshot(){
  const panel=document.querySelector('.profile-cont,.card-profile,.profile-page');
  if(!shown(panel))return null;
  return {nickname:trim(panel.querySelector('.nickname,.username,.player-name')?.textContent,60)||null,
+  stats:[...panel.querySelectorAll('.stat,.stat-row')].filter(shown).slice(0,12).map(el=>trim(el.textContent,90)).filter(Boolean),
   visibleBadges:[...panel.querySelectorAll('[title],[aria-label]')].map(x=>trim(x.getAttribute('title')||x.getAttribute('aria-label'),50)).filter(Boolean).slice(0,12)};
+}
+function visibleLink(row){
+ for(const a of row?.querySelectorAll('a[href]')||[]){
+   try{const u=new URL(a.href);if(shown(a)&&u.origin===location.origin&&/^\/profile(?:\/|$)/.test(u.pathname))return u.pathname+u.search;}
+   catch{}
+ }
+ return null;
 }
 function friendsSnapshot(){
  const rows=document.querySelectorAll('.friends .nickname,.friends .username,.friends .player-name');
- const names=new Set();
- for(const row of rows){
-   if(shown(row)){const name=trim(row.textContent,60);if(name)names.add(name);}
-   if(names.size>=100)break;
+ const entries=[];
+ for(const label of rows){
+   if(!shown(label))continue;
+   const name=trim(label.textContent,60),row=label.closest('.friend,.friend-item,[data-friend-id],li');
+   if(!name)continue;
+   const id=trim(row?.querySelector('.friend-id')?.textContent,60);
+   const state=row?.classList.contains('is-online')||shown(row?.querySelector('.online'))?'online':
+     row?.classList.contains('is-offline')||shown(row?.querySelector('.offline'))?'offline':null;
+   entries.push({name,id,state,profile:visibleLink(row)});if(entries.length>=100)break;
  }
- return {names:[...names],source:'visible friends panel'};
+ return {names:entries.map(x=>x.name),entries,source:'visible friends panel'};
 }
 function inventorySnapshot(){
  const rows=[...document.querySelectorAll('.inventory .item-card,.inventory-item,.inventory .item')].slice(0,150);
- const unique=new Set(),items=[];
+ const items=[],entries=[];
  for(const row of rows){
   if(!shown(row))continue;
-  const name=trim(row.querySelector('.name,.item-name')?.textContent||row.querySelector('img')?.alt||row.getAttribute('title'),70);
-  if(!name||unique.has(name))continue;
-  unique.add(name);items.push(name);
+  const img=row.querySelector('img');
+  const name=trim(row.querySelector('.name,.item-name')?.textContent||img?.alt||row.getAttribute('title'),70);
+  if(!name)continue;
+  const src=img?.currentSrc||img?.src||'';
+  let image=null;try{const u=new URL(src);if(u.origin===location.origin&&u.pathname.startsWith('/assets/'))image=u.href;}catch{}
+  entries.push({name,image,type:trim(row.querySelector('.item-type,.rarity')?.textContent,40)});
+  if(!items.includes(name))items.push(name);
  }
- return {available:shown(document.querySelector('.inventory,.inventory-item')),visibleCount:items.length,items:items.slice(0,50),source:'visible inventory elements, not a market API'};
+ return {available:shown(document.querySelector('.inventory,.inventory-item')),visibleCount:items.length,items:items.slice(0,50),entries,source:'visible inventory elements, not a market API'};
 }
 function marketSnapshot(){
  const rows=[...document.querySelectorAll('.market .listing,.market .item-card,.marketplace .listing,.market-card')].slice(0,100);
@@ -95,7 +112,9 @@ function marketSnapshot(){
   if(!shown(row))continue;
   const item=trim(row.querySelector('.name,.item-name')?.textContent||row.querySelector('img')?.alt||row.getAttribute('title'),70);
   const price=trim(row.querySelector('.price,.item-price,.cost')?.textContent,55);
-  if(item&&price)listings.push({item,price,source:'visible market listing'});
+  const unitNode=row.querySelector('.price img,.item-price img,.cost img');
+  const unit=trim(unitNode?.alt||unitNode?.title,32);
+  if(item&&price)listings.push({item,price,unit,source:'visible market listing'});
  }
  return {available:shown(document.querySelector('.market,.marketplace,.market-card')),visibleCount:listings.length,listings:listings.slice(0,50),note:'Read-only visible listings; not a quote or account valuation'};
 }
@@ -188,7 +207,7 @@ function refresh(){
  if(current==='inventory')addInventoryCount();
 }
 function destroy(){clearInterval(timer);unsubscribeScene?.();for(const unsub of runtimeSubscriptions)unsub();runtimeSubscriptions=[];detachFeeds();listeners.clear();}
-window.__KS_DEEP__=Object.freeze({getSnapshot,getStatus:()=>({scene:scene(),lastError,lastJoin,joinMode,observers:observers.size}),join,on,refresh,destroy});
+window.__KS_DEEP__=Object.freeze({getSnapshot,inventorySnapshot,marketSnapshot,friendsSnapshot,profileSnapshot,getStatus:()=>({scene:scene(),lastError,lastJoin,joinMode,observers:observers.size}),join,on,refresh,destroy});
 // Prefer instant transitions from the shared integration core; keep a
 // lightweight timer because Kirka's SPA changes DOM without changing routes.
 if(window.__KS_GAME_RUNTIME__?.on){

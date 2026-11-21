@@ -14,6 +14,9 @@ const ALLOWED=Object.freeze({img:new Set(['.png','.jpg','.jpeg','.webp','.gif','
  ui:new Set(['.png','.jpg','.jpeg','.webp','.gif','.svg']),audio:new Set(['.mp3','.wav','.ogg']),
  fonts:new Set(['.woff','.woff2','.ttf','.otf']),
  media:new Set(['.mp3','.wav','.ogg']),css:new Set(['.css'])});
+const packTools=require('./resource-packs.cjs');
+let store=null;
+function packs(){return store??=packTools.createStore(path.join(ROOT,'resource-packs'));}
 let cachedEnabled=false,readAfter=0;
 const counts={served:0,unmatched:0,failed:0};
 function settings(){
@@ -32,6 +35,8 @@ function resolve(request){
   if(parts.length<3||parts[0]!=='assets'||!Object.hasOwn(ALLOWED,parts[1])||parts.some(x=>x==='.'||x==='..'||x.includes('\\')||x.includes('/')||x.includes('\0')))return null;
   const rel=parts.slice(1), ext=path.extname(rel[rel.length-1]).toLowerCase();
   if(!ALLOWED[parts[1]].has(ext))return null;
+  const packed=packs().resolve(rel.join('/'));
+  if(packed)return {file:packed,mime:TYPES[ext]};
   const root=path.resolve(FOLDER);
   let candidate=path.resolve(root,...rel);
   if(!candidate.startsWith(root+path.sep))return null;
@@ -74,7 +79,7 @@ function install(log=()=>{}){
   try{
    const bytes=await fs.promises.readFile(mapped.file);counts.served++;
    return new Response(bytes,{status:200,headers:{
-     'Content-Type':mapped.mime,'Access-Control-Allow-Origin':'https://kirka.io','Cache-Control':'no-store'
+     'Content-Type':mapped.mime,'Access-Control-Allow-Origin':'https://kirka.io','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox"
    }});
   }catch(e){counts.failed++;log('Local asset failed: '+e.message);return new Response('Not found',{status:404})}
  });
@@ -89,4 +94,4 @@ function install(log=()=>{}){
  });
  log('KS resource swapper ready; '+scan().count+' local files');
 }
-module.exports={install,folder,scan,setEnabled,registerSchemes,resolve};
+module.exports={packs,fromFolder:packTools.fromFolder,install,folder,scan,setEnabled,registerSchemes,resolve};
