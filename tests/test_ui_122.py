@@ -58,6 +58,24 @@ with sync_playwright() as p:
   assert categories['Gameplay']==['Game Integration','Lobby','Friends & Profiles']
   assert categories['Controls']==['Browser Controls']
   assert categories['Advanced']==['General','Updates','Sharing','Diagnostics']
+  page.locator('.ks-subtab[data-tab="Sharing"]').click()
+  assert page.locator('[data-setting="language"]').count()==0
+  page.locator('button[data-group="Interface"]').click()
+  page.locator('.ks-subtab[data-tab="Interface"]').click()
+  language=page.locator('select[data-setting="language"]')
+  for code,label in [('de','Einstellungen'),('hi','सेटिंग्स'),('bn','সেটিংস'),('id','Pengaturan'),('ko','설정'),('tr','Ayarlar')]:
+   language.evaluate("(select,code)=>{select.value=code;select.dispatchEvent(new Event('change',{bubbles:true}));}",code)
+   assert page.locator('#ks-brand-main').text_content()==label
+   assert page.locator('#ks-panel').get_attribute('lang')==code
+  page.locator('button[data-group="Graphics"]').click()
+  page.locator('.ks-subtab[data-tab="Performance"]').click()
+  assert 'yeniden başlat' in page.locator('#ks-unlimited-restart-note').text_content()
+  page.locator('button[data-group="Interface"]').click()
+  page.locator('.ks-subtab[data-tab="Interface"]').click()
+  language.evaluate("(select)=>{select.value='en';select.dispatchEvent(new Event('change',{bubbles:true}));}")
+  page.locator('button[data-group="Graphics"]').click()
+  page.locator('.ks-subtab[data-tab="Performance"]').click()
+  assert 'restart KS Client when you enable Unlimited FPS again' in page.locator('#ks-unlimited-restart-note').text_content()
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-discord-menu').click()""")
   assert page.evaluate("window.__out.some(m=>m.type==='discord-community')")
   page.evaluate("""() => window.__KS_CLIENT__.setCommunityStatus('KS Discord invite handed to Windows default browser.')""")

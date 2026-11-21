@@ -1,3 +1,7 @@
+# KS Client Beta 1.0.23
+
+[Display languages and FPS restart guidance](RELEASE_BETA_123_EN.md)
+
 # KS Client Beta 1.0.22
 
 [Graphics profiles, render resolution and crosshair](RELEASE_BETA_122_EN.md)
