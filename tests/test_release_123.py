@@ -1,4 +1,4 @@
-"""KS alpha 1.0.19 release regression: Discord IPC scope, visual controls and honest updater."""
+"""KS alpha 1.0.20 release regression: Discord IPC scope, visual controls and honest updater."""
 from pathlib import Path
 r=Path(__file__).resolve().parents[1]
 e=(r/'electron-app/main.cjs').read_text()
@@ -26,6 +26,6 @@ assert 'epicjatekosok/KS-Client-Updates' in up
 assert 'if response.StatusCode==404' in up
 assert 'digestPattern' in up and 'validUpdateAsset' in up
 assert 'KS_PUBLIC_RELEASE_TOKEN' in pub
-assert 'RELEASE_BETA_119_EN.md' in pub and "v1.0.19-beta" in pub
+assert 'RELEASE_BETA_120_EN.md' in pub and "v1.0.20-beta" in pub
 assert 'PUBLIC_UPDATES_SETUP_HU.md' in (r/'START_HERE_HU.md').read_text()
-print('PASS: 1.0.19 scope-safe native Discord, consistent controls, accessible animations and honest updater')
+print('PASS: 1.0.20 scope-safe native Discord, consistent controls, accessible animations and honest updater')
