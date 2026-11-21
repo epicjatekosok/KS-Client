@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.18 – Electron/CEF unified game overlay. */
+/* KS Client Beta 1.0.19 – Electron/CEF unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.18';
+  const CLIENT_VERSION='1.0.19';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -51,6 +51,7 @@
     protectUnlockedMenus: true,
     limitUnfocusedFPS: false,
     eyeEnabled: false, eyePreset: 'Normal', eyeBrightness: 100, eyeContrast: 100, eyeSaturation: 100, eyeWarmth: 0, eyeSoftness: 0,
+    comfortStillMenus:false, comfortReading:false,
     breakReminderMinutes: 0,
     lowLatency: false,
     performancePreset: 'Balanced',
@@ -141,7 +142,7 @@
     Performance: ['fpsLimit','smoothPreset','limitSettingsFPS','limitLobbyFPS','protectUnlockedMenus','limitUnfocusedFPS','showGraph','lowLatency','performancePreset','uiAnimations'],
     'Frame Stability': [],
     'Game Integration':['gameKeystrokes','gameStats','gameKeysPosition','gameKeysScale','gameAutoMouseCapture','gameQuickJoin','gameListFilters','gameScreenshotKey'],
-    'Eye Comfort': ['eyeEnabled','eyePreset','eyeBrightness','eyeContrast','eyeSaturation','eyeWarmth','eyeSoftness','breakReminderMinutes'],
+    'Eye Comfort': ['eyeEnabled','eyePreset','eyeBrightness','eyeContrast','eyeSaturation','eyeWarmth','eyeSoftness','comfortStillMenus','comfortReading','breakReminderMinutes'],
     Crosshair: [...crosshairFields,'previewBackground','customCrosshairPresets'],
     Appearance: ['themePreset','customAccent','customBackground','customPanel','customText','customMuted','themeSurface','themeGlow','themeRadius','themePattern','themeDensity','fontFamily','fontSize','uiAnimations'],
     Interface: ['showHUD','showBadge','reduceMotion','minimalHUD'],
@@ -424,6 +425,7 @@
     #ks-graph-fps,#ks-graph-ms { display:block;width:100%;height:145px;background:#060606;border:1px solid rgba(244,166,28,.23);border-radius:8px;margin:10px 0 16px; }
     .ks-section-heading { margin-top:18px;font-size:12px;letter-spacing:1.4px;color:var(--ks-accent, #f0aa35);font-weight:800;text-transform:uppercase; }
     #ks-screen.no-motion *, #ks-screen.no-motion *::before, #ks-screen.no-motion *::after { transition:none!important;animation:none!important; }
+    #ks-screen.comfort-reading #ks-panel :is(.ks-desc,.ks-hint,.ks-sub) {color:#f3f3f3!important;background-color:#181818!important;line-height:1.55!important;white-space:normal;overflow-wrap:anywhere;}
     #ks-screen.no-motion #ks-dimmer { backdrop-filter:none!important; }
     @media (max-width:600px) {.ks-metric-grid{grid-template-columns:1fr 1fr;} }
     #ks-screen { --ks-accent:#f0aa35; --ks-font-scale:1.1; --ks-font-family:'Segoe UI', Arial, sans-serif; }
@@ -1834,6 +1836,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.19',en:['Reduced per-frame and HUD overhead. Added a 90 FPS smoothness profile and reading and motion options.'],hu:['Kevesebb képkockánkénti munka, 90 FPS-es profil, olvasást és mozgáscsökkentést segítő beállítások.']},
     {v:'Beta 1.0.18',en:['Pace fixed game-loop targets independently of monitor Hz. Reduced Settings and lobby rendering work and removed the independent FPS sampling loop.'],hu:['A fix játékciklus-célérték független a monitor Hz-étől. A menük és az FPS-mérő kevesebb képkockát kérnek.']},
     {v:'Beta 1.0.17',en:['Search the native Friends and Servers lists. Hide locked rooms or enable F2 screenshots in Game Integration.'],hu:['Keresés a játék saját barát- és szobalistájában. A zárolt szobák szűrése és az F2-es képernyőmentés is elérhető.']},
     {v:'Beta 1.0.16',en:['Transfer Workshop profiles and media between engines. Inspect observed asset paths, friends and listings. CEF screenshots capture the game surface.'],hu:['A Workshop-profil és a médiafájlok átvihetők a motorok között. Megnézhetők az észlelt fájlok, barátok és hirdetések. A CEF a játék felületéről ment képet.']},
@@ -2075,7 +2078,7 @@
           `<p class="ks-hint">${state.language==='hu'?'Fix célértéknél a játék főszálas animációi a monitor frissítésétől függetlenül futnak. A képernyő frissítését és a GPU-fogyasztást külön mérd.':'Fixed targets pace the main-thread game loop independently of monitor Hz. Display refresh and GPU power are separate measurements.'}</p>`+
           (browserActive.uncapFps && state.fpsLimit>0 ? `<p class="ks-hint">${state.language==='hu'?'A korlátlan Chromium-kapcsolók még aktívak. Indítsd újra a klienst a fix mód normál kompozitor-időzítéséhez.':'Restart once to remove the active unlimited Chromium flags for this fixed target. Your Unlimited preference is remembered.'}</p>` : '') +
           selectRow('Smoothness profile','Choose a browser callback pacing target. It cannot guarantee the displayed GPU frame rate.','smoothPreset',[
-            {value:'Native',label:'Native / no extra cap'},{value:'Comfort',label:'Comfort – 120 FPS'},{value:'Balanced',label:'Balanced – 144 FPS'},{value:'Smooth',label:'High Smoothness – 165 FPS'}]) +
+            {value:'Native',label:'Native / no extra cap'},{value:'Steady90',label:'Steady – 90 FPS'},{value:'Comfort',label:'Comfort – 120 FPS'},{value:'Balanced',label:'Balanced – 144 FPS'},{value:'Smooth',label:'High Smoothness – 165 FPS'}]) +
           toggleRow('Low Latency Mode', 'Disables KS Client menu blur and animations. This reduces interface overhead only, not game network latency.', 'lowLatency') +
           toggleRow('UI Animations', 'Allow animations and blur in the KS Client interface.', 'uiAnimations') +
           toggleRow('Reduce rendering in Settings', 'Limit page animation callbacks to 30 per second while browsing Settings. This includes the Frame Stability tab.', 'limitSettingsFPS') +
@@ -2131,6 +2134,8 @@
       case 'Eye Comfort':
         return title('Eye Comfort', 'Frame pacing, gentle canvas color filters, optional break reminders and visual diagnostics.') +
           `<div class="ks-comfort-grid"><div class="ks-card"><h3 class="ks-section-heading">Color and Softness</h3>`+
+          toggleRow(state.language==='hu'?'Mozgás csökkentése a menükben':'Still menus',state.language==='hu'?'Kikapcsolja a KS és a támogatott játékmenük díszítő átmeneteit.':'Disable decorative transitions in KS and supported game menus.','comfortStillMenus')+
+          toggleRow(state.language==='hu'?'Olvashatóbb leírások':'Readable descriptions',state.language==='hu'?'Nagyobb sorköz és kontraszt a KS beállításainak magyarázatain.':'Increase line spacing and contrast for KS Settings descriptions.','comfortReading')+
           toggleRow('Enable comfort filters','Changes color and optional softness of the game canvas only.','eyeEnabled')+
           selectRow('Comfort preset','Optional canvas-only CSS filters; not true anti-aliasing and may lower performance.','eyePreset',[
             {value:'Normal',label:'Normal (no filter)'},{value:'Soft',label:'Soft'},{value:'Warm',label:'Warm'},{value:'Custom',label:'Custom settings'}])+
@@ -2725,7 +2730,7 @@
     Object.assign(state,options[preset],{eyePreset:preset});save();renderTab();apply();
   }
   function applySmoothPreset(preset) {
-    const target={Native:0,Comfort:120,Balanced:144,Smooth:165}[preset];
+    const target={Native:0,Steady90:90,Comfort:120,Balanced:144,Smooth:165}[preset];
     if(target===undefined)return;
     state.smoothPreset=preset;state.fpsLimit=target;save();
     window.__KS_FRAME_PACER__?.setLimit(target);
@@ -2780,7 +2785,8 @@
     $('ks-dimmer').style.backdropFilter='none';
     $('ks-dimmer').style.webkitBackdropFilter='none';
     $('ks-dimmer').style.background=state.limitSettingsFPS?'#08090b':'rgba(0,0,0,.92)';
-    $('ks-screen').classList.toggle('no-motion', !state.uiAnimations || state.lowLatency || state.reduceMotion);
+    $('ks-screen').classList.toggle('no-motion', !state.uiAnimations || state.lowLatency || state.reduceMotion || state.comfortStillMenus);
+    $('ks-screen').classList.toggle('comfort-reading',state.comfortReading);
     const scale = Math.max(1, Math.min(1.6, Number(state.uiScale)/100 || 1));
     $('ks-panel').style.setProperty('--ks-ui-scale', String(scale));
 
@@ -2965,9 +2971,13 @@
     // in CEF to isolate potential focus/mouse regressions. The setting and
     // local preview remain available, and Electron behavior is unchanged.
     const cefInputCompatibility=typeof window.CefSharp?.PostMessage==='function';
-    eyeStyle.textContent=isGamePage && state.eyeEnabled ?
+    const filters=isGamePage && state.eyeEnabled ?
       (cefInputCompatibility ? `canvas:not(#game){filter:${comfortFilterCSS()} !important;}`
         : `canvas{filter:${comfortFilterCSS()} !important;}`) : '';
+    const motion=isGamePage && state.comfortStillMenus
+      ? ':is(.interface,.servers,.friends,.inventory,.market) :is(button,.btn,.button,.item-card){animation:none!important;transition:none!important;scroll-behavior:auto!important}' : '';
+    const comfortCSS=filters+motion;
+    if(eyeStyle.textContent!==comfortCSS)eyeStyle.textContent=comfortCSS;
     updateComfortPreview();
     updateBreakReminderState();
     updateResourcesInUI();

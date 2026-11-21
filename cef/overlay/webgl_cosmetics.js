@@ -48,7 +48,12 @@ function loadImage(){
  img.onerror=()=>{diagnostic='Skin URL could not be loaded with CORS';};
  img.src=expected;
 }
-function reload(){read();loadImage();}
+function syncMatrix(record){
+ const {gl,matrix,origMatrix}=record;
+ if(cfg.enabled && gl.uniformMatrix4fv===origMatrix)gl.uniformMatrix4fv=matrix;
+ if(!cfg.enabled && gl.uniformMatrix4fv===matrix)gl.uniformMatrix4fv=origMatrix;
+}
+function reload(){read();loadImage();for(const record of records)syncMatrix(record);}
 reload();
 let fallbackOriginal=null, fallbackWrapped=null, unsubscribe=null, hookup='not-installed';
 function install(gl,canvas){
@@ -80,12 +85,14 @@ function install(gl,canvas){
    if(data&&data.length>=16){
      try{
        const base=Number.isInteger(offset)?offset:0;
-       const m=Array.prototype.slice.call(data,base,base+16);
-       if(m.length===16&&!transpose){
-         if(scanCount++%80===0&&candidates.size<45){
-           const fp=fingerprint(m);candidates.set(fp,(candidates.get(fp)||0)+1);
+       const sample=scanCount++%80===0 && candidates.size<45;
+       if(data.length>=base+16 && !transpose && (sample||cfg.matrixSignature)){
+         const m=Array.prototype.slice.call(data,base,base+16);
+         const fp=fingerprint(m);
+         if(sample){
+           candidates.set(fp,(candidates.get(fp)||0)+1);
          }
-         if(cfg.enabled&&cfg.matrixSignature&&fingerprint(m)===cfg.matrixSignature){
+         if(cfg.enabled&&cfg.matrixSignature&&fp===cfg.matrixSignature){
            const copy=new Float32Array(m),scale=cfg.scale/100;
            for(const j of [0,1,2,4,5,6,8,9,10])copy[j]*=scale;
            copy[12]+=cfg.offsetX;copy[13]+=cfg.offsetY;copy[14]+=cfg.offsetZ;
@@ -99,8 +106,8 @@ function install(gl,canvas){
  }
  try{
   gl.texImage2D=tex;
-  gl.uniformMatrix4fv=matrix;
-  records.add({gl,origTex:rawTex,origMatrix:rawMatrix,tex,matrix});
+  const record={gl,origTex:rawTex,origMatrix:rawMatrix,tex,matrix};
+  records.add(record);syncMatrix(record);
  }catch(e){diagnostic='Read-only WebGL context; hook refused: '+String(e.message).slice(0,100)}
  canvas.addEventListener('webglcontextlost',()=>{replacement=null;diagnostic='Context lost, awaiting recovery'},{passive:true});
  canvas.addEventListener('webglcontextrestored',()=>reload(),{passive:true});
