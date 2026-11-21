@@ -41,7 +41,7 @@ func TestPublicAssetPinning(t *testing.T){
 func TestUpdateChannels(t *testing.T){
  releases:=[]updateRelease{
   {Tag:"v1.1.24-alpha",Prerelease:true,Assets:[]updateAsset{makeAsset("v1.1.24-alpha")}},
-  {Tag:"v1.0.25-beta",Prerelease:true,Assets:[]updateAsset{makeAsset("v1.0.25-beta")}},
+  {Tag:"v1.0.26-beta",Prerelease:true,Assets:[]updateAsset{makeAsset("v1.0.26-beta")}},
   {Tag:"v1.0.0",Prerelease:false,Assets:[]updateAsset{makeAsset("v1.0.0")}},
  }
  for _,channel:=range []string{"alpha","beta","stable"}{
@@ -49,19 +49,19 @@ func TestUpdateChannels(t *testing.T){
   if !ok||choice.release.Tag!="v1.0.0"{t.Fatalf("%s channel must prefer verified stable: %+v",channel,choice)}
  }
  choice,ok:=chooseUpdate(releases[:2],"alpha")
- if !ok||choice.release.Tag!="v1.0.25-beta"{t.Fatal("alpha channel should include promoted beta")}
+ if !ok||choice.release.Tag!="v1.0.26-beta"{t.Fatal("alpha channel should include promoted beta")}
  choice,ok=chooseUpdate(releases[:2],"beta")
- if !ok||choice.release.Tag!="v1.0.25-beta"{t.Fatal("beta channel should prefer beta, excluding old alpha")}
+ if !ok||choice.release.Tag!="v1.0.26-beta"{t.Fatal("beta channel should prefer beta, excluding old alpha")}
  if _,ok=chooseUpdate(releases[:2],"stable");ok{t.Fatal("stable channel accepted beta/alpha")}
  if _,ok=chooseUpdate(releases[:1],"beta");ok{t.Fatal("beta channel accepted legacy alpha bridge")}
 }
 func TestNoCurrentVersionOffered(t *testing.T){
- current:=makeAsset("v1.0.24-beta")
- if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.0.24-beta",Prerelease:true,Assets:[]updateAsset{current}}},"beta");ok{
+ current:=makeAsset("v1.0.25-beta")
+ if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.0.25-beta",Prerelease:true,Assets:[]updateAsset{current}}},"beta");ok{
   t.Fatal("updater must not offer the already installed beta")
  }
 }
 func TestNoUnverifiedDownloads(t *testing.T){
- a:=makeAsset("v1.0.25-beta");a.State="not_uploaded"
- if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.0.25-beta",Prerelease:true,Assets:[]updateAsset{a}}},"beta");ok {t.Fatal("unverified asset offered")}
+ a:=makeAsset("v1.0.26-beta");a.State="not_uploaded"
+ if _,ok:=chooseUpdate([]updateRelease{{Tag:"v1.0.26-beta",Prerelease:true,Assets:[]updateAsset{a}}},"beta");ok {t.Fatal("unverified asset offered")}
 }

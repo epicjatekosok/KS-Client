@@ -45,7 +45,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
-      - name: Cross-compile 1.0.24 Windows launcher and updater
+      - name: Cross-compile 1.0.25 Windows launcher and updater
         shell: bash
         run: |
           cd launcher
@@ -68,6 +68,7 @@ jobs:
           node --check electron-app/overlay/advanced_integration.js
           node --check electron-app/overlay/freeze_guard.js
           node --check electron-app/swapper.cjs
+          node tests/test_packs_125.cjs
           python ci/check_source.py
           python tests/test_ci_release_gates.py
           python tests/test_release_117.py
@@ -81,8 +82,8 @@ jobs:
       - name: Verify clean private source snapshot (no Git history or keys)
         shell: pwsh
         run: |
-          ./ci/Package-Source.ps1 -Version '1.0.24'
-          if(-not (Test-Path 'KS-Client-beta-1.0.24-Source.zip')){throw 'Private source snapshot missing'}
+          ./ci/Package-Source.ps1 -Version '1.0.25'
+          if(-not (Test-Path 'KS-Client-beta-1.0.25-Source.zip')){throw 'Private source snapshot missing'}
       - name: Automated browser UI test
         run: |
           python -m pip install playwright
@@ -90,6 +91,7 @@ jobs:
           python tests/test_overlay_112.py
           python tests/test_profile_116.py
           python tests/test_native_lists_117.py
+          python tests/test_workshop_125.py
           python tests/test_menu_pacing_118.py
           python tests/test_game_integration_112.py
           python tests/test_advanced_114.py
