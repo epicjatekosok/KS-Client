@@ -2,8 +2,8 @@ from pathlib import Path
 from zipfile import ZipFile
 import hashlib,json
 root=Path(__file__).resolve().parents[1]
-zip_path=root/'KS-Client-beta-1.0.25-Portable.zip'
-setup=root/'KS-Client-beta-1.0.25-Setup.exe'
+zip_path=root/'KS-Client-beta-1.0.26-Portable.zip'
+setup=root/'KS-Client-beta-1.0.26-Setup.exe'
 assert zip_path.is_file() and setup.is_file()
 assert setup.stat().st_size > zip_path.stat().st_size, 'setup missing embedded package'
 with ZipFile(zip_path) as z:
@@ -11,9 +11,9 @@ with ZipFile(zip_path) as z:
  assert not any(n.lower().startswith('runtime/cef/') or n.lower().endswith(('libcef.dll','cefsharp.dll')) for n in z.namelist()), 'Unexpected CEF runtime'
  engine,exe='Electron','electron.exe'
  marker=json.loads(z.read(f'runtime/{engine}/ks-smoke-pass.json').decode('utf-8-sig'))
- assert marker['version']=='1.0.25' and marker['result']=='PASS'
+ assert marker['version']=='1.0.26' and marker['result']=='PASS'
  assert marker['exeSha256']==hashlib.sha256(z.read(f'runtime/{engine}/{exe}')).hexdigest()
- for name in ('KS-Client.exe','Uninstall-KS-Client.exe','runtime/Electron/electron.exe','runtime/Electron/resources/app/main.cjs','runtime/Electron/resources/app/game-resolution.cjs','runtime/Electron/resources/app/assets/loading.html','runtime/Electron/resources/app/assets/ks-logo.png','runtime/Electron/resources/app/overlay/native_login_gate.js','runtime/Electron/resources/app/overlay/workshop.js','runtime/Electron/resources/app/overlay/integration_core.js','runtime/Electron/resources/app/overlay/game_runtime.js','runtime/Electron/resources/app/overlay/render_telemetry.js','runtime/Electron/resources/app/overlay/integration_bootstrap.js','runtime/Electron/resources/app/overlay/webgl_cosmetics.js','runtime/Electron/resources/app/overlay/advanced_integration.js','runtime/Electron/resources/app/overlay/freeze_guard.js','runtime/Electron/resources/app/swapper.cjs','runtime/Electron/resources/app/resource-packs.cjs'):
+ for name in ('KS-Client.exe','Uninstall-KS-Client.exe','runtime/Electron/electron.exe','runtime/Electron/resources/app/main.cjs','runtime/Electron/resources/app/game-resolution.cjs','runtime/Electron/resources/app/assets/loading.html','runtime/Electron/resources/app/assets/ks-logo.png','runtime/Electron/resources/app/overlay/native_login_gate.js','runtime/Electron/resources/app/overlay/workshop.js','runtime/Electron/resources/app/overlay/integration_core.js','runtime/Electron/resources/app/overlay/game_runtime.js','runtime/Electron/resources/app/overlay/render_telemetry.js','runtime/Electron/resources/app/overlay/integration_bootstrap.js','runtime/Electron/resources/app/overlay/webgl_cosmetics.js','runtime/Electron/resources/app/overlay/advanced_integration.js','runtime/Electron/resources/app/overlay/freeze_guard.js','runtime/Electron/resources/app/swapper.cjs','runtime/Electron/resources/app/kirka-stats.cjs','runtime/Electron/resources/app/overlay/kirka_stats.js','runtime/Electron/resources/app/resource-packs.cjs'):
   assert name in z.namelist(),f'missing {name}'
  for catalog in (root/'electron-app/locales').glob('*.json'):
   name=f'runtime/Electron/resources/app/locales/{catalog.name}'

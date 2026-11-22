@@ -1,12 +1,12 @@
 'use strict';
-// KS Client Beta 1.0.25: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.26: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {execFile,spawn}=require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const APP_VERSION = 'Beta 1.0.25';
+const APP_VERSION = 'Beta 1.0.26';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.25.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.26.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -31,6 +31,8 @@ const overlayJS = 'window.__KS_LOCALES__=' + JSON.stringify(bundledLocales) + ';
 const nativeLoginGateJS = fs.readFileSync(path.join(__dirname,'overlay','native_login_gate.js'),'utf8');
 const frameJS = fs.readFileSync(path.join(__dirname,'overlay','frame_pacer.js'),'utf8');
 const extrasJS = fs.readFileSync(path.join(__dirname,'overlay','game_extras.js'),'utf8');
+const statsService=require('./kirka-stats.cjs').createService();
+const statsJS=fs.readFileSync(path.join(__dirname,'overlay','kirka_stats.js'),'utf8');
 const workshopJS=fs.readFileSync(path.join(__dirname,'overlay','workshop.js'),'utf8');
 const integrationBootJS=fs.readFileSync(path.join(__dirname,'overlay','integration_bootstrap.js'),'utf8');
 const integrationCoreJS=fs.readFileSync(path.join(__dirname,'overlay','integration_core.js'),'utf8');
@@ -122,7 +124,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.25').slice(0,40),
+      current:String(payload.current||'1.0.26').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -314,7 +316,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.25 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.26 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
@@ -338,6 +340,7 @@ function createWindow(){
       await win.webContents.executeJavaScript(overlayJS,true);
       await win.webContents.executeJavaScript(extrasJS,true);
       await win.webContents.executeJavaScript(workshopJS,true);
+      if(validURL(win.webContents.getURL(),true))await win.webContents.executeJavaScript(statsJS,true);
       await win.webContents.executeJavaScript(integrationCoreJS,true);
       await win.webContents.executeJavaScript(graphicsJS,true);
       await win.webContents.executeJavaScript(advancedJS,true);
@@ -463,7 +466,10 @@ function receiveMessage(event, raw){
   const basic=new Set(['stats','clan','game','fullscreen','crash-status','diagnostics-poll','update-check','update-install','update-open-release','discord-community','auth-help']);
   if(!validURL(source,true)&&!basic.has(raw.type))return;
   switch(raw.type){
-    case 'stats':navigate(STATS);break;
+    case 'stats':
+      if(validURL(source,true))runJS('window.__KS_KIRKA_STATS__?.open()');
+      else {win.webContents.once('did-finish-load',()=>runJS('window.__KS_KIRKA_STATS__?.open()'));navigate(GAME);}
+      break;
     case 'clan':navigate(CLANS);break;
     case 'game':navigate(GAME);break;
     case 'update-open-release':void shell.openExternal('https://github.com/epicjatekosok/KS-Client-Updates/releases').catch(e=>log('Public release page: '+e.message));break;
@@ -597,6 +603,12 @@ function receiveMessage(event, raw){
   }
 }
 // A malformed or racing page event must never crash Electron's main thread.
+ipcMain.handle('ks:public-stats',async(event,kind,arg)=>{
+  if(!win || event.sender!==win.webContents || event.senderFrame!==win.webContents.mainFrame ||
+      !['https://kirka.io','https://www.kirka.io'].includes(new URL(event.senderFrame.url).origin) ||
+      typeof kind!=='string' || kind.length>20 || typeof arg!=='string' || arg.length>80)throw Error('Invalid request');
+  return statsService.get(kind,arg);
+});
 ipcMain.on('ks:message',(event,raw)=>{
   try{receiveMessage(event,raw);}
   catch(error){
