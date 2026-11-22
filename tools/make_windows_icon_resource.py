@@ -17,8 +17,9 @@ file_version=f'{major}.{minor}.{patch}.0'
 targetName={'launcher':'KS-Client.exe','installer':f'KS-Client-beta-{major}.{minor}.{patch}-Setup.exe','uninstaller':'Uninstall-KS-Client.exe','engine-setup':'KS-Engine-Setup.exe'}[variant]
 desc={'launcher':'KS Client Launcher','installer':'KS Client Setup','uninstaller':'KS Client Uninstaller','engine-setup':'KS Client Browser Engine Setup'}[variant]
 image=Image.open(root/'resources'/'ks-logo.png').convert('RGBA')
-image.save(root/'resources'/'ks-logo.ico', format='ICO', sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
-ico=(root/'resources'/'ks-logo.ico').read_bytes()
+icon_buffer = io.BytesIO()
+image.save(icon_buffer, format='ICO', sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
+ico = icon_buffer.getvalue()
 reserved,typ,count=struct.unpack_from('<HHH',ico)
 assert reserved==0 and typ==1 and count>0
 icons=[]; groups=[]
