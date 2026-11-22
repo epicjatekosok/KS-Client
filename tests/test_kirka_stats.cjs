@@ -1,0 +1,23 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {readRoute,createService,market,rooms,inventory}=require('../electron-app/kirka-stats.cjs');
+const html=',u:100,s:"success",l:$R[1]={initial:$R[2]={results:$R[3]=[$R[4]={name:"A\\x3CB",scores:3},$R[4]],remainingTime:10}}';
+assert.equal(readRoute(html).data.results[1].name,'A<B');
+assert.throws(()=>readRoute(html.replace('$R[4]={','evil({')));
+const prices=market([{itemName:'Ice',type:'AR-9',average:16},{itemName:'Ice',type:'LAR',average:20}],[{itemName:'Ice',type:'AR-9',history:[10,0,15]}]);
+assert.equal(prices[0].trend,50);
+assert.equal(inventory([{item:{name:'Ice',parent:{name:'AR9'}},amount:2}],prices)[0].average,16);
+assert.equal(inventory([{item:{name:'Ice'},amount:2}],prices)[0].average,null);
+assert.equal(rooms([{name:'LobbyRoom'},{name:'DM',clients:0,metadata:{},roomId:'R1'}])[0].count,0);
+assert.throws(()=>rooms([{name:'DM'}]));
+(async()=>{
+ let time=0,calls=0;
+ const s=createService(async()=>{if(++calls>1)throw Error();return html;},()=>time);
+ const [a,b]=await Promise.all([s.get('clans'),s.get('clans')]);assert.equal(calls,1);assert.deepEqual(a,b);
+ time=31000;assert.equal((await s.get('clans')).stale,true);assert.equal(calls,2);
+ await assert.rejects(s.get('clan','..'));await assert.rejects(s.get('invalid'));await assert.rejects(s.get('player','../abc'));
+ const pop=createService(async url=>{if(url.includes('playerCount'))return '[{"timestamp":"2026-11-21T12:00:00Z","eu":23}]';
+   if(url.includes('//eu.'))return '[{"name":"DM","clients":4,"metadata":{},"roomId":"room"}]';throw Error();});
+ const {data}=await pop.get('servers');assert.equal(data.regions[0].rooms[0].count,4);assert.equal(data.regions[1].rooms,null);assert.deepEqual(data.sample,[23,null,null,null,null,null]);
+ console.log('PASS public route reader, independent market variants, room counts, cache, stale fallback and query boundaries');
+})().catch(e=>{console.error(e);process.exitCode=1;});
