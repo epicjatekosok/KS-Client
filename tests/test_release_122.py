@@ -1,4 +1,4 @@
-"""KS alpha 1.0.25 menu/Discord/CEF frame race source contracts."""
+"""KS alpha 1.0.26 menu/Discord/CEF frame race source contracts."""
 from pathlib import Path
 r=Path(__file__).resolve().parents[1]
 a=(r/'electron-app/overlay/overlay.js').read_text()
@@ -12,6 +12,6 @@ el=(r/'electron-app/main.cjs').read_text()
 assert "shell.openExternal('https://discord.gg/cxP386yGjk')" in el
 assert "win.webContents.setWindowOpenHandler(" not in el and "guardMainNavigation" not in el, 'Game uses native Electron window/navigation'
 for f in ('launcher/main_windows.go','installer/main_windows.go','electron-app/main.cjs','ci/Publish-Release.ps1'):
- assert '1.0.25' in (r/f).read_text(),f
-assert 'RELEASE_BETA_125_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
-print('PASS 1.0.25 dashboard, immutable native Discord invite, disposed CEF IFrame protection')
+ assert '1.0.26' in (r/f).read_text(),f
+assert 'RELEASE_BETA_126_EN.md' in (r/'ci/Publish-Release.ps1').read_text()
+print('PASS 1.0.26 dashboard, immutable native Discord invite, disposed CEF IFrame protection')

@@ -10,13 +10,13 @@ def add(path,content=b'test'):
  path.write_bytes(content)
 def mark(folder,engine,filename):
  blob=(folder/filename).read_bytes()
- value={'version':'1.0.25','engine':engine,'exeName':filename,
+ value={'version':'1.0.26','engine':engine,'exeName':filename,
         'exeSha256':sha256(blob).hexdigest(),'runner':'windows','result':'PASS'}
  add(folder/'ks-smoke-pass.json',json.dumps(value).encode('utf8'))
 with TemporaryDirectory() as temp:
  root=Path(temp)
  add(root/'ci/package_offline.py',original.read_bytes())
- for rel in ('KS-Client.exe','Uninstall-KS-Client.exe','README_EN.md','LICENSE','WORKSHOP_125.md','tools/Measure-KSClient.ps1','tools/analyze_presentmon.py','runtime/Electron/resources/app/resource-packs.cjs',
+ for rel in ('KS-Client.exe','Uninstall-KS-Client.exe','README_EN.md','LICENSE','WORKSHOP_125.md','tools/Measure-KSClient.ps1','tools/analyze_presentmon.py','runtime/Electron/resources/app/kirka-stats.cjs','runtime/Electron/resources/app/overlay/kirka_stats.js','runtime/Electron/resources/app/resource-packs.cjs',
              'runtime/Electron/electron.exe','runtime/Electron/resources/app/main.cjs',
              'runtime/Electron/resources/app/preload.cjs','runtime/Electron/resources/app/game-resolution.cjs',
              'runtime/Electron/resources/app/assets/loading.html',
@@ -44,5 +44,5 @@ with TemporaryDirectory() as temp:
  mark(root/'runtime/Electron','Electron','electron.exe')
  ok=run()
  assert ok.returncode==0,(ok.stdout,ok.stderr)
- assert (root/'KS-Client-beta-1.0.25-Portable.zip').is_file()
+ assert (root/'KS-Client-beta-1.0.26-Portable.zip').is_file()
  print('PASS: release requires a matching Electron Windows smoke marker')
