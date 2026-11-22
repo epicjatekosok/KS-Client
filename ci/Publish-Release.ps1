@@ -1,6 +1,4 @@
-# Publish the two independent Windows downloads after every required build gate
-# passes. Publishing to GitHub Releases is more accessible than a nested Actions
-# artifact; it does not bypass Chrome Safe Browsing or SmartScreen.
+# Publish the Windows downloads, source snapshot and checksums after all build gates pass.
 [CmdletBinding()]
 param()
 $ErrorActionPreference='Stop'
@@ -11,18 +9,16 @@ if($env:GITHUB_REF -ne 'refs/heads/main'){
 if(-not $env:GH_TOKEN){throw 'GITHUB_TOKEN is required to publish verified binaries'}
 $repo=$env:GITHUB_REPOSITORY
 if(-not $repo){throw 'GitHub repository not provided'}
-# Never replace the already-published, SHA256-verified Beta 1.0.9/R2 and 1.0.10 files.
-# Beta 1.0.26 is separate: 1.0.9, 1.0.10 and 1.0.11 remain immutable, and an old client can
-# discover and download it through the existing verified public updater.
-$tag='v1.0.26-beta'
-# Keep a verified source-snapshot in PRIVATE releases only.
-# Never expose the source archive through the public updates channel.
-# Only current tracked contents are archived, never .git history or local secrets.
-& ./ci/Package-Source.ps1 -Version '1.0.26'
+# The Windows build has already run inside the verified Source ZIP's files.
+# Validate the exact archive and rebuild inputs again before release credentials
+# are used. A different checkout, archive, checksum or input fails closed.
+$tag='v1.0.27-beta'
+& python ci/source_snapshot.py verify --repository $env:GITHUB_WORKSPACE --commit $env:GITHUB_SHA --version '1.0.27' --output . --rebuild-directory .
+if($LASTEXITCODE -ne 0){throw 'Source provenance verification failed'}
 $paths=@(
-  'KS-Client-beta-1.0.26-Portable.zip',
-  'KS-Client-beta-1.0.26-Setup.exe',
-  'KS-Client-beta-1.0.26-Source.zip','KS-Client-beta-1.0.26-Source.sha256.txt',
+  'KS-Client-beta-1.0.27-Portable.zip',
+  'KS-Client-beta-1.0.27-Setup.exe',
+  'KS-Client-beta-1.0.27-Source.zip','KS-Client-beta-1.0.27-Source.sha256.txt',
   'SHA256SUMS.txt','RELEASE-MANIFEST.json',
   'CI-TEST-RESULT.txt','SIGNING-STATUS.txt'
 )
@@ -30,20 +26,18 @@ foreach($path in $paths){if(-not (Test-Path $path -PathType Leaf)){throw "Cannot
 & gh release view $tag --repo $repo *> $null
 if($LASTEXITCODE -eq 0){
     # Preserve previously validated release binaries.
-    & gh release edit $tag --repo $repo --notes-file 'RELEASE_BETA_126_EN.md'
+    & gh release edit $tag --repo $repo --notes-file 'RELEASE_BETA_127_EN.md'
     if($LASTEXITCODE -ne 0){throw "Could not refresh $tag release notes"}
     Write-Host "Private release already exists; verified assets preserved."
 } else {
-    & gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client Beta 1.0.26 (Integrated KirkaStats)' --prerelease --notes-file 'RELEASE_BETA_126_EN.md'
+    & gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client Beta 1.0.27 (Audited source release)' --prerelease --notes-file 'RELEASE_BETA_127_EN.md'
     if($LASTEXITCODE -ne 0){throw "GitHub private release $tag publishing failed"}
 }
 Write-Host "Verified source release: https://github.com/$repo/releases/tag/$tag"
 
-# Public update channel (ZIP/EXE and integrity files ONLY). Do not expose the private repository's history
-# or embed a GitHub token in the Windows client. This requires the user to create
-# a separate PUBLIC epicjatekosok/KS-Client-Updates repository and configure a
-# fine-grained KS_PUBLIC_RELEASE_TOKEN with Contents read/write on that repo.
-$publicPaths=@($paths | Where-Object { $_ -notmatch '-Source\.(zip|sha256\.txt)$' })
+# Use explicit verified files. The public tag points to the public updates
+# repository, and the source ZIP contains only the checked release tree.
+$publicPaths=@($paths)
 if(-not $env:KS_PUBLIC_RELEASE_TOKEN){
     throw 'Beta releases require KS_PUBLIC_RELEASE_TOKEN and the public KS-Client-Updates repo; refusing to report an auto-update-ready build without them.'
 }
@@ -59,34 +53,26 @@ try{
         Write-Host "Public release $tag already exists; never overwrite verified downloadable assets."
     } else {
         # Public repo has its own main branch/commit, not the private source SHA.
-        & gh release create $tag @publicPaths --repo $publicRepo --target main --title 'KS Client Beta 1.0.26 (Windows binaries)' --prerelease --notes-file 'RELEASE_BETA_126_EN.md'
+        & gh release create $tag @publicPaths --repo $publicRepo --target main --title 'KS Client Beta 1.0.27 (Windows binaries)' --prerelease --notes-file 'RELEASE_BETA_127_EN.md'
         if($LASTEXITCODE -ne 0){throw "Could not publish verified update assets to $publicRepo"}
         Write-Host "Public auto-update feed: https://github.com/$publicRepo/releases/tag/$tag"
     }
-    # Do not claim an auto-update feed is ready until every required binary is
-    # present in a PUBLIC GitHub release and anonymous clients can read its API.
-    $publicAssets=@(& gh api "repos/$publicRepo/releases/tags/$tag" --jq '.assets[] | select(.state == "uploaded") | .name')
-    if($LASTEXITCODE -ne 0){throw "Public release metadata could not be queried"}
-    foreach($required in $publicPaths){
-        if($publicAssets -notcontains $required){throw "Public release missing uploaded asset: $required"}
-    }
-    if(@($publicAssets | Where-Object { $_ -match '-Source\.(zip|sha256\.txt)$' }).Count -gt 0){throw 'Public release contains forbidden source archive'}
     $anonHeaders=@{'User-Agent'='KS-Client-Public-Feed-Verification';'Accept'='application/vnd.github+json'}
     $anonymous=Invoke-RestMethod -Uri "https://api.github.com/repos/$publicRepo/releases/tags/$tag" -Method Get -Headers $anonHeaders -TimeoutSec 20
-    if($anonymous.tag_name -ne $tag){throw "Public GitHub API returned a different release"}
-    $setupName='KS-Client-beta-1.0.26-Setup.exe'
-    $assets=@($anonymous.assets | Where-Object { $_.name -eq $setupName -and $_.state -eq 'uploaded' })
-    if($assets.Count -ne 1 -or $assets[0].digest -notmatch '^sha256:[0-9a-f]{64}$'){
-        throw "Anonymous API missing a fully uploaded, SHA256-digested Setup.exe"
+    if($anonymous.tag_name -ne $tag -or $anonymous.draft){throw "Public GitHub API returned a different or draft release"}
+    foreach($required in $publicPaths){
+        $assets=@($anonymous.assets | Where-Object { $_.name -eq $required -and $_.state -eq 'uploaded' })
+        if($assets.Count -ne 1){throw "Public release missing uploaded asset: $required"}
+        $sha=(Get-FileHash -Algorithm SHA256 -LiteralPath $required).Hash.ToLowerInvariant()
+        if($assets[0].digest -ne ('sha256:'+$sha) -or $assets[0].size -ne (Get-Item -LiteralPath $required).Length){
+            throw "Published asset differs from the verified CI build: $required"
+        }
+        if($required -match '(Setup\.exe|-Source\.zip)$'){
+            $headers=Invoke-WebRequest -Method Head -Uri $assets[0].browser_download_url -TimeoutSec 60
+            if($headers.StatusCode -ne 200){throw "Anonymous download check failed: $required"}
+        }
+        Write-Host "PASS: public $required verified. SHA256: $sha"
     }
-    $publicSetup=$assets[0]
-    $localSHA=(Get-FileHash -Algorithm SHA256 -LiteralPath $setupName).Hash.ToLowerInvariant()
-    if($publicSetup.digest -ne ('sha256:'+$localSHA) -or $publicSetup.size -ne (Get-Item $setupName).Length){
-        throw 'Published Setup.exe differs from the verified CI build'
-    }
-    $headers=Invoke-WebRequest -Method Head -Uri $publicSetup.browser_download_url -TimeoutSec 60
-    if($headers.StatusCode -ne 200){throw 'Anonymous Setup.exe download check failed'}
-    Write-Host "PASS: anonymous Setup.exe download verified. SHA256: $localSHA"
 
     # Recreate the missing Alpha bridge from the historical public Beta 1.0.0
     # installer only. Pin its release digest and never replace existing assets.

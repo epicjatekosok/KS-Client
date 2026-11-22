@@ -13,6 +13,9 @@ on:
       - 'ci/**'
       - 'tests/**'
       - '.github/workflows/windows-build.yml'
+      - 'LICENSE'
+      - '*.md'
+      - 'resources/**'
   push:
     branches: [main]
     paths:
@@ -25,6 +28,9 @@ on:
       - 'ci/**'
       - 'tests/**'
       - '.github/workflows/windows-build.yml'
+      - 'LICENSE'
+      - '*.md'
+      - 'resources/**'
 
 permissions:
   contents: read
@@ -36,6 +42,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -45,7 +53,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
-      - name: Cross-compile 1.0.26 Windows launcher and updater
+      - name: Cross-compile 1.0.27 Windows launcher and updater
         shell: bash
         run: |
           cd launcher
@@ -81,11 +89,8 @@ jobs:
           python tests/test_release_123.py
           python tests/test_beta_100.py
           python tests/test_release_120.py
-      - name: Verify clean private source snapshot (no Git history or keys)
-        shell: pwsh
-        run: |
-          ./ci/Package-Source.ps1 -Version '1.0.26'
-          if(-not (Test-Path 'KS-Client-beta-1.0.26-Source.zip')){throw 'Private source snapshot missing'}
+      - name: Test source archive verification
+        run: python tests/test_public_source_103.py
       - name: Automated browser UI test
         run: |
           python -m pip install playwright
@@ -114,7 +119,6 @@ jobs:
           python tests/test_updates_103.py
           python tests/test_updates_107.py
           python tests/test_standalone_110.py
-          python tests/test_public_source_103.py
           python tests/test_english_104.py
           node tests/test_discord_123.cjs
           node tests/test_auth_106.cjs
@@ -130,15 +134,28 @@ jobs:
     permissions:
       contents: write
     runs-on: windows-2022
+    defaults:
+      run:
+        working-directory: _verified_source
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Audit the committed source archive and extract the Windows build inputs
+        working-directory: .
+        shell: pwsh
+        run: |
+          $archiveStore = Join-Path $env:RUNNER_TEMP 'ks-reviewed-source'
+          $rebuild = Join-Path $env:GITHUB_WORKSPACE '_verified_source'
+          ./ci/Package-Source.ps1 -OutputDirectory $archiveStore -RebuildDirectory $rebuild
+          Copy-Item (Join-Path $archiveStore '*') -Destination $rebuild
       - name: Install icon resource generator dependency
         run: python -m pip install pillow
       - name: Fetch official Electron and verify its SHA256
@@ -160,7 +177,7 @@ jobs:
           KS_SIGNING_PFX_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.KS_SIGNING_PFX_PASSWORD || '' }}
         run: ./ci/Sign-Release.ps1 -Stage native
       - name: Validate launcher switch-token and updater version selection
-        working-directory: launcher
+        working-directory: _verified_source/launcher
         run: go test -timeout 5m -v .
       - name: Check native update command and JSON response
         shell: pwsh
@@ -174,7 +191,7 @@ jobs:
       - name: Bundle the verified Electron runtime into a single OFFLINE payload
         run: python ci/package_offline.py
       - name: Test real installer extraction and in-place update code
-        working-directory: installer
+        working-directory: _verified_source/installer
         run: go test -timeout 20m -v .
       - name: Compile offline setup embedding complete Electron payload
         shell: pwsh

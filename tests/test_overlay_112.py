@@ -1,4 +1,4 @@
-"""Engine-independent KS Client 1.0.26 UI smoke test in local Chromium.
+"""Engine-independent KS Client 1.0.27 UI smoke test in local Chromium.
 Not a live test of Windows Electron, CEF, or FPS unlock.
 """
 from pathlib import Path
@@ -130,8 +130,8 @@ with sync_playwright() as play:
   assert page.locator('[data-setting="crosshairEnabled"]').count()==1
   page.locator('.ks-tab[data-group="Advanced"]').click()
   page.locator('.ks-subtab[data-tab="General"]').click()
-  assert page.locator('.ks-release').first.inner_text().startswith('KS Client Beta 1.0.26')
+  assert page.locator('.ks-release').first.inner_text().startswith('KS Client Beta 1.0.27')
   assert not errors,(width,errors)
-  print('PASS 1.0.26 engine UI',width,height)
+  print('PASS 1.0.27 engine UI',width,height)
   page.close()
  browser.close()
