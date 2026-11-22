@@ -58,7 +58,12 @@ def sha(data):
 
 
 def git(repository, *args):
-    return subprocess.check_output(["git", "--no-replace-objects", "-C", str(repository), *args])
+    # Git for Windows may apply checkout line endings to archive entries.
+    # Use the committed LF bytes consistently on every build host.
+    return subprocess.check_output([
+        "git", "--no-replace-objects", "-c", "core.autocrlf=false", "-c", "core.eol=lf",
+        "-C", str(repository), *args,
+    ])
 
 
 def source_path(name):

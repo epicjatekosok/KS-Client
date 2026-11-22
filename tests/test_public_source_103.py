@@ -2,6 +2,7 @@
 import importlib.util
 from io import BytesIO
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 root = Path(__file__).resolve().parents[1]
@@ -36,6 +37,20 @@ rejected(lambda: source.check_archive(make_zip({"LICENSE": files["LICENSE"]}), f
 rejected(lambda: source.check_archive(make_zip({**files, ".git/config": b"extra"}), files, commit))
 for invalid in ("../license.md", "ci/.env.local", "ci/config:stream", "electron-app/ElectronProfile/a.json", "resources/CON.md"):
     rejected(lambda: source.source_path(invalid))
+
+with TemporaryDirectory() as work:
+    repository = Path(work)
+    source.git(repository, "init", "-q")
+    (repository / ".gitattributes").write_bytes(b"* text=auto\n")
+    (repository / "LICENSE").write_bytes(files["LICENSE"])
+    source.git(repository, "add", ".")
+    source.git(repository, "-c", "user.name=KS test", "-c", "user.email=test@example.invalid",
+               "commit", "-qm", "Fixture")
+    fixture_commit = source.git(repository, "rev-parse", "HEAD").decode().strip()
+    source.git(repository, "config", "core.autocrlf", "true")
+    source.git(repository, "config", "core.eol", "crlf")
+    archive = source.git(repository, "archive", "--format=zip", fixture_commit)
+    source.check_archive(archive, {"LICENSE": files["LICENSE"], ".gitattributes": b"* text=auto\n"}, fixture_commit)
 
 release = (root / "ci/Publish-Release.ps1").read_text(encoding="utf-8")
 workflow = (root / ".github/workflows/windows-build.yml").read_text(encoding="utf-8")
