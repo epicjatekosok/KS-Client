@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Release only audited, byte-for-byte archives of one committed source tree."""
 import argparse
+import base64
+import binascii
 import hashlib
 import io
 import json
@@ -26,7 +28,7 @@ REQUIRED = {
 # These are the only reviewed binary assets in the source. Replace fingerprints
 # after inspecting the replacement logo files and their metadata.
 LOGOS = {
-    "ks-logo.png": "ef86b1e6c3149a1f98b9b3da1b7f96213627d3ece1c9a5238f78f670aa1db2d3",
+    "ks-logo.png": "ca7cd61c2c0b14347f8db2ee1f8af4b6ab3372c7399a5d1b5783c97600993cbd",
     "ks-logo.ico": "062334c83cb51b871f9b435b5a6836a5c56b2289c07cbafb612db6a8b1413cc2",
 }
 SENSITIVE_NAMES = re.compile(
@@ -40,6 +42,7 @@ EXTRA_RULES = {
     "embedded OAuth secret": re.compile(r"[\x22']?client[_-]?secret[\x22']?\s*[:=]\s*[\x22'][A-Za-z0-9_.-]{16,}[\x22']", re.I),
     "embedded bearer credential": re.compile(r"\bBearer [A-Za-z0-9_./+=-]{32,}", re.I),
 }
+IMAGE_DATA = re.compile(r"data:image/[A-Za-z0-9.+-]+;base64,([A-Za-z0-9+/=]{32,})")
 MAX_FILE_BYTES = 8 * 1024 * 1024
 MAX_SOURCE_BYTES = 64 * 1024 * 1024
 
@@ -105,6 +108,14 @@ def source_tree(repository, commit):
                 match = pattern.search(contents)
                 if match:
                     raise ValueError(f"{label} in {name}:{1 + contents.count(chr(10), 0, match.start())}")
+            # Text scanners do not inspect binary metadata hidden in data URIs.
+            for match in IMAGE_DATA.finditer(contents):
+                try:
+                    image = base64.b64decode(match[1], validate=True)
+                except binascii.Error as error:
+                    raise ValueError(f"Invalid embedded image: {name}") from error
+                if sha(image) not in LOGOS.values():
+                    raise ValueError(f"Unreviewed embedded image: {name}")
         elif sha(data) != LOGOS[parts[-1]]:
             raise ValueError(f"Unreviewed binary logo: {name}")
         result[name] = data
