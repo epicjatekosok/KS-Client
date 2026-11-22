@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.26 – Electron unified game overlay. */
+/* KS Client Beta 1.0.27 – Electron unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.26';
+  const CLIENT_VERSION='1.0.27';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -2277,6 +2277,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.27',en:['Audited MIT-licensed KS Client source and Windows build instructions are now available with the release.'],hu:['A kiadáshoz letölthető az ellenőrzött, MIT-licencű KS Client-forráskód és a windowsos fordítási útmutató.']},
     {v:'Beta 1.0.26',en:['Explore public player profiles, clans, skin prices, inventories, ranked boards and regional room counts inside Kirka.'],hu:['Játékosprofilok, klánok, skinárak, felszerelések, ranglisták és régiónkénti szobalétszámok közvetlenül a játékban.']},
     {v:'Beta 1.0.25',en:['Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.'],hu:['Helyi erőforráscsomagok, fegyvertextúrák hozzárendelése, megfigyelt árak, játékoscímkék és verziózott bővítmények.']},
     {v:'Beta 1.0.24',en:['Pinned the language picker to the Settings sidebar and expanded the interface translations.'],hu:['A nyelvválasztó fix helyet kapott a beállítások oldalsávjában, és bővültek a felület fordításai.']},
