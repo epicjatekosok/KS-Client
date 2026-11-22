@@ -1,11 +1,12 @@
-# Runs ONLY on the Windows GitHub Actions build machine.
+# Prepare the verified x64 Electron runtime on Windows.
 [CmdletBinding()]
 param([string]$Version = '45.3.2')
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $repo = Split-Path -Parent $PSScriptRoot
 $dest = Join-Path $repo 'runtime\Electron'
-$temp = Join-Path $env:RUNNER_TEMP 'ks-electron-download'
+$tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [IO.Path]::GetTempPath() }
+$temp = Join-Path $tempRoot 'ks-electron-download'
 New-Item -ItemType Directory -Force -Path $temp | Out-Null
 if (Test-Path $dest) { Remove-Item $dest -Force -Recurse }
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
@@ -27,7 +28,7 @@ $app = Join-Path $dest 'resources\app'
 New-Item -ItemType Directory -Force -Path $app | Out-Null
 Copy-Item (Join-Path $repo 'electron-app\*') $app -Recurse -Force
 # Never require libEGL.dll: optional in some Electron distributions.
-foreach ($relative in @('electron.exe','resources\app\package.json','resources\app\main.cjs','resources\app\preload.cjs','resources\app\overlay\overlay.js','resources\app\assets\loading.html','resources\app\assets\ks-logo.png','resources\app\overlay\native_login_gate.js','resources\app\overlay\game_extras.js','resources\app\overlay\workshop.js','resources\app\overlay\webgl_cosmetics.js','resources\app\overlay\game_runtime.js','resources\app\overlay\render_telemetry.js','resources\app\overlay\advanced_integration.js','resources\app\overlay\freeze_guard.js','resources\app\swapper.cjs')) {
+foreach ($relative in @('electron.exe','LICENSE','LICENSES.chromium.html','resources\app\package.json','resources\app\main.cjs','resources\app\preload.cjs','resources\app\overlay\overlay.js','resources\app\assets\loading.html','resources\app\assets\ks-logo.png','resources\app\overlay\native_login_gate.js','resources\app\overlay\game_extras.js','resources\app\overlay\workshop.js','resources\app\overlay\webgl_cosmetics.js','resources\app\overlay\game_runtime.js','resources\app\overlay\render_telemetry.js','resources\app\overlay\advanced_integration.js','resources\app\overlay\freeze_guard.js','resources\app\swapper.cjs')) {
   if (-not (Test-Path (Join-Path $dest $relative))) { throw "Electron package is missing $relative" }
 }
 Write-Host 'Electron runtime and KS Client assets are assembled.'

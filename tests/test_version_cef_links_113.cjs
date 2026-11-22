@@ -1,5 +1,5 @@
 'use strict';
-// Beta 1.0.26: verify dynamic labels, non-racing CEF JS replies, native link
+// Beta 1.0.27: verify dynamic labels, non-racing CEF JS replies, native link
 // commands, and the stable Electron authentication/browser path.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -9,7 +9,7 @@ const root=path.join(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const ui=read('electron-app/overlay/overlay.js');
 const electron=read('electron-app/main.cjs');
-assert(ui.includes("const CLIENT_VERSION='1.0.26'"));
+assert(ui.includes("const CLIENT_VERSION='1.0.27'"));
 assert(ui.includes("const CLIENT_LABEL='Beta '+CLIENT_VERSION"));
 assert(ui.includes("KS Client '+esc(CLIENT_LABEL)"),'Installed version derives from build');
 assert(ui.includes('KS CLIENT <span>${esc(CLIENT_LABEL.toUpperCase())}</span>'),
@@ -39,4 +39,4 @@ assert(!electron.includes('validAuthURL')&&!electron.includes('guardMainNavigati
  'Do not reintroduce old Google/OAuth restrictions');
 assert(electron.includes("case 'update-open-release':void shell.openExternal("),
  'Electron working URL opener unchanged');
-console.log('PASS Beta 1.0.26: current version UI, CEF IBrowser lifecycle, native Discord/release links and Electron unchanged');
+console.log('PASS Beta 1.0.27: current version UI, CEF IBrowser lifecycle, native Discord/release links and Electron unchanged');
