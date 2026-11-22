@@ -32,7 +32,8 @@ if(-not $exe) {
 }
 $signer=$exe.Source
 if(-not $signer){$signer=$exe.FullName}
-$temp=Join-Path $env:RUNNER_TEMP ('ks-publisher-'+[guid]::NewGuid().ToString('N')+'.pfx')
+$tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [IO.Path]::GetTempPath() }
+$temp=Join-Path $tempRoot ('ks-publisher-'+[guid]::NewGuid().ToString('N')+'.pfx')
 try {
     [System.IO.File]::WriteAllBytes($temp,[Convert]::FromBase64String($encoded))
     foreach($path in $files) {

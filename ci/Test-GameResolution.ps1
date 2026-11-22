@@ -2,8 +2,9 @@ $ErrorActionPreference='Stop'
 $repo=Split-Path -Parent $PSScriptRoot
 $runtime=Join-Path $repo 'runtime/Electron'
 $appFolder=Join-Path $runtime 'resources/app'
-$original=Join-Path $env:RUNNER_TEMP 'ks-original-app'
-$env:KS_RESOLUTION_RESULT=Join-Path $env:RUNNER_TEMP 'ks-render-sizes.txt'
+$tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [IO.Path]::GetTempPath() }
+$original=Join-Path $tempRoot 'ks-original-app'
+$env:KS_RESOLUTION_RESULT=Join-Path $tempRoot 'ks-render-sizes.txt'
 Move-Item $appFolder $original
 try {
     New-Item -ItemType Directory $appFolder | Out-Null
