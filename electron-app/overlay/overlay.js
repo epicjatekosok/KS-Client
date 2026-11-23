@@ -1214,7 +1214,7 @@
     {key:'Graphics', items:['Performance','Frame Stability','Browser Graphics','Browser GPU Info']},
     {key:'Display', items:['Display','Eye Comfort','Crosshair']},
     {key:'Gameplay', items:['Game Integration','Lobby','Friends & Profiles']},
-    {key:'Workshop', items:['Weapon Studio','Resource Swapper','Plugins','Inventory & Market']},
+    {key:'Workshop', items:['Weapon Studio','Resource Swapper','Plugins','Inventory & Market','KS Analytics']},
     {key:'Controls', items:['Browser Controls']},
     {key:'Interface', items:['Appearance','Interface','Resources','CSS Editor']},
     {key:'Advanced', items:['General','Updates','Sharing','Diagnostics']}
@@ -2396,7 +2396,7 @@
   const uploadRow = (titleText, description, key, accept) => `<div class="ks-row"><div><div class="ks-label">${titleText}</div><div class="ks-desc">${description}</div><div class="ks-asset-summary" data-asset-summary="${key}">${esc(assetLabel(key))}</div></div><div class="ks-stack"><label class="ks-btn" style="cursor:pointer">Browse<input type="file" data-asset="${key}" accept="${accept}" hidden></label><button class="ks-btn" data-clear-asset="${key}">Remove</button></div></div>`;
 
   function tabContent() {
-    if(["Weapon Studio","Resource Swapper","Plugins","Lobby","Friends & Profiles","Inventory & Market"].includes(selectedTab)) {
+    if(["Weapon Studio","Resource Swapper","Plugins","Lobby","Friends & Profiles","Inventory & Market","KS Analytics"].includes(selectedTab)) {
       return window.__KS_WORKSHOP__?.render(selectedTab) || '<p class="ks-hint">Workshop module is loading. Close and reopen Settings.</p>';
     }
     switch (selectedTab) {
@@ -3065,7 +3065,7 @@
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
-      (["Weapon Studio","Resource Swapper","Plugins","Lobby","Friends & Profiles","Inventory & Market"].includes(selectedTab)
+      (["Weapon Studio","Resource Swapper","Plugins","Lobby","Friends & Profiles","Inventory & Market","KS Analytics"].includes(selectedTab)
         ? `<div class="ks-note" id="ks-wk-status">${esc(window.__KS_WORKSHOP__?.getStatus()||'Ready')}</div>`:'');
     if(group.key==='Workshop')$('ks-body').querySelector('.ks-subtabs')?.insertAdjacentHTML('afterend',
       '<div class="ks-workshop-experimental" role="note"><strong>EXPERIMENTAL · BETA</strong><span>Workshop features are still in testing. Back up your profiles before importing resources or running plugins.</span></div>');

@@ -74,6 +74,15 @@
       if(k==='market'){for(const [key,opts] of [['rarity',['','C','R','E','L','M','P']],['sort',['name','average','trend','inventory']]]){
         const sel=el('select');sel.setAttribute('aria-label',t(key==='sort'?'Sort':'rarity'));for(const v of opts){const o=el('option',v?t(v):t('All rarities'));o.value=v;sel.append(o);}
         sel.value=state[key];sel.onchange=()=>{state[key]=sel.value;state.page=0;draw();};form.append(sel);}}
+      if(k==='inventory'){
+        for(const [key,options] of Object.entries({sort:['name','price ↑','price ↓','rarity','type','favorites'],coverage:['all','priced','missing','favorites']})){
+          const sel=el('select');sel.setAttribute('aria-label',key);
+          for(const v of options){const o=el('option',v);o.value=v;sel.append(o);}
+          sel.value=state[key]||options[0];sel.onchange=()=>{state[key]=sel.value;state.page=0;draw();};form.append(sel);
+        }
+        for(const key of ['Minimum price','Maximum price']){const box=el('input');box.type='number';box.min='0';box.placeholder=key;box.setAttribute('aria-label',key);box.value=state[key]??'';
+          box.oninput=()=>{state[key]=box.value;state.page=0;draw();};form.append(box);}
+      }
       aside.append(form);}
     if(k==='leaderboard'||k.startsWith('ranked')){const modes=el('div');modes.className='tools';for(const [a,b] of Object.entries({leaderboard:'Solo',ranked1V1:'1v1',ranked2V2:'2v2',rankedSAD:'S&D'}))modes.append(btn(t(b),()=>go(a)));aside.append(modes);}
   }
@@ -93,7 +102,21 @@
       stats(main,{...details,clan:d.clan?btn(d.clan,()=>go('clan',d.clan)):null,'K/D':ratio(d.kills,d.deaths),'Win rate (%)':ratio(d.wins,d.games,100)});return;
     }
     if(k==='inventory'){const priced=d.filter(x=>x.average>0&&x.amount!=null);stats(main,{'Estimated inventory value':priced.length?priced.reduce((sum,x)=>sum+x.average*x.amount,0):null,'Priced entries':priced.length+' / '+d.length});
-      page(d.filter(r=>has(r.name,r.type,r.rarity)),['name','type','rarity','amount','average'],r=>[btn(r.name,()=>go('market','',r.name)),r.type,r.rarity,r.amount,r.average]);return;}
+      const favorites=new Set((window.__KS_WORKSHOP__?.getConfig()?.inventory||[]).filter(x=>x.favorite).map(x=>x.item.toLowerCase()));
+      const fav=r=>favorites.has(r.name.toLowerCase()), rarity=r=>({C:1,R:2,E:3,L:4,M:5,P:6}[r.rarity]||0);
+      const rows=d.filter(r=>has(r.name,r.type,r.rarity)&&(state.coverage!=='favorites'||fav(r))&&
+        (state.coverage!=='priced'||r.average>0)&&(state.coverage!=='missing'||!r.average)&&
+        (!state['Minimum price']||r.average>0&&r.average>=Number(state['Minimum price']))&&
+        (!state['Maximum price']||r.average>0&&r.average<=Number(state['Maximum price'])));
+      rows.sort((a,b)=>{
+        if(state.sort.startsWith('price'))return Number(!a.average)-Number(!b.average)||(state.sort==='price ↑'?1:-1)*(a.average-b.average);
+        if(state.sort==='rarity')return rarity(b)-rarity(a)||a.name.localeCompare(b.name);
+        if(state.sort==='type')return a.type.localeCompare(b.type)||a.name.localeCompare(b.name);
+        if(state.sort==='favorites')return Number(fav(b))-Number(fav(a))||a.name.localeCompare(b.name);
+        return a.name.localeCompare(b.name);
+      });
+      main.append(el('small',t('Price estimates in coins')+' · KirkaTrades'));
+      page(rows,['name','type','rarity','amount','average'],r=>[btn((fav(r)?'★ ':'')+r.name,()=>go('market','',r.name)),r.type,r.rarity,r.amount,r.average??t('Unavailable')]);return;}
     if(k==='clan'){
       const {members,name,...detail}=d;main.append(el('h2',name));const levels=members.map(m=>m.level).filter(Number.isFinite);
       stats(main,{...detail,Members:members.length,'Average level':levels.length?levels.reduce((a,b)=>a+b,0)/levels.length:null,
@@ -110,7 +133,8 @@
       if(d.sample){main.append(el('h2',t('Regional sample')),el('small',new Date(d.sampledAt).toLocaleString(language)));stats(main,{'Total players':d.sample.every(Number.isFinite)?d.sample.reduce((a,b)=>a+b,0):null,...Object.fromEntries(regions.map((r,i)=>[r.region.toUpperCase(),d.sample[i]]))});}
       main.append(el('h2',t('Public matches')));const counts=regions.map(r=>r.rooms?r.rooms.reduce((n,x)=>n+x.count,0):r.sample??null);
       stats(main,{[counts.every(x=>x!=null)?'Total players':'Reported subtotal']:counts.some(x=>x!=null)?counts.reduce((n,x)=>n+(x||0),0):null});
-      table(['region','count','Published rooms'],regions.map((r,i)=>[r.region.toUpperCase(),counts[i],r.rooms?.length??null]));
+      main.append(el('small','Regional HTTPS room-list response time, including transfer. In-match network latency can differ.'));
+      table(['region','count','Published rooms','HTTP (ms)','Last successful read'],regions.map((r,i)=>[r.region.toUpperCase(),counts[i],r.rooms?.length??null,r.httpMs??t('Unavailable'),r.lastSuccess?new Date(r.lastSuccess).toLocaleTimeString(language):null]));
       const rooms=regions.flatMap(r=>(r.rooms||[]).map(x=>[r.region.toUpperCase(),x.mode,x.map,x.id,x.count]));
       if(rooms.length){main.append(el('h2',t('Public matches')));page(rooms,['region','mode','map','id','count'],x=>x);}return;}
     if(k==='clans'||k==='leaderboard'){

@@ -62,7 +62,7 @@ function fields(obj, keys) {
 const norm = v=>text(v).normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 function profile(p) {
   required(p?.shortId && p?.name);
-  return {...fields(p,'name shortId id bio level clan role createdAt coins diamonds klo klo1V1 kloPOINT2V2 kloRanked kloSAD totalXp xpSinceLastLevel xpUntilNextLevel'),
+  return {...fields(p,'name shortId id bio level clan clanId rank role createdAt coins diamonds klo klo1V1 kloPOINT2V2 kloRanked kloSAD totalXp xpSinceLastLevel xpUntilNextLevel'),
     banReported:p.banned===true||p.isBanned===true||p.ban===true||/^BANNED$/i.test(p.role),
     ...fields(p.stats,'games wins kills deaths headshots scores'),body:text(p.activeBodySkin?.name),weapon:text(p.activeWeapon1Skin?.name)};
 }
@@ -109,7 +109,7 @@ async function download(url, body) {
   return Buffer.concat(parts).toString('utf8');
 }
 function createService(read=download,now=Date.now) {
-  const cache=new Map(),pending=new Map(),attempts=[];
+  const cache=new Map(),pending=new Map(),attempts=[],lastRegionalSuccess=new Map();
   const json=async(url,body)=>JSON.parse(await read(url,body));
   const route=async path=>readRoute(await read(KS+path));
   const wrap=(data,source,stamp=now())=>({data,source,stamp});
@@ -122,8 +122,13 @@ function createService(read=download,now=Date.now) {
     if(kind==='servers'){
       const sampled=json(TRADES+'/playerCount.json').then(data=>list(data).filter(x=>Number.isFinite(Date.parse(x.timestamp))).sort((a,b)=>Date.parse(b.timestamp)-Date.parse(a.timestamp))[0]).catch(()=>null);
       const rows=await Promise.all(regions.map(async region=>{
-        try{return {region,rooms:rooms(await json('https://'+region+'.kirka.io/matchmake/'))};}
-        catch{return {region,rooms:null};}
+        const start=performance.now();
+        try{
+          const result=await json('https://'+region+'.kirka.io/matchmake/');
+          const elapsed=Math.round(performance.now()-start), published=rooms(result);
+          lastRegionalSuccess.set(region,now());
+          return {region,rooms:published,httpMs:elapsed,lastSuccess:now()};
+        }catch{return {region,rooms:null,httpMs:null,lastSuccess:lastRegionalSuccess.get(region)??null};}
       }));
       const latest=await sampled;
       required(rows.some(r=>r.rooms)||latest);
@@ -143,7 +148,7 @@ function createService(read=download,now=Date.now) {
     const {data,stamp}=await route(path);required(data);
     if(kind==='clan'){
       required(data.name && Array.isArray(data.members));
-      return wrap({...fields(data,'name description currentClanWarPosition allScores monthScores createdAt discordLink'),members:data.members.map(m=>({...fields(m,'role allScores monthScores createdAt lastSeen'),...fields(m.user,'name shortId level')}))},'KirkaStats',stamp);
+      return wrap({...fields(data,'name id description currentClanWarPosition allScores monthScores createdAt discordLink'),members:data.members.map(m=>({...fields(m,'role allScores monthScores createdAt lastSeen'),...fields(m.user,'name shortId level')}))},'KirkaStats',stamp);
     }
     if(kind==='player')return wrap(profile(data),'KirkaStats',stamp);
     return wrap({rows:board(data).slice(0,kind==='clans'?39:1000),rewards:data.rewards?Object.fromEntries(Object.entries(data.rewards).slice(0,100).map(([rank,items])=>[rank,list(items).slice(0,30).map(i=>({amount:num(i.amount),type:text(i.type),item:i.item?{name:text(i.item.name)}:null}))])):null,endsAt:num(data.remainingTime)===null?null:stamp+data.remainingTime},'KirkaStats',stamp);

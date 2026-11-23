@@ -33,7 +33,7 @@ const frameJS = fs.readFileSync(path.join(__dirname,'overlay','frame_pacer.js'),
 const extrasJS = fs.readFileSync(path.join(__dirname,'overlay','game_extras.js'),'utf8');
 const statsService=require('./kirka-stats.cjs').createService();
 const statsJS=fs.readFileSync(path.join(__dirname,'overlay','kirka_stats.js'),'utf8');
-const workshopJS=fs.readFileSync(path.join(__dirname,'overlay','workshop.js'),'utf8');
+const workshopJS=['analytics.js','workshop.js'].map(file=>fs.readFileSync(path.join(__dirname,'overlay',file),'utf8')).join('\n;\n');
 const integrationBootJS=fs.readFileSync(path.join(__dirname,'overlay','integration_bootstrap.js'),'utf8');
 const integrationCoreJS=fs.readFileSync(path.join(__dirname,'overlay','integration_core.js'),'utf8');
 const gameRuntimeJS=fs.readFileSync(path.join(__dirname,'overlay','game_runtime.js'),'utf8');

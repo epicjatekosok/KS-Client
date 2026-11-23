@@ -191,7 +191,13 @@
    if(node)node.innerHTML=packRows();
    if(result.message){status=trim(result.message,180);const n=panel?.getElementById('ks-wk-status');if(n)n.textContent=status;}
  }
+ function downloadJSON(data,name){
+   const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+   const link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ }
  function render(tab){
+   if(tab==='KS Analytics')return (window.__KS_ANALYTICS__?.render(escape)||'Analytics unavailable')+
+     btn('analytics-refresh','Refresh')+btn('analytics-export','Export statistics')+btn('analytics-reset','Reset statistics');
    if(tab==='Weapon Studio')return '<h2 class="ks-title">Weapon Studio / Custom Skin Link</h2><p class="ks-sub">Local weapon and inventory image cosmetics. 3D WebGL material replacement depends on exact supported game assets.</p>'+
      card('Weapon & inventory visual styling',input('weapon-hue','Hue rotation (0–360)',cfg.weapon.hue,'number')+
        input('weapon-saturation','Saturation % (40–200)',cfg.weapon.saturation,'number')+
@@ -245,6 +251,7 @@
      card('Saved plugins',cfg.plugins.length?cfg.plugins.map((p,i)=>'<div class="ks-row"><div><strong>'+escape(p.name)+'</strong><div class="ks-desc">v'+escape(p.version)+' · API '+p.api+'</div></div>'+(p.enabled?btn('plugin-run-'+i,'Run'):'')+btn('plugin-toggle-'+i,p.enabled?'Disable':'Enable')+btn('plugin-edit-'+i,'Edit')+btn('plugin-export-'+i,'Export')+btn('plugin-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No scripts saved.</p>')+
      card('Plugin preview','<div id="ks-wk-plugin-preview" class="ks-note">Choose Run to open an isolated preview.</div>'+btn('plugin-stop','Stop preview')+'<pre>'+escape(pluginLog.join('\n'))+'</pre>')+notice;
    if(tab==='Lobby')return '<h2 class="ks-title">Lobby / Quick Join</h2><p class="ks-sub">Save join links, room notes and supported HTML lobby form values.</p>'+
+     card('Regional latency',btn('regions','Open regional latency and servers'))+
      card('Save current room',input('room-name','Room name')+input('room-url','Kirka.io room URL',kirkaURL(location.href)||'')+
        btn('room-save','Save room + visible form values')+' '+btn('room-capture','Capture current lobby options'))+
      card('Favorite rooms',cfg.rooms.length?cfg.rooms.map((r,i)=>'<div class="ks-row"><span>'+escape(r.name)+'</span>'+
@@ -257,6 +264,7 @@
      card('Visible friend list',tableControls('friends')+'<div id="ks-live-friends"></div>'+input('watch-name','Exact visible friend name',watchFriend?.name||'')+
        btn('watch-friend','Watch for native Spectate (60 seconds)')+' '+btn('watch-cancel','Cancel')+
        '<p class="ks-hint">Keep this panel open. The game must offer Spectate for this friend.</p>')+
+     card('Clan directory',btn('clans','Search public clans'))+
      card('Visible profile details','<div id="ks-live-profile"></div>')+
      card('Saved annotations',cfg.friends.length?cfg.friends.map((f,i)=>
        ((onlyFav&&!f.favorite)||!([f.nick,f.tag,f.note].join(' ').toLocaleLowerCase().includes(query.toLocaleLowerCase())))?'':'<div class="ks-row"><div><strong>'+escape((f.favorite?'★ ':'')+f.nick+' '+(f.tag||''))+'</strong><div class="ks-desc">'+escape(f.note)+'</div></div>'+btn('friend-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved player notes.</p>')+notice;
@@ -362,6 +370,14 @@
    const val=id=>ui.getElementById('ks-wk-'+id)?.value??'';
    const flag=id=>!!ui.getElementById('ks-wk-'+id)?.checked;
    const number=(id,min,max,def)=>clamp(val(id),min,max,def);
+   if(a.startsWith('analytics-')){
+     const stats=window.__KS_ANALYTICS__;
+     if(stats && a==='analytics-export')downloadJSON(stats.exportData(),'KS-Analytics.json');
+     if(stats && a==='analytics-reset'&&confirm('Erase local Analytics history?'))stats.reset();
+     return true;
+   }
+   if(a==='regions'){window.__KS_KIRKA_STATS__?.open('servers');return true;}
+   if(a==='clans'){window.__KS_KIRKA_STATS__?.open('clans');return true;}
    if(a.startsWith('pack-')){
      const [,command,index]=a.split('-'),id=packList[Number(index)]?.id;
      if(command==='remove'&&!confirm(window.__KS_CLIENT__?.translate?.('Remove')||'Remove'))return true;
