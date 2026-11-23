@@ -1,5 +1,9 @@
 # KS Client Beta 1.0.25
 
+## Beta 1.0.28
+
+See [Workshop and gameplay update](RELEASE_BETA_128_EN.md).
+
 ## Beta 1.0.27
 
 - Publish the audited MIT source and SHA-256 as release assets.

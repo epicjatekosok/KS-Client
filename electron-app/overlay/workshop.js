@@ -104,6 +104,7 @@
    }
    return obj;
  }
+ const cssTargets=['.profile .nickname','.profile .clan-name','.friends .nickname','.inventory .item-name','.market .listing .name'];
  let cfg=read();
  let watchFriend=null;
  let status='Workshop features are local to this browser profile.';
@@ -594,7 +595,6 @@
    return true;
  }
  let pluginListener=null,pluginCSS=null,pluginFrame=null;
- const cssTargets=['.profile .nickname','.profile .clan-name','.friends .nickname','.inventory .item-name','.market .listing .name'];
  function scopedCSS(code){
    const rules=[],str=code.replace(/\/\*[\s\S]*?\*\//g,'').trim();
    const pattern=/\s*([^{}]+)\{([^{}]+)\}\s*/gy;
