@@ -3,11 +3,11 @@
   'use strict';
   const runtime = window.__KS_GAME_RUNTIME__;
   if (!runtime || window.__KS_ANALYTICS__) return;
-  const key = 'ksclient.analytics.v1';
+  const storageNamespace = 'ksclient.analytics.v1';
   const empty = () => ({version:1, days:{}, sessions:[], completed:0, completedMs:0, interrupted:0});
   let data = empty(), warning = '';
   try {
-    const previous = JSON.parse(localStorage.getItem(key));
+    const previous = JSON.parse(localStorage.getItem(storageNamespace));
     if (previous && previous.version === 1 && previous.days && Array.isArray(previous.sessions)) data = previous;
   } catch { warning = 'Previous analytics could not be read.'; }
   const session = () => ({start:Date.now(), end:Date.now(), match:0, menu:0});
@@ -20,7 +20,7 @@
     const sessions = data.sessions.filter(s => s.start !== current.start);
     if (current.match || current.menu) sessions.push(current);
     data.sessions = sessions.slice(-200);
-    try { localStorage.setItem(key, JSON.stringify(data)); saved = Date.now(); }
+    try { localStorage.setItem(storageNamespace, JSON.stringify(data)); saved = Date.now(); }
     catch { warning = 'Analytics storage is full or unavailable. Export your history.'; }
   }
   function tick(now = Date.now()) {
