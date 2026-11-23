@@ -285,10 +285,8 @@ function setWindowSize(preset) {
 function installShortcuts(){
   win.webContents.on('before-input-event',(event,input)=>{
     if(input.type!=='keyDown')return;
-    if(input.isAutoRepeat && ['F1','F10','F11'].includes(input.key)){event.preventDefault();return;}
+    if(input.isAutoRepeat && input.key==='F11'){event.preventDefault();return;}
     if(input.key==='F11'){event.preventDefault();win.setFullScreen(!win.isFullScreen());}
-    if(input.key==='F1'){event.preventDefault();runJS('window.__KS_CLIENT__?.toggle?.()')}
-    if(input.key==='F10'){event.preventDefault();runJS('window.__KS_CLIENT__?.toggleHud?.()')}
     if(input.key==='F12' && desired.devTools){event.preventDefault();win.webContents.openDevTools({mode:'detach'})}
     if(input.control && input.key.toLowerCase()==='r'){event.preventDefault();win.webContents.reload()}
   });
