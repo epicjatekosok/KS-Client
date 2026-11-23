@@ -49,3 +49,41 @@ with sync_playwright() as pw:
     }"""
     assert page.evaluate(js) == [['KS',['scoped-colors']]]
     browser.close()
+
+# Exercise data-dependent views with public-shape fixtures and no credentials.
+with sync_playwright() as pw:
+    browser = pw.chromium.launch()
+    page = browser.new_page()
+    page.route('https://kirka.io/**', lambda r: r.fulfill(body='<div class="interface"></div>', content_type='text/html'))
+    page.goto('https://kirka.io/')
+    page.evaluate("""() => {window.__KS_PUBLIC_STATS__={get:async kind=>({source:'Fixture',stamp:1,priceStamp:1,
+        data:kind==='inventory'?[{name:'A',type:'Rifle',rarity:'L',average:15,amount:2},{name:'B',type:'Rifle',rarity:'C',average:null,amount:1}]:
+        {name:'Tester',shortId:'ABC123',clan:'Example',rank:'Gold'}})}}""")
+    for name in ['overlay','workshop','kirka_stats']:
+        page.add_script_tag(content=(base/(name+'.js')).read_text())
+    page.evaluate("window.__KS_KIRKA_STATS__.open('player','ABC123')")
+    dialog=page.get_by_role('dialog')
+    expect(dialog.locator('.rank')).to_contain_text('Gold')
+    dialog.get_by_role('button',name='Inventory').click()
+    expect(dialog.locator('tbody tr')).to_have_count(2)
+    dialog.get_by_label('coverage').select_option('missing')
+    expect(dialog.locator('tbody')).to_contain_text('B')
+    expect(dialog.locator('tbody tr')).to_have_count(1)
+    dialog.get_by_label('coverage').select_option('all')
+    dialog.get_by_label('Minimum price').fill('10')
+    expect(dialog.locator('tbody')).to_contain_text('A')
+    expect(dialog.locator('tbody tr')).to_have_count(1)
+    page.keyboard.press('Escape')
+    page.evaluate('window.__KS_CLIENT__.open()')
+    page.locator('.ks-tab[data-group="Interface"]').click()
+    page.locator('.ks-subtab[data-tab="Appearance"]').click()
+    page.get_by_text('Shared themes',exact=True).click()
+    import json
+    palette={'format':'ks-theme','api':1,'name':'Fixture','author':'Tester','version':'2','colors':dict.fromkeys(
+        ['customAccent','customBackground','customPanel','customText','customMuted'],'#113355')}
+    page.locator('#ks-theme-file').set_input_files({'name':'theme.json','mimeType':'application/json','buffer':json.dumps(palette).encode()})
+    page.locator('[data-action="theme-import"]').click()
+    page.wait_for_function("window.__KS_CLIENT__.galleryThemes().some(t=>t.name==='Fixture'&&t.author==='Tester')")
+    assert page.evaluate("window.__KS_CLIENT__.galleryAction('shared','Fixture','Tester')")
+    assert page.evaluate("JSON.parse(localStorage.getItem('ksclient.settings.alpha')).customAccent")== '#113355'
+    browser.close()
