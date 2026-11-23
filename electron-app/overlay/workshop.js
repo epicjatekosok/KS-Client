@@ -257,7 +257,7 @@
        btn('weapon-apply','Apply cosmetics')+' '+btn('weapon-reset','Clear cosmetics'))+
      card('3D Weapon Studio (experimental exact-match WebGL)',
        '<p class="ks-hint">Replaces a matching WebGL image texture. The exact Kirka /assets/ URL and a CORS-compatible replacement image are required. Viewmodel transforms require a manually selected matrix signature.</p>'+
-       btn('gl-probe','Identify visible weapon image')+' '+btn('gl-use-probe','Use observed texture')+
+       btn('gallery','Open Workshop Gallery')+' '+btn('gl-probe','Identify visible weapon image')+' '+btn('gl-use-probe','Use observed texture')+
        input('gl-source','Original Kirka texture URL (exact HTTPS asset)',glCfg().assetURL||'')+
        input('gl-skin','Custom 3D Skin Link (HTTPS CORS image)',glCfg().skinURL?.startsWith('data:')?'':glCfg().skinURL||'')+
        '<label class="ks-row"><span>Local skin image</span><input id="ks-wk-gl-file" type="file" accept="image/png,image/jpeg,image/webp"></label>'+
@@ -450,7 +450,7 @@
      if(stats && a==='analytics-reset'&&confirm('Erase local Analytics history?'))stats.reset();
      return true;
    }
-   if(a==='gallery'){notify('workshop-gallery',{paths:observedAssets().slice(-25)});return true;}
+   if(a==='gallery'){notify('workshop-gallery',{paths:observedAssets().slice(-12)});return true;}
    if(a==='regions'){window.__KS_KIRKA_STATS__?.open('servers');return true;}
    if(a==='clans'){window.__KS_KIRKA_STATS__?.open('clans');return true;}
    if(a.startsWith('pack-')){
@@ -841,7 +841,12 @@
    }else if(!needed){offRefresh?.();offRefresh=null;clearInterval(fallbackTimer);fallbackTimer=null;}
  }
  document.addEventListener('visibilitychange',()=>syncWork(activeTab));
- window.__KS_WORKSHOP__=Object.freeze({setPacks,render,action,refresh,syncWork,stopPlugin,stopPreview,cancelWatch:()=>{watchFriend=null;},recordJoin,normalizeWorkshop,reloadProfile:()=>{stopPlugin();mailbox.clear();cfg=read();refresh();syncWork(activeTab);},getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
+ window.__KS_WORKSHOP__=Object.freeze({
+  styles:()=>cfg.plugins.filter(p=>p.kind==='css').map(p=>({name:p.name,kind:'css',author:p.author,version:p.version,enabled:p.enabled,active:activePlugin===p.name})),
+  toggleStyle(name,ui){
+    const p=cfg.plugins.find(p=>p.kind==='css'&&p.name===name&&p.enabled);if(!p)return false;
+    if(activePlugin===p.name)stopPlugin();else runPlugin(p,ui);return true;
+  },setPacks,render,action,refresh,syncWork,stopPlugin,stopPreview,cancelWatch:()=>{watchFriend=null;},recordJoin,normalizeWorkshop,reloadProfile:()=>{stopPlugin();mailbox.clear();cfg=read();refresh();syncWork(activeTab);},getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
   setStatus:message=>{status=trim(message,400);},getRoom:idx=>cfg.rooms[idx]||null});
  if(document.body){refresh();}else document.addEventListener('DOMContentLoaded',refresh,{once:true});
  syncWork(null);

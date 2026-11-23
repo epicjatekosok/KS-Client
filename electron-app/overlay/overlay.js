@@ -4356,7 +4356,22 @@
     shadow.appendChild(root);
     root.focus();
   }
+  function galleryThemes(){
+    return [...Object.entries(themePalettes).map(([name,p])=>({name,kind:'builtin',author:'KS Client',version:'1',accent:p.accent})),
+      ...(state.communityThemes||[]).map(parseTheme).filter(Boolean).map(t=>({name:t.name,kind:'shared',author:t.author,version:t.version,accent:t.colors.customAccent}))];
+  }
   window.__KS_CLIENT__ = {
+    galleryThemes,
+    galleryAction(kind,name,author){
+      if(kind==='theme-manager'||kind==='plugin-manager'||kind==='weapon-studio'){show(true);navigateSettingsTab({'theme-manager':'Appearance','plugin-manager':'Plugins','weapon-studio':'Weapon Studio'}[kind]);return true;}
+      if(kind==='builtin'&&Object.hasOwn(themePalettes,name)){setSetting('themePreset',name);return true;}
+      if(kind==='shared'){
+        const t=(state.communityThemes||[]).map(parseTheme).find(t=>t?.name===name&&t.author===author);
+        if(!t)return false;Object.assign(state,t.colors,{themePreset:'Custom'});save();apply();return true;
+      }
+      if(kind==='css')return window.__KS_WORKSHOP__?.toggleStyle(name,shadow)===true;
+      return false;
+    },
     // Never use native IPC for Kirka bearer tokens; account help is local UI.
     openAccountHelp: showAccountHelpDialog,
     setUpdateStatus: status => {

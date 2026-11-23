@@ -1,12 +1,12 @@
 'use strict';
 const $=id=>document.getElementById(id),rpc=window.gallery.request;
-let updating=null,packs=[],limit=36,renderID=0,detailID=0,previewURL=null;
+let catalog=[],updating=null,packs=[],limit=36,renderID=0,detailID=0,previewURL=null;
 const thumbs=new Map();
 function node(tag,text){const n=document.createElement(tag);if(text!=null)n.textContent=text;return n;}
 async function task(fn){try{$('status').textContent='';await fn();}catch(e){$('status').textContent=e.message;}}
 function button(label,fn){const b=node('button',label);b.onclick=()=>task(fn);return b;}
 function cleanup(){detailID++;$('detail').replaceChildren();if(previewURL)URL.revokeObjectURL(previewURL);previewURL=null;}
-async function refresh(){const d=await rpc('list');packs=d.packs;$('paths').replaceChildren(...d.observed.map(p=>node('option',p.slice(8))));render();}
+async function refresh(){const d=await rpc('list');packs=d.packs;catalog=d.catalog||[];$('paths').replaceChildren(...d.observed.map(p=>node('option',p.slice(8))));render();}
 function category(file){return /\.(mp3|ogg|wav)$/i.test(file)?'Sounds':/\.(otf|ttf|woff2?)$/i.test(file)?'Fonts':'Images';}
 function render(){
   const version=++renderID,q=$('query').value.toLowerCase(),kind=$('category').value,root=$('rows');root.replaceChildren();
@@ -30,6 +30,14 @@ function render(){
       row.append(button(f.path,()=>detail(p,f)),button(f.favorite?'★':'☆',async()=>{await rpc('favorite',p.id,f.path);await refresh();}),
         button(f.enabled?'Restore original':'Use replacement',async()=>{await rpc('enable',p.id,f.path);await refresh();}));
     }
+  }
+  for(const style of catalog){
+    const group=style.kind==='css'?'CSS':'Themes';
+    if((kind!=='All'&&kind!==group)||!(style.name+' '+style.author).toLowerCase().includes(q))continue;
+    if(++total>limit)continue;
+    const row=node('article'),title=node('strong',style.name);if(style.accent)title.style.color=style.accent;
+    const use=button(style.active?'Stop':group==='CSS'?'Run scoped style':'Apply theme',async()=>{await rpc('style',style.kind,style.name,style.author);await refresh();});
+    use.disabled=!style.enabled;row.append(title,node('small',' · '+group+' · '+style.author+' '+style.version+' '),use);root.append(row);
   }
   $('more').hidden=total<=limit;
   if(!total)root.append(node('p','No matching pack files.'));
@@ -91,4 +99,7 @@ $('folder').onclick=()=>task(async()=>{await rpc('folder');await refresh();});
 $('more').onclick=()=>{limit+=36;render();};
 for(const id of ['query','category'])$(id).oninput=()=>{limit=36;render();};
 window.addEventListener('pagehide',cleanup);
+for(const [id,action] of [['themes','theme-manager'],['styles','plugin-manager'],['weapons','weapon-studio']]){
+  $(id).onclick=()=>task(()=>rpc('style',action,'',''));
+}
 task(refresh);
