@@ -4099,7 +4099,15 @@
   });
 
   const defaultKeys={Settings:'F1',HUD:'F10',Screenshot:'F2',FPS:'',Frametime:'',Keystrokes:'',Workshop:'','Quick Join':''};
-  const reserved=new Set(['F11','F12','Ctrl+KeyR','Ctrl+Shift+KeyR','Alt+F4','Alt+Shift+KeyP']);
+  // Electron owns reload, fullscreen and DevTools. The worker API owns its notification chord.
+  const reserved=new Set([
+    'F11',
+    'F12',
+    'Ctrl+KeyR',
+    'Ctrl+Shift+KeyR',
+    'Alt+F4',
+    'Alt+Shift+KeyP'
+  ]);
   const validChord=v=>typeof v==='string'&&!reserved.has(v)&&/^(?:Ctrl\+)?(?:Alt\+)?(?:Shift\+)?(?:F(?:[1-9]|1[0-2])|Key[A-Z]|Digit[0-9])$/.test(v)&&(/F\d+$/.test(v)||v.includes('Ctrl+')||v.includes('Alt+'));
   function cleanKeys(raw){
     if(!raw||typeof raw!=='object'||Array.isArray(raw))return {};
