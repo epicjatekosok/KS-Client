@@ -163,6 +163,12 @@ jobs:
       - name: Fetch official Electron and verify its SHA256
         shell: pwsh
         run: ./ci/Prepare-Electron.ps1
+      - name: Test native Gallery in the sandboxed Windows Electron runtime
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath './runtime/Electron/electron.exe' -ArgumentList 'tests/gallery-windows.cjs' -PassThru
+          if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Gallery smoke test timeout' }
+          if ($p.ExitCode -ne 0) { throw "Gallery failed with exit code $($p.ExitCode)" }
       - name: Measure actual WebGL output at fixed resolutions
         shell: pwsh
         run: ./ci/Test-GameResolution.ps1
