@@ -23,6 +23,6 @@ app.whenReady().then(async()=>{
     return {bytes:media.length,denied,path:saved.details[0].path,favorite:saved.details[0].favorite,preload:typeof rpc};
   })()`);
   assert(result.bytes>60&&result.denied&&result.favorite&&result.path==='img/other.png'&&result.preload==='function');
-  win.destroy();host.destroy();console.log('PASS Windows Gallery IPC, sandbox and media round trip');
+  win.destroy();host.destroy();fs.writeFileSync(process.env.KS_RESOLUTION_RESULT,'PASS Windows Gallery IPC, sandbox and media round trip');
   app.exit(0);
-}).catch(e=>{console.error(e);app.exit(1);});
+}).catch(e=>{fs.writeFileSync(process.env.KS_RESOLUTION_RESULT,String(e.stack));app.exit(1);});
