@@ -116,7 +116,7 @@
         if(state.sort==='favorites')return Number(fav(b))-Number(fav(a))||a.name.localeCompare(b.name);
         return a.name.localeCompare(b.name);
       });
-      main.append(el('small',t('Price estimates in coins')+' · KirkaTrades'));
+      main.append(el('small',t('Price estimates in coins')+' · KirkaTrades · '+(state.payload.pricesStale?t('Cached data')+' · ':'')+(state.payload.priceStamp?new Date(state.payload.priceStamp).toLocaleString(language):t('Unavailable'))));
       page(rows,['name','type','rarity','amount','average'],r=>[btn((fav(r)?'★ ':'')+r.name,()=>go('market','',r.name)),r.type,r.rarity,r.amount,r.average??t('Unavailable')]);return;}
     if(k==='clan'){
       const {members,name,...detail}=d;main.append(el('h2',name));const levels=members.map(m=>m.level).filter(Number.isFinite);
@@ -204,6 +204,31 @@
     b.style.cssText='display:inline-block;position:relative;z-index:2;margin:2px 5px;padding:4px 8px;font:600 12px/1.25 system-ui;color:#ffc063;background:#191b21;border:1px solid #765323;border-radius:5px;cursor:pointer';
     if(after)parent.after(b);else parent.prepend(b);
   }
+  let lobbyButton=null,lobbyRegion='',nextCheck=0;
+  async function lobbyLatency(manual=false){
+    const rt=window.__KS_GAME_RUNTIME__;
+    const target=rt?.scene==='lobby'&&!document.hidden&&!document.pointerLockElement?document.querySelector('.select-region'):null;
+    let region=target?.getClientRects().length?target.textContent.trim().toLowerCase():'';
+    if(region==='oce')region='oceania';
+    if(!['eu','na','sa','asia','india','oceania'].includes(region)){lobbyButton?.remove();lobbyButton=null;lobbyRegion='';return;}
+    if(!lobbyButton?.isConnected||lobbyRegion!==region){
+      lobbyButton?.remove();lobbyRegion=region;nextCheck=0;
+      lobbyButton=btn('HTTP …',()=>lobbyLatency(true));lobbyButton.dataset.ksPublicAction='latency';
+      target.after(lobbyButton);
+    }
+    if(Date.now()<nextCheck&&!manual)return;
+    const button=lobbyButton;
+    if(button.disabled)return;
+    nextCheck=Date.now()+60000;button.disabled=true;
+    try{
+      const {data}=await api.get('latency',region);
+      button.textContent=data.httpMs==null?'HTTP —':'HTTP '+data.httpMs+' ms';
+      button.title='Regional room-list HTTP response time. Last success: '+(data.lastSuccess?new Date(data.lastSuccess).toLocaleTimeString():'—')+'. Click to refresh (30-second cache).';
+    }catch{button.textContent='HTTP —';button.title='Regional measurement unavailable';}
+    finally{button.disabled=false;}
+  }
+  let lobbyCheck=0;
+  window.__KS_GAME_RUNTIME__?.on?.('refresh',()=>{if(Date.now()>lobbyCheck){lobbyCheck=Date.now()+3000;void lobbyLatency();}});
   function nativeLinks(){
     if(document.hidden||document.pointerLockElement||window.__KS_GAME_RUNTIME__?.getStatus?.()?.scene==='match')return;
     for(const [selector,kind,label] of surfaces)for(const panel of document.querySelectorAll(selector)){
