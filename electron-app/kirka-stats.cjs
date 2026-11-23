@@ -126,7 +126,7 @@ function createService(read=download,now=Date.now) {
           lastRegionalSuccess.set(region,now());
           return {region,rooms:published,httpMs:elapsed,lastSuccess:now()};
         }catch{return {region,rooms:null,httpMs:null,lastSuccess:lastRegionalSuccess.get(region)??null};}
-      
+
     })();
     regionCache.set(region,{until:now()+30000,request});
     return request;

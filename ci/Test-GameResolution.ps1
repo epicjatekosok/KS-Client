@@ -19,7 +19,11 @@ try {
         Copy-Item "$original/game-resolution.cjs","$repo/tests/render-resolution.cjs" $appFolder
     }
     $process=Start-Process "$runtime/electron.exe" -PassThru
-    if(-not $process.WaitForExit(90000)){$process.Kill();throw "Windows Electron $Test test timed out"}
+    if(-not $process.WaitForExit(90000)){
+        $process.Kill()
+        if (Test-Path $env:KS_RESOLUTION_RESULT) { Get-Content $env:KS_RESOLUTION_RESULT }
+        throw "Windows Electron $Test test timed out"
+    }
     Get-Content $env:KS_RESOLUTION_RESULT
     if($process.ExitCode -ne 0){throw "Windows Electron $Test test failed"}
 } finally {
