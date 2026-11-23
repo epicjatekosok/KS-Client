@@ -61,7 +61,7 @@
   document.addEventListener('visibilitychange',visibility);
   window.addEventListener('blur',visibility);
   window.addEventListener('focus',visibility);
-  window.addEventListener('pagehide',()=>{tick();flush();});
+  window.addEventListener('pagehide',()=>{tick();if(scene==='match'&&matchMs>0){data.interrupted++;matchMs=0;}flush();});
   window.addEventListener('ks-settings-visible',e=>{tick();settings=e.detail===true;});
   const duration = ms => Math.floor(ms/3600000)+'h '+Math.floor(ms/60000)%60+'m '+Math.floor(ms/1000)%60+'s';
   function render(acc) {

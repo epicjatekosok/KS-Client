@@ -46,7 +46,7 @@
     gameResolution: 'native',
     fpsLimit: 0,
     smoothPreset: 'Native',
-    showGraph: true,
+    showGraph: true, frametimeHUD:false,
     limitSettingsFPS: true,
     limitLobbyFPS: false,
     protectUnlockedMenus: true,
@@ -1176,7 +1176,7 @@
     #ks-panel .ks-palette-preview i{display:block;height:13px;flex:1;border-radius:3px;}
   </style>
   <div id="ks-screen">
-    <div id="ks-fps" aria-label="Estimated frame rate"></div>
+    <div id="ks-fps" aria-label="Estimated frame rate"></div><canvas id="ks-frame-hud" aria-label="Frame interval history" hidden style="position:fixed;left:18px;bottom:18px;width:250px;height:100px;background:#14171dee;pointer-events:none;border-radius:6px"></canvas>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
     <div id="ks-badge" aria-label="KS Client ${CLIENT_LABEL}">KS · ${CLIENT_VERSION}</div>
@@ -2506,7 +2506,7 @@
           `<p class="ks-hint">${state.language==='hu'?'A cél a játék képmagassága. A szélesség az ablak képarányát követi.':'The target sets the game image height. Width follows the window aspect ratio.'} <span id="ks-display-buffer"></span></p>`;
       case 'Game Integration':
         return title('Kirka.io Game Integration','Optional browser-side game extras. All changes are visual/read-only, no gameplay automation.') +
-          shortcutCard()+
+          shortcutCard()+toggleRow('Frametime HUD','Shows the recent frame interval history while the game is visible.','frametimeHUD')+
           `<div class="ks-card"><h3 class="ks-section-heading">Mouse & keyboard</h3>`+
           `<div class="ks-row"><div><div class="ks-label">Pointer lock status</div><div class="ks-desc">The cursor disappears only after the game canvas receives real browser pointer lock.</div></div><span id="ks-pointer-status" class="ks-code">Checking…</span></div>`+
           toggleRow('Keystroke overlay','Show held movement keys (WASD, space, shift) while playing.','gameKeystrokes')+
@@ -2972,7 +2972,7 @@
 
   function drawLineGraph(canvasId, values, label, maxValue, suffix) {
     const canvas = $(canvasId);
-    if (!canvas || !state.showGraph) return;
+    if (!canvas || (canvasId!=='ks-frame-hud' && !state.showGraph)) return;
     const width = Math.max(250,Math.round(canvas.clientWidth));
     const height = Math.max(100,Math.round(canvas.clientHeight));
     const dpr = Math.min(1.5,window.devicePixelRatio || 1);
@@ -3000,6 +3000,7 @@
   }
 
   function paintGraphs() {
+    if(!$('ks-frame-hud').hidden)drawLineGraph('ks-frame-hud',frameHistory,L('Frame interval'),Math.max(20,...frameHistory),'ms');
     const graphs=$('ks-graphs');
     if(graphs) graphs.style.display=state.showGraph?'block':'none';
     if(!open || selectedTab!=='Performance' || !state.showGraph)return;
@@ -3481,6 +3482,7 @@
     const activeLogo = assetURLs.uiImage || DEFAULT_LOGO_DATA;
     logo.style.display = activeLogo ? 'block' : 'none';
     if (activeLogo && logo.getAttribute('src')!==activeLogo) logo.src = activeLogo;
+    $('ks-frame-hud').hidden=!isGamePage||open||!state.frametimeHUD||!state.showHUD||state.minimalHUD;
     const fpsNode = $('ks-fps');
     fpsNode.style.display = isGamePage && state.showHUD && state.showFPS && state.fpsSource !== 'kirka' && !state.minimalHUD ? 'block' : 'none';
     fpsNode.style.left = state.fpsPosition === 'top-left' ? '18px' : 'auto';
@@ -4140,7 +4142,7 @@
     if(action==='Settings')show();
     else if(action==='Screenshot')notify('game-screenshot');
     else if(action==='Workshop'||action==='Quick Join'){show(true);navigateSettingsTab(action==='Workshop'?'Weapon Studio':'Game Integration');if(action==='Quick Join')$('ks-join-link')?.focus();}
-    else {const key={HUD:'showHUD',FPS:'showFPS',Frametime:'showGraph',Keystrokes:'gameKeystrokes'}[action];setSetting(key,!state[key]);}
+    else {const key={HUD:'showHUD',FPS:'showFPS',Frametime:'frametimeHUD',Keystrokes:'gameKeystrokes'}[action];setSetting(key,!state[key]);}
   },true);
 
   // Kirka.io may draw its FPS directly into a WebGL canvas. Canvas pixels
@@ -4234,7 +4236,7 @@
   function queueMeasurement(){measurementHandle=setTimeout(sampleMeasurement,1000);}
   function measuringTab(){return open && ['Performance','Frame Stability'].includes(selectedTab);}
   function measureFrames(){
-    return !document.hidden && (measuringTab() || (!open && isGamePage && state.showHUD && state.showFPS && !state.minimalHUD && state.fpsSource!=='kirka'));
+    return !document.hidden && (measuringTab() || (!open && isGamePage && state.showHUD && (state.showFPS||state.frametimeHUD) && !state.minimalHUD && state.fpsSource!=='kirka'));
   }
   let diagnosticTimer=null, diagnosticTopic='';
   function syncDiagnosticsPoll(){

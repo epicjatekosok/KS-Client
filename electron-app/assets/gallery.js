@@ -1,7 +1,27 @@
 'use strict';
 const $=id=>document.getElementById(id),rpc=window.gallery.request;
-let catalog=[],updating=null,packs=[],limit=36,renderID=0,detailID=0,previewURL=null;
-const thumbs=new Map();
+let catalog=[],updating=null,packs=[],limit=36,detailID=0,previewURL=null;
+const thumbs=new Map(),pendingImages=[];
+let fetching=0;
+function drain(){
+  while(fetching<2&&pendingImages.length){
+    const {img,key,id,file}=pendingImages.shift();
+    if(!img.isConnected)continue;
+    fetching++;
+    rpc('thumbnail',id,file).then(url=>{
+      if(thumbs.size>=160)thumbs.delete(thumbs.keys().next().value);
+      thumbs.set(key,url);if(img.isConnected)img.src=url;
+    }).catch(()=>{}).finally(()=>{fetching--;drain();});
+  }
+}
+const visibleImages=new IntersectionObserver(entries=>{
+  for(const entry of entries)if(entry.isIntersecting){
+    const img=entry.target;visibleImages.unobserve(img);
+    pendingImages.push({img,...img.dataset});
+  }
+  drain();
+},{rootMargin:'100px'});
+
 function node(tag,text){const n=document.createElement(tag);if(text!=null)n.textContent=text;return n;}
 async function task(fn){try{$('status').textContent='';await fn();}catch(e){$('status').textContent=e.message;}}
 function button(label,fn){const b=node('button',label);b.onclick=()=>task(fn);return b;}
@@ -9,7 +29,8 @@ function cleanup(){detailID++;$('detail').replaceChildren();if(previewURL)URL.re
 async function refresh(){const d=await rpc('list');packs=d.packs;catalog=d.catalog||[];$('paths').replaceChildren(...d.observed.map(p=>node('option',p.slice(8))));render();}
 function category(file){return /\.(mp3|ogg|wav)$/i.test(file)?'Sounds':/\.(otf|ttf|woff2?)$/i.test(file)?'Fonts':'Images';}
 function render(){
-  const version=++renderID,q=$('query').value.toLowerCase(),kind=$('category').value,root=$('rows');root.replaceChildren();
+  const q=$('query').value.toLowerCase(),kind=$('category').value,root=$('rows');root.replaceChildren();
+  visibleImages.disconnect();pendingImages.length=0;
   let total=0;
   for(const p of packs){
     const files=p.details.filter(f=>(p.name+' '+f.path).toLowerCase().includes(q)&&(kind==='All'||kind===category(f.path)||kind==='Favorites'&&f.favorite));
@@ -25,7 +46,7 @@ function render(){
       if(category(f.path)==='Images'){
         const img=node('img');img.alt='';row.append(img);const key=p.id+'/'+f.path;
         if(thumbs.has(key))img.src=thumbs.get(key);
-        else rpc('thumbnail',p.id,f.path).then(url=>{if(thumbs.size>=160)thumbs.delete(thumbs.keys().next().value);thumbs.set(key,url);if(version===renderID)img.src=url;}).catch(()=>{});
+        else{Object.assign(img.dataset,{key,id:p.id,file:f.path});visibleImages.observe(img);}
       }
       row.append(button(f.path,()=>detail(p,f)),button(f.favorite?'★':'☆',async()=>{await rpc('favorite',p.id,f.path);await refresh();}),
         button(f.enabled?'Restore original':'Use replacement',async()=>{await rpc('enable',p.id,f.path);await refresh();}));

@@ -1,13 +1,13 @@
 'use strict';
 // Run in the downloaded Windows Electron runtime against the actual isolated preload and IPC handlers.
-const {app,BrowserWindow,ipcMain}=require('electron');
+const {app,BrowserWindow}=require('electron');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),assert=require('node:assert/strict');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'ks-gallery-smoke-'));
 process.env.LOCALAPPDATA=temp;
 app.setPath('userData',path.join(temp,'profile'));
 app.whenReady().then(async()=>{
   const host=new BrowserWindow({show:false});await host.loadURL('about:blank');
-  require('../electron-app/gallery.cjs').open(host,[]);
+  await require('../electron-app/gallery.cjs').open(host,[]);
   const win=BrowserWindow.getAllWindows().find(w=>w!==host),wc=win.webContents;
   if(wc.isLoading()||!wc.getURL())await new Promise(resolve=>wc.once('did-finish-load',resolve));
   const result=await wc.executeJavaScript(`(async()=>{

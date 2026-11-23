@@ -5,7 +5,7 @@ const path=require('node:path'),fs=require('node:fs/promises');
 const swap=require('./swapper.cjs');
 const local=path.join(__dirname,'assets','gallery.html'),url=pathToFileURL(local).href;
 let win,observed=[],game=null;
-function open(parent,paths){
+async function open(parent,paths){
   game=parent;
   observed=Array.isArray(paths)?paths.filter(p=>typeof p==='string'&&p.startsWith('/assets/')&&p.length<240).slice(0,100):[];
   if(win&&!win.isDestroyed()){win.focus();return;}
@@ -14,7 +14,7 @@ function open(parent,paths){
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('will-navigate',e=>e.preventDefault());
   win.on('closed',()=>{win=null;game=null;});
-  win.loadFile(local);
+  await win.loadFile(local);
 }
 ipcMain.handle('ks:gallery',async(e,op,id,file,value)=>{
   if(!win||e.sender!==win.webContents||e.senderFrame!==win.webContents.mainFrame||e.senderFrame.url!==url)throw Error('Gallery is closed');
@@ -49,7 +49,8 @@ ipcMain.handle('ks:gallery',async(e,op,id,file,value)=>{
       if(!/\.(png|jpe?g|webp|gif)$/i.test(file))throw Error('Unsupported thumbnail');
       const img=nativeImage.createFromBuffer(bytes);
       if(img.isEmpty())throw Error('Invalid image');
-      return img.resize({width:80}).toDataURL();
+      const size=img.getSize();
+      return img.resize(size.width>=size.height?{width:80}:{height:80}).toDataURL();
     }
     case 'media':return store.read(id,file);
     case 'rename':case 'retarget':case 'enable':case 'favorite':store.edit(id,file,op,value);break;
