@@ -34,6 +34,9 @@
    d.weapon={enabled:w.enabled===true,hue:clamp(w.hue,0,360,0),saturation:clamp(w.saturation,40,200,100),
      brightness:clamp(w.brightness,50,150,100),skinURL:imgURL(w.skinURL)||'',presets:inArray(w.presets,12,p=>{
        const name=trim(p.name,36);return name?{name,hue:clamp(p.hue,0,360,0),saturation:clamp(p.saturation,40,200,100),brightness:clamp(p.brightness,50,150,100),skinURL:imgURL(p.skinURL)||''}:null})};
+   d.appearance=appearance(value.appearance);
+   d.favoriteLooks=inArray(value.favoriteLooks,12,x=>({name:trim(x.name,30),...appearance(x)})).filter(x=>x.name);
+   d.poses=inArray(value.poses,32,pose).filter(x=>x.name);
    d.swapEnabled=value.swapEnabled===true;
    d.markerId=/^[A-Za-z][A-Za-z0-9_-]{0,79}$/.test(value.markerId||'')?value.markerId:'';
    d.markerColor=color(value.markerColor,'#ffffff');
@@ -48,6 +51,52 @@
  }
  function clamp(v,min,max,fallback){const n=Number(v);return Number.isFinite(n)?Math.round(Math.max(min,Math.min(max,n))):fallback}
  function color(v,fallback){return /^#[0-9a-f]{6}$/i.test(String(v))?String(v):fallback}
+ function appearance(x={}){
+   x=isObject(x)?x:{};
+   return {enabled:x.enabled===true,nameColor:color(x.nameColor,'#f0aa35'),clanColor:color(x.clanColor,'#66cddd'),
+     gradient:x.gradient===true,badge:['','KS ◆','KS ★','KS ●'].includes(x.badge)?x.badge:'',
+     card:['original','outlined','tinted'].includes(x.card)?x.card:'original'};
+ }
+ function pose(x){
+   return {name:trim(x.name,48),x:clamp(x.x,-80,80,0),y:clamp(x.y,-80,80,0),z:clamp(x.z,-80,80,0),
+     scale:clamp(x.scale,50,150,100),rx:clamp(x.rx,-180,180,0),ry:clamp(x.ry,-180,180,0),rz:clamp(x.rz,-180,180,0)};
+ }
+ function poseTransform(p){
+   return 'translate3d('+p.x+'px,'+p.y+'px,'+p.z+'px) rotateX('+p.rx+'deg) rotateY('+p.ry+'deg) rotateZ('+p.rz+'deg) scale('+p.scale/100+')';
+ }
+ function appearanceCSS(a){
+   if(!a.enabled)return '';
+   const nick=':is(.profile-cont,.card-profile,.profile-page) :is(.nickname,.username,.player-name)';
+   return nick+'{color:'+a.nameColor+'!important;'+(a.gradient?'background:linear-gradient(90deg,'+a.nameColor+','+a.clanColor+');background-clip:text;-webkit-text-fill-color:transparent;':'')+'}'+
+     ':is(.profile-cont,.card-profile,.profile-page) .clan-name{color:'+a.clanColor+'!important}'+
+     (a.badge?nick+'::after{content:" '+a.badge+'";font:600 11px system-ui;color:'+a.nameColor+';-webkit-text-fill-color:'+a.nameColor+'}':'')+
+     (a.card==='outlined'?'.card-profile{outline:1px solid '+a.clanColor+'}':a.card==='tinted'?'.card-profile{background-color:'+a.clanColor+'22!important}':'');
+ }
+ function lookControls(){
+   const a=cfg.appearance;
+   return card('Local profile style',input('look-nameColor','Profile color',a.nameColor,'color')+input('look-clanColor','Clan color',a.clanColor,'color')+
+     '<label>Gradient <input id="ks-wk-look-gradient" type="checkbox" '+(a.gradient?'checked':'')+'></label>'+
+     ['badge','card'].map(k=>'<label>'+k+' <select id="ks-wk-look-'+k+'">'+(k==='badge'?['','KS ◆','KS ★','KS ●']:['original','outlined','tinted']).map(v=>'<option value="'+v+'" '+(a[k]===v?'selected':'')+'>'+escape(v||'None')+'</option>').join('')+'</select></label>').join('')+
+     '<p id="ks-look-preview" style="color:'+a.nameColor+'">Profile · Clan '+escape(a.badge)+'</p>'+
+     btn('look-apply','Apply locally')+btn('look-reset','Restore original')+input('look-name','Preset name')+btn('look-save','Save favorite colors')+
+     cfg.favoriteLooks.map((x,i)=>btn('look-use-'+i,x.name)).join(''));
+ }
+ let editingPose=null;
+ function poseCard(){
+   const p=editingPose||pose({});
+   return card('Viewmodel pose studio','<p>Reference model preview. Live Kirka viewmodel transforms are unsupported without a verified local weapon identifier.</p>'+
+     '<div style="height:140px;display:grid;place-items:center;perspective:350px;overflow:hidden"><div id="ks-pose-preview" style="transform-style:preserve-3d;transform:'+poseTransform(p)+'"><i style="display:block;width:95px;height:16px;background:#d89c47;transform:translateZ(7px)"></i><i style="position:absolute;top:0;width:95px;height:14px;background:#9e7439;transform:rotateX(90deg);transform-origin:top"></i><i style="display:block;width:12px;height:22px;margin-left:18px;background:#75624c"></i></div></div>'+
+     input('pose-name','Weapon preset name',p.name)+['x','y','z','scale','rx','ry','rz'].map(k=>input('pose-'+k,k,p[k],'number')).join('')+
+     btn('pose-save','Save pose')+btn('pose-reset','Reset preview')+btn('pose-export','Export poses')+'<input id="ks-wk-pose-file" type="file" accept=".json">'+btn('pose-import','Import poses')+
+     cfg.poses.map((x,i)=>btn('pose-use-'+i,x.name)+btn('pose-delete-'+i,'Remove')).join(''));
+ }
+ function readPose(ui){const v=k=>ui.getElementById('ks-wk-pose-'+k)?.value;return pose(Object.fromEntries(['name','x','y','z','scale','rx','ry','rz'].map(k=>[k,v(k)])));}
+ function readLook(ui){const v=k=>ui.getElementById('ks-wk-look-'+k);return appearance({enabled:true,nameColor:v('nameColor')?.value,clanColor:v('clanColor')?.value,gradient:v('gradient')?.checked,badge:v('badge')?.value,card:v('card')?.value});}
+ document.addEventListener('input',e=>{
+   const el=e.composedPath()[0],ui=el?.getRootNode();if(!ui?.host||ui.host.id!=='ks-client-root')return;
+   if(el.id.startsWith('ks-wk-pose-')){editingPose=readPose(ui);const box=ui.getElementById('ks-pose-preview');if(box)box.style.transform=poseTransform(editingPose);}
+   if(el.id.startsWith('ks-wk-look-')){const a=readLook(ui),box=ui.getElementById('ks-look-preview');if(box){box.style.color=a.nameColor;box.style.background=a.gradient?'linear-gradient(90deg,'+a.nameColor+'35,'+a.clanColor+'66)':'';box.style.borderColor=a.clanColor;box.textContent='Profile · Clan '+a.badge;}}
+ });
  function limitSettings(s){
    const obj={};
    for(const [k,v] of Object.entries(s).slice(0,32)){
@@ -199,7 +248,7 @@
    if(tab==='KS Analytics')return (window.__KS_ANALYTICS__?.render(escape)||'Analytics unavailable')+
      btn('analytics-refresh','Refresh')+btn('analytics-export','Export statistics')+btn('analytics-reset','Reset statistics');
    if(tab==='Weapon Studio')return '<h2 class="ks-title">Weapon Studio / Custom Skin Link</h2><p class="ks-sub">Local weapon and inventory image cosmetics. 3D WebGL material replacement depends on exact supported game assets.</p>'+
-     card('Weapon & inventory visual styling',input('weapon-hue','Hue rotation (0–360)',cfg.weapon.hue,'number')+
+     poseCard()+card('Weapon & inventory visual styling',input('weapon-hue','Hue rotation (0–360)',cfg.weapon.hue,'number')+
        input('weapon-saturation','Saturation % (40–200)',cfg.weapon.saturation,'number')+
        input('weapon-brightness','Brightness % (50–150)',cfg.weapon.brightness,'number')+
        input('skin-url','Custom Skin Link (HTTPS image)',cfg.weapon.skinURL)+
@@ -262,7 +311,7 @@
      card('Recently joined',list(cfg.history.map(h=>({name:h.url,url:h.url})), 'history'))+
      '<p class="ks-hint">Applying lobby settings changes only matching visible HTML controls, never hidden server configuration. Joining still follows Kirka.io permissions.</p>';
    if(tab==='Friends & Profiles')return '<h2 class="ks-title">Friends & Profiles</h2><p class="ks-sub">Local labels and notes for profiles you actually see. No access to private friend lists or invented spectate links.</p>'+
-     card('Create local player annotation',input('friend-nick','Visible nickname / player ID')+input('friend-note','Personal note')+
+     lookControls()+card('Create local player annotation',input('friend-nick','Visible nickname / player ID')+input('friend-note','Personal note')+
        input('friend-tag','Player tag')+'<label class="ks-row">Favorite <input id="ks-wk-friend-favorite" type="checkbox"></label>'+input('friend-color','Tag color', '#f0aa35','color')+btn('friend-save','Save note'))+
      card('Visible friend list',tableControls('friends')+'<div id="ks-live-friends"></div>'+input('watch-name','Exact visible friend name',watchFriend?.name||'')+
        btn('watch-friend','Watch for native Spectate (60 seconds)')+' '+btn('watch-cancel','Cancel')+
@@ -373,6 +422,27 @@
    const val=id=>ui.getElementById('ks-wk-'+id)?.value??'';
    const flag=id=>!!ui.getElementById('ks-wk-'+id)?.checked;
    const number=(id,min,max,def)=>clamp(val(id),min,max,def);
+   if(a.startsWith('look-')){
+     const look=readLook(ui),name=trim(val('look-name'),30);
+     if(a==='look-reset')cfg.appearance=appearance();
+     else if(a==='look-apply')cfg.appearance=look;
+     else if(a==='look-save'){if(!name)throw Error('Preset name required');cfg.favoriteLooks=[...cfg.favoriteLooks.filter(x=>x.name!==name),{...look,name}].slice(-12);}
+     else if(a.startsWith('look-use-'))cfg.appearance=appearance(cfg.favoriteLooks[Number(a.slice(9))]);
+     save();return true;
+   }
+   if(a.startsWith('pose-')){
+     if(a==='pose-export')downloadJSON({format:'ks-viewmodel-poses',version:1,poses:cfg.poses},'KS-poses.json');
+     else if(a==='pose-import')return (async()=>{const file=ui.getElementById('ks-wk-pose-file')?.files[0];
+       if(!file||file.size>24000)throw Error('Choose a pose JSON up to 24 KiB');const doc=JSON.parse(await file.text());
+       if(doc.format!=='ks-viewmodel-poses'||doc.version!==1||!Array.isArray(doc.poses)||doc.poses.length>32)throw Error('Invalid pose pack');
+       const incoming=inArray(doc.poses,32,pose);if(incoming.some(x=>!x.name)||incoming.length!==doc.poses.length)throw Error('Invalid pose name');
+       const merged=new Map([...cfg.poses,...incoming].map(x=>[x.name,x]));if(merged.size>32)throw Error('Maximum 32 poses');cfg.poses=[...merged.values()];save();return true;})();
+     else if(a==='pose-reset')editingPose=pose({});
+     else if(a==='pose-save'){const p=readPose(ui);if(!p.name)throw Error('Enter a weapon preset name');if(!cfg.poses.some(x=>x.name===p.name)&&cfg.poses.length>=32)throw Error('Maximum 32 poses');cfg.poses=[...cfg.poses.filter(x=>x.name!==p.name),p];editingPose=p;save();}
+     else if(a.startsWith('pose-use-'))editingPose=cfg.poses[Number(a.slice(9))];
+     else if(a.startsWith('pose-delete-')){cfg.poses.splice(Number(a.slice(12)),1);save();}
+     return true;
+   }
    if(a.startsWith('analytics-')){
      const stats=window.__KS_ANALYTICS__;
      if(stats && a==='analytics-export')downloadJSON(stats.exportData(),'KS-Analytics.json');
@@ -707,7 +777,7 @@
    }
    const w=cfg.weapon;
    const filter='hue-rotate('+w.hue+'deg) saturate('+(w.saturation/100)+') brightness('+(w.brightness/100)+')';
-   const css=(w.enabled?'.inventory img,.weapons img,.weapon-icon img,.weapon-preview img,.item-card img{filter:'+filter+'!important;}':'')+
+   const css=appearanceCSS(cfg.appearance)+(w.enabled?'.inventory img,.weapons img,.weapon-icon img,.weapon-preview img,.item-card img{filter:'+filter+'!important;}':'')+
     (cfg.markerId?'#'+cfg.markerId+'{color:'+cfg.markerColor+'!important;border-color:'+cfg.markerColor+'!important}':'')+
     (cfg.killfeedColors?'.kill-bar-cont .kill-bar-item.blue{color:#73ccff}.kill-bar-cont .kill-bar-item.red{color:#ff7777}':'')+
     (cfg.gameHudTheme==='compact'?'.script-ui .ui-row{transform:scale(.92);transform-origin:top right}':'')+

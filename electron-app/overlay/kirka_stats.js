@@ -97,6 +97,7 @@
     if(!d)return;
     if(k==='player'){
       main.append(el('h2',d.name+'  #'+d.shortId),btn(t('Inventory'),()=>go('inventory',d.shortId)));
+      if(d.rank){const badge=el('strong',t('rank')+' · '+d.rank);badge.className='rank';main.append(badge);}
       const ratio=(a,b,f=1)=>a!=null&&b>0?a/b*f:null;
       const {id,name,shortId,banReported,...details}=d;if(banReported)main.append(el('strong',t('Banned')));
       stats(main,{...details,clan:d.clan?btn(d.clan,()=>go('clan',d.clan)):null,'K/D':ratio(d.kills,d.deaths),'Win rate (%)':ratio(d.wins,d.games,100)});return;
