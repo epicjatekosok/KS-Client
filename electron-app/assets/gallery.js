@@ -1,6 +1,6 @@
 'use strict';
 const $=id=>document.getElementById(id),rpc=window.gallery.request;
-let packs=[],limit=36,renderID=0,detailID=0,previewURL=null;
+let updating=null,packs=[],limit=36,renderID=0,detailID=0,previewURL=null;
 const thumbs=new Map();
 function node(tag,text){const n=document.createElement(tag);if(text!=null)n.textContent=text;return n;}
 async function task(fn){try{$('status').textContent='';await fn();}catch(e){$('status').textContent=e.message;}}
@@ -16,7 +16,7 @@ function render(){
     if(!files.length)continue;
     const pack=node('article'),title=node('strong',p.name);pack.append(title,node('small','  '+[p.author,p.revision,p.description].filter(Boolean).join(' · ')));
     const change=op=>async()=>{await rpc(op,p.id);cleanup();await refresh();};
-    pack.append(button(p.enabled?'Disable pack':'Enable pack',change('toggle')),button('Highest priority',change('first')),button('Export',()=>rpc('export',p.id)));
+    pack.append(button(p.enabled?'Disable pack':'Enable pack',change('toggle')),button('Highest priority',change('first')),button('Export',()=>rpc('export',p.id)),button('Update from pack',()=>{updating=p.id;$('import').value='';$('import').click();}));
     const name=node('input');name.value=p.name;name.setAttribute('aria-label','Pack name');pack.append(name,button('Rename',async()=>{await rpc('rename',p.id,null,name.value);await refresh();}),button('Remove',async()=>{if(confirm('Remove this managed pack?'))await change('remove')();}));
     root.append(pack);
     for(const f of files){
@@ -36,7 +36,8 @@ function render(){
 }
 async function detail(p,f){
   cleanup();const version=detailID,section=$('detail'),type=category(f.path);
-  section.append(node('h2',f.path),button('Close',cleanup));
+  const target=node('input');target.value=f.path;target.setAttribute('aria-label','Replacement asset path');
+  section.append(node('h2',f.path),button('Close',cleanup),target,button('Rename asset path',async()=>{await rpc('retarget',p.id,f.path,target.value);cleanup();await refresh();}));
   if(type==='Fonts')return;
   const data=await rpc('media',p.id,f.path);
   if(version!==detailID)return;
@@ -78,11 +79,14 @@ async function ingest(file){
     const uri=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});
     doc={format:'ks-resource-pack',version:1,name:file.name,files:[{path,data:uri.split(',')[1]}]};
   }
-  await rpc('pack',null,null,doc);await refresh();$('status').textContent='Imported and disabled. Review the pack before enabling it.';
+  const id=updating;updating=null;
+  if(id&&!confirm('Replace the selected managed pack with this import?'))return;
+  await rpc('pack',id,null,doc);await refresh();$('status').textContent=id?'Updated. Reload the game to apply.':'Imported and disabled. Review the pack before enabling it.';
 }
 $('import').onchange=e=>task(()=>ingest(e.target.files[0]));
+$('import').oncancel=()=>{updating=null;};
 document.addEventListener('dragover',e=>e.preventDefault());
-document.addEventListener('drop',e=>{e.preventDefault();task(()=>ingest(e.dataTransfer.files[0]));});
+document.addEventListener('drop',e=>{e.preventDefault();updating=null;task(()=>ingest(e.dataTransfer.files[0]));});
 $('folder').onclick=()=>task(async()=>{await rpc('folder');await refresh();});
 $('more').onclick=()=>{limit+=36;render();};
 for(const id of ['query','category'])$(id).oninput=()=>{limit=36;render();};

@@ -20,7 +20,7 @@ ipcMain.handle('ks:gallery',async(e,op,id,file,value)=>{
   const owner=win,store=swap.packs();
   switch(op){
     case 'list':return {packs:store.list(),observed};
-    case 'pack':store.import(value);break;
+    case 'pack':store.import(value,id);break;
     case 'folder':{
       const r=await dialog.showOpenDialog(owner,{properties:['openDirectory']});
       if(!r.canceled)store.import(swap.fromFolder(r.filePaths[0],path.basename(r.filePaths[0])));break;
@@ -37,7 +37,7 @@ ipcMain.handle('ks:gallery',async(e,op,id,file,value)=>{
       return img.resize({width:80}).toDataURL();
     }
     case 'media':return store.read(id,file);
-    case 'rename':case 'enable':case 'favorite':store.edit(id,file,op,value);break;
+    case 'rename':case 'retarget':case 'enable':case 'favorite':store.edit(id,file,op,value);break;
     case 'gain':store.sound(id,file,value.percent,value.bytes?Buffer.from(value.bytes):null);break;
     case 'toggle':case 'remove':case 'first':store.change(id,op);break;
     default:throw Error('Unknown gallery command');

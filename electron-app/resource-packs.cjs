@@ -74,16 +74,31 @@ function createStore(root){
       return {id:p.id,name:p.name,author:p.author,revision:p.revision,description:p.description,enabled:p.enabled,total:details.length,
         matched:details.filter(f=>f.matched).length,conflicts:details.filter(f=>f.shadowed).length,details};
     }),
-    import(doc){
-      if(packs.length>=MAX_PACKS)throw Error('Maximum 12 packs');
+    import(doc,replaceId){
+      const previous=replaceId?packs.find(p=>p.id===replaceId):null;
+      if(replaceId&&!previous)throw Error('Unknown pack to update');
+      if(!previous&&packs.length>=MAX_PACKS)throw Error('Maximum 12 packs');
       const files=validate(doc),id=randomUUID(),dir=path.join(root,id);
       fs.mkdirSync(dir,{recursive:true});
       try{
         for(const {name,data} of files){const file=path.join(dir,...name.split('/'));fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,data,{flag:'wx'});}
         if(doc.api!=null && doc.api!==1)throw Error('Unsupported pack API');
         const clean=k=>typeof doc[k]==='string'?doc[k].trim().slice(0,200):'';
-        commit([...packs,{id,name:doc.name.trim().slice(0,60),author:clean('author'),revision:clean('revision'),description:clean('description'),enabled:false,files:files.map(f=>f.name)}]);
+        const names=files.map(f=>f.name),gains={};
+        let total=files.reduce((sum,f)=>sum+f.data.length,0);
+        for(const [file,mix] of Object.entries(doc.soundMix||{})){
+          if(!names.includes(file)||!/\.(ogg|wav|mp3)$/i.test(file)||!Number.isInteger(mix?.percent)||mix.percent<0||mix.percent>=100||typeof mix.wav!=='string'||mix.wav.length>Math.ceil((MAX_BYTES-total)/3)*4)throw Error('Invalid pack sound mix');
+          const bytes=Buffer.from(mix.wav,'base64');total+=bytes.length;
+          if(bytes.toString('base64')!==mix.wav||total>MAX_BYTES||!signature('clip.wav',bytes))throw Error('Invalid sound mix audio');
+          fs.writeFileSync(path.join(dir,...file.split('/'))+'.ks-gain.wav',bytes,{flag:'wx'});
+          gains[file]=mix.percent;
+        }
+        const subset=input=>Array.isArray(input)?names.filter(n=>input.includes(n)):[];
+        const pack={id,name:doc.name.trim().slice(0,60),author:clean('author'),revision:clean('revision'),description:clean('description'),
+          enabled:previous?.enabled||false,files:names,favorites:subset(doc.favorites),disabled:subset(doc.disabled),gains};
+        commit(previous?packs.map(p=>p===previous?pack:p):[...packs,pack]);
       }catch(e){fs.rmSync(dir,{recursive:true,force:true});throw e;}
+      if(previous)fs.rmSync(path.join(root,previous.id),{recursive:true,force:true});
     },
     edit(id,file,op,value){
       const p=packs.find(p=>p.id===id);
@@ -97,6 +112,12 @@ function createStore(root){
         if(op==='favorite'||op==='enable'){
           const key=op==='favorite'?'favorites':'disabled';
           const items=new Set(p[key]);if(items.has(file))items.delete(file);else items.add(file);next[key]=[...items];
+        }else if(op==='retarget'){
+          if(!validPath(value)||path.extname(value).toLowerCase()!==path.extname(file).toLowerCase()||p.files.some(n=>n.toLowerCase()===value.toLowerCase()))throw Error('Choose an unused, compatible asset path');
+          const doc=this.export(id);doc.files.find(f=>f.path===file).path=value;
+          for(const k of ['favorites','disabled'])if(doc[k])doc[k]=doc[k].map(n=>n===file?value:n);
+          if(doc.soundMix?.[file]){doc.soundMix[value]=doc.soundMix[file];delete doc.soundMix[file];}
+          this.import(doc,id);return;
         }else throw Error('Unknown file operation');
       }
       commit(packs.map(x=>x===p?next:x));
@@ -115,6 +136,8 @@ function createStore(root){
       const gains={...p.gains},dest=path.join(root,id,...file.split('/'))+'.ks-gain.wav';
       if(percent!==100){
         if(!Buffer.isBuffer(wav)||wav.length>MAX_BYTES||!signature('clip.wav',wav))throw Error('Invalid generated sound');
+        const bytes=p.files.reduce((sum,n)=>sum+fs.statSync(path.join(root,id,...n.split('/'))).size,0)+Object.keys(gains).filter(n=>n!==file).reduce((sum,n)=>sum+fs.statSync(path.join(root,id,...n.split('/'))+'.ks-gain.wav').size,0);
+        if(bytes+wav.length>MAX_BYTES)throw Error('Audio mix would exceed the 12 MiB pack limit');
         const temp=dest+'.'+randomUUID();try{fs.writeFileSync(temp,wav,{flag:'wx'});fs.renameSync(temp,dest);}finally{fs.rmSync(temp,{force:true});}
         gains[file]=percent;
       }else delete gains[file];
@@ -150,6 +173,12 @@ function createStore(root){
       const p=packs.find(p=>p.id===id);if(!p)throw Error('Unknown resource pack');
       const doc=fromFolder(path.join(root,id),p.name,p.files);
       for(const key of ['author','revision','description'])if(p[key])doc[key]=p[key];
+      for(const key of ['favorites','disabled'])if(p[key]?.length)doc[key]=p[key];
+      for(const [file,percent] of Object.entries(p.gains||{})){
+        const dest=path.join(root,id,...file.split('/'))+'.ks-gain.wav';
+        if(fs.realpathSync(dest)!==path.join(fs.realpathSync(root),id,...file.split('/'))+'.ks-gain.wav')throw Error('Invalid audio mix file');
+        (doc.soundMix||={})[file]={percent,wav:fs.readFileSync(dest).toString('base64')};
+      }
       return doc;
     }
   };
