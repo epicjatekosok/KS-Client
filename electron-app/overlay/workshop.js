@@ -246,10 +246,12 @@
        '<p class="ks-hint">Status: '+escape(JSON.stringify(window.__KS_FREEZE_GUARD__?.getStatus?.()||{}).slice(0,260))+'</p>')+notice;
    if(tab==='Plugins')return '<h2 class="ks-title">Safe JavaScript plugins</h2><p class="ks-sub">'+escape(srcmsg)+'</p>'+
      '<p class="ks-hint">Example: ks.message("Hello!"); ks.tint("hud","#ffaa22"); ks.snapshot().then(s=>ks.message(s.scene)); The snapshot includes only visible game data. Each run requires a click.</p>'+
-     card('Add local plugin',input('plugin-name','Plugin name')+'<textarea id="ks-wk-plugin-code" class="ks-input" rows="7" placeholder="ks.message(&#39;Hello!&#39;)"></textarea>'+input('plugin-version','Plugin version','1.0.0')+input('plugin-settings','Plugin settings (JSON)','{}')+
+     card('Add local plugin',input('plugin-name','Plugin name')+input('plugin-author','Author')+input('plugin-description','Description')+input('plugin-category','Category')+
+       '<label class="ks-row">Plugin type <select id="ks-wk-plugin-type"><option value="js">JavaScript</option><option value="css">Scoped CSS</option></select></label>'+'<textarea id="ks-wk-plugin-code" class="ks-input" rows="7" placeholder="ks.message(&#39;Hello!&#39;)"></textarea>'+input('plugin-version','Plugin version','1.0.0')+input('plugin-settings','Plugin settings (JSON)','{}')+
        '<label class="ks-row">Worker API 2 <input id="ks-wk-plugin-v2" type="checkbox"></label>'+btn('plugin-save','Save code')+
-       '<input id="ks-wk-plugin-file" type="file" accept=".json">'+btn('plugin-import','Import plugin'))+
-     card('Saved plugins',cfg.plugins.length?cfg.plugins.map((p,i)=>'<div class="ks-row"><div><strong>'+escape(p.name)+'</strong><div class="ks-desc">v'+escape(p.version)+' · API '+p.api+'</div></div>'+(p.enabled?btn('plugin-run-'+i,'Run'):'')+btn('plugin-toggle-'+i,p.enabled?'Disable':'Enable')+btn('plugin-edit-'+i,'Edit')+btn('plugin-export-'+i,'Export')+btn('plugin-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No scripts saved.</p>')+
+       '<input id="ks-wk-plugin-file" type="file" accept=".json,.js,.css">'+btn('plugin-import','Import plugin'))+
+     card('Saved plugins',cfg.plugins.length?cfg.plugins.map((p,i)=>'<div class="ks-row"><div><strong>'+escape(p.name)+'</strong><div class="ks-desc">v'+escape(p.version)+' · API '+p.api+' · '+escape([p.author,p.category,p.kind].filter(Boolean).join(' / '))+'</div><small>'+escape(p.description)+'</small></div>'+(p.enabled?btn('plugin-run-'+i,'Run'):'')+btn('plugin-toggle-'+i,p.enabled?'Disable':'Enable')+btn('plugin-edit-'+i,'Edit')+btn('plugin-export-'+i,'Export')+btn('plugin-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No scripts saved.</p>')+
+     card('CSS plugin format','<p>Use color, background-color or border-color with six-digit hex colors on these supported selectors: '+escape(cssTargets.join(', '))+'</p>')+
      card('Plugin preview','<div id="ks-wk-plugin-preview" class="ks-note">Choose Run to open an isolated preview.</div>'+btn('plugin-stop','Stop preview')+'<pre>'+escape(pluginLog.join('\n'))+'</pre>')+notice;
    if(tab==='Lobby')return '<h2 class="ks-title">Lobby / Quick Join</h2><p class="ks-sub">Save join links, room notes and supported HTML lobby form values.</p>'+
      card('Regional latency',btn('regions','Open regional latency and servers'))+
@@ -466,22 +468,24 @@
    else if(a==='swap-scan'){notify('resource-scan');status='Scanning local assets…';}
    else if(a==='plugin-save'){
      const name=trim(val('plugin-name'),45),code=trim(val('plugin-code'),12000);
-     const p=normalizePlugin({name,code,version:val('plugin-version'),settings:JSON.parse(val('plugin-settings')||'{}'),api:flag('plugin-v2')?2:1});
+     const p=normalizePlugin({name,code,kind:val('plugin-type'),author:val('plugin-author'),description:val('plugin-description'),category:val('plugin-category'),version:val('plugin-version'),settings:JSON.parse(val('plugin-settings')||'{}'),api:flag('plugin-v2')?2:1});
      if(!p||(!cfg.plugins.some(x=>x.name===name)&&cfg.plugins.length>=12))throw Error('Invalid plugin or plugin limit reached');
      if(activePlugin===name)stopPlugin();
      cfg.plugins=[...cfg.plugins.filter(x=>x.name!==name),p];save();status='Plugin saved; not running.';
    }else if(a==='plugin-import'){
      return (async()=>{
        const file=ui.getElementById('ks-wk-plugin-file')?.files?.[0];if(!file||file.size>65536)throw Error('Select a plugin JSON up to 64 KiB');
-       const doc=JSON.parse(await file.text()),p=normalizePlugin(doc);
-       if(doc.format!=='ks-plugin'||!p||cfg.plugins.length>=12||cfg.plugins.some(x=>x.name===p.name))throw Error('Incompatible or duplicate plugin');
+       const text=await file.text(),ext=file.name.split('.').pop().toLowerCase();
+       const doc=ext==='json'?JSON.parse(text):['css','js'].includes(ext)?{format:'ks-plugin',api:2,kind:ext,version:'1.0.0',name:file.name.replace(/\.[^.]+$/,''),code:text}:null;
+       const p=doc&&normalizePlugin(doc);
+       if(doc?.format!=='ks-plugin'||!p||cfg.plugins.length>=12||cfg.plugins.some(x=>x.name===p.name))throw Error('Incompatible or duplicate plugin');
        cfg.plugins.push({...p,enabled:false});save();return true;
      })();
    }else if(a.startsWith('plugin-toggle-')){
      const p=cfg.plugins[Number(a.slice(14))];if(p){mailbox.delete(p.name);if(activePlugin===p.name)stopPlugin();p.enabled=!p.enabled;save();}
    }else if(a.startsWith('plugin-edit-')){
      const p=cfg.plugins[Number(a.slice(12))];if(p){
-       for(const [id,text] of Object.entries({name:p.name,code:p.code,version:p.version,settings:JSON.stringify(p.settings)}))ui.getElementById('ks-wk-plugin-'+id).value=text;
+       for(const [id,text] of Object.entries({name:p.name,code:p.code,type:p.kind,author:p.author,description:p.description,category:p.category,version:p.version,settings:JSON.stringify(p.settings)}))ui.getElementById('ks-wk-plugin-'+id).value=text;
        ui.getElementById('ks-wk-plugin-v2').checked=p.api===2;
      }
    }else if(a.startsWith('plugin-export-')){
@@ -520,13 +524,32 @@
    return true;
  }
  let pluginListener=null,pluginCSS=null,pluginFrame=null;
+ const cssTargets=['.profile .nickname','.profile .clan-name','.friends .nickname','.inventory .item-name','.market .listing .name'];
+ function scopedCSS(code){
+   const rules=[],str=code.replace(/\/\*[\s\S]*?\*\//g,'').trim();
+   const pattern=/\s*([^{}]+)\{([^{}]+)\}\s*/gy;
+   let index=0;
+   while(index<str.length){
+     const match=pattern.exec(str);if(!match||rules.length>=40)return null;
+     const selector=match[1].trim(),styles=match[2].split(';').map(x=>x.trim()).filter(Boolean);
+     if(!cssTargets.includes(selector)||!styles.length||!styles.every(x=>/^(color|background-color|border-color)\s*:\s*#[0-9a-f]{6}$/i.test(x)))return null;
+     rules.push(selector+'{'+styles.join(';')+'}');index=pattern.lastIndex;
+   }
+   return rules.length?rules.join('\n'):null;
+ }
  function normalizePlugin(x){
    const version=trim(x.version||'1.0.0',24),api=x.api??1;
-   const name=trim(x.name,45),code=trim(x.code,12000);
+   if(typeof x.code!=='string'||x.code.length>12000)return null;
+   const name=trim(x.name,45),code=x.code.trim();
    if(!name||!code||![1,2].includes(api)||!/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(version))return null;
    const settings=isObject(x.settings)?x.settings:{};
    if(JSON.stringify(settings).length>2000)return null;
-   return {name,code,api,version,enabled:x.enabled!==false,settings};
+   const kind=x.kind??'js';
+   if(!['css','js'].includes(kind)||kind==='css'&&!scopedCSS(code))return null;
+   const permissions=kind==='css'?['scoped-colors']:api===2?['panel','snapshot','events','messages']:['preview','panel','snapshot'];
+   if(x.permissions&&(!Array.isArray(x.permissions)||x.permissions.some(p=>!permissions.includes(p))))return null;
+   return {name,code,api,kind,author:trim(x.author,60),description:trim(x.description,240),category:trim(x.category,32),
+     permissions:x.permissions||permissions,version,enabled:x.enabled!==false,settings};
  }
  const pluginLog=[],mailbox=new Map();
  let activePlugin=null,cleanupWorker=null,workerStop=null;
@@ -559,7 +582,7 @@
    out.hidden=true;out.style.cssText='position:fixed;bottom:3em;right:1em;z-index:2147483600;pointer-events:none;color:white;background:#13151b;padding:.5em;font:14px system-ui';
    let ping=null,alive=Date.now(),period=Date.now(),calls=0;
    const post=msg=>frame.contentWindow?.postMessage(msg,'*');
-   const event=(name,value)=>post({type:'event',name,value});
+   const event=(name,value)=>{if(plugin.permissions.includes(name==='message'?'messages':'events'))post({type:'event',name,value});};
    const off=window.__KS_GAME_RUNTIME__?.on?.('scene',e=>event('scene',e.detail?.to||'unknown'));
    function key(e){if(!e.repeat&&e.isTrusted&&e.altKey&&e.shiftKey&&e.code==='KeyP'&&!document.hidden)event('shortcut','Alt+Shift+P');}
    function settings(e){event('settings',!!e.detail);}
@@ -569,7 +592,7 @@
      if(Date.now()-period>1000){calls=0;period=Date.now();}
      if(++calls>32||m.type==='error'){recordError(m.type==='error'?m.text:'Plugin message limit exceeded');stopPlugin();return;}
      if(m.type==='alive'){alive=Date.now();return;}
-     if(m.type==='send'){
+     if(m.type==='send'&&plugin.permissions.includes('messages')){
        const recipient=cfg.plugins.find(p=>p.name===m.to&&p.api===2&&p.enabled);
        if(recipient&&Array.isArray(recipient.settings.allowFrom)&&recipient.settings.allowFrom.includes(plugin.name)){
          const message={from:plugin.name,text:trim(m.text,140)};
@@ -577,8 +600,9 @@
          else mailbox.set(recipient.name,[...(mailbox.get(recipient.name)||[]).slice(-7),message]);
        }
      }
-     if(m.type==='panel'){out.textContent=trim(m.text,180);out.hidden=!out.textContent;}
+     if(m.type==='panel'&&plugin.permissions.includes('panel')){out.textContent=trim(m.text,180);out.hidden=!out.textContent;}
      if(m.type==='snapshot'&&Number.isSafeInteger(m.id)){
+       if(!plugin.permissions.includes('snapshot')){post({type:'reply',id:m.id,value:null});return;}
        const p=window.__KS_FRAME_PACER__?.getStats();
        post({type:'reply',id:m.id,value:{scene:window.__KS_GAME_RUNTIME__?.scene||'unknown',
          settingsOpen:!!window.__KS_CLIENT__?.isSettingsOpen(),callbackFPS:p?.estimatedCallbackFPS??null,
@@ -612,6 +636,10 @@
  }
  function runPlugin(plugin,ui){
    if(plugin.enabled===false)return;
+   if(plugin.kind==='css'){
+     stopPlugin();const css=scopedCSS(plugin.code);if(!css||!plugin.permissions.includes('scoped-colors'))return;
+     activePlugin=plugin.name;pluginCSS=document.createElement('style');pluginCSS.textContent=css;document.head.append(pluginCSS);status='Scoped colors applied locally.';return;
+   }
    if(plugin.api===2){startWorker(plugin);status='Plugin started';return;}
    stopPlugin();activePlugin=plugin.name;
    const wrap=ui.getElementById('ks-wk-plugin-preview');if(!wrap)return;
@@ -629,17 +657,17 @@
    let calls=0;
    pluginListener=e=>{
      if(e.origin!=='null'||!frame.isConnected||e.source!==frame.contentWindow||!isObject(e.data)||e.data.ksWorkshopPlugin!==1||++calls>80)return;
-     if(e.data.action==='snapshot'&&Number.isSafeInteger(e.data.id)&&e.data.id>0&&e.data.id<=100){
+     if(plugin.permissions.includes('snapshot')&&e.data.action==='snapshot'&&Number.isSafeInteger(e.data.id)&&e.data.id>0&&e.data.id<=100){
        const data=deepSnapshot();
        const safe={scene:data.scene||'unknown',stats:data.stats||{},observed:data.observed||{},
          friends:data.friends||null,inventory:data.inventory||null,market:data.market||null,profile:data.profile||null,servers:data.servers||null,input:data.input||{}};
        frame.contentWindow?.postMessage({ksWorkshopReply:1,id:e.data.id,snapshot:safe},'*');
      }
-     if(e.data.action==='message'){
+     if(plugin.permissions.includes('panel')&&e.data.action==='message'){
        status='Plugin message: '+trim(e.data.text,140);
        const node=ui.getElementById('ks-wk-status');if(node)node.textContent=window.__KS_CLIENT__?.translate(status) ?? status;
      }
-     if(e.data.action==='tint'&&Object.hasOwn(presets,e.data.target)){
+     if(plugin.permissions.includes('panel')&&e.data.action==='tint'&&Object.hasOwn(presets,e.data.target)){
        const value=color(e.data.color,'');
        if(!value)return;
        if(!pluginCSS){pluginCSS=document.createElement('style');pluginCSS.id='ks-workshop-plugin-style';document.head.appendChild(pluginCSS);}
