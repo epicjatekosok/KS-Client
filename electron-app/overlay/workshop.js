@@ -236,6 +236,7 @@
        '<label class="ks-row">Enable replacements at startup <input type="checkbox" id="ks-wk-swap-on" '+(cfg.swapEnabled?'checked':'')+'></label>'+
        btn('swap-toggle','Save swapper state')+' '+btn('swap-folder','Open asset folder')+' '+btn('swap-scan','Scan files')+
        '<p class="ks-hint">Exact Kirka image/audio/font/CSS resource matching only. Reload after changing files; no game JavaScript interception.</p>')+
+     card('Workshop Gallery',btn('gallery','Browse images, sounds and shared packs'))+
      card('Resource packs',btn('pack-import','Import pack')+' '+btn('pack-create','Create from folder')+' '+btn('pack-list','Refresh')+
        '<div id="ks-wk-pack-list">'+packRows()+'</div>')+
      card('Observed asset paths','<p>For a versioned path such as img/logo.1234abcd.png, you can name your local file img/logo.ks-anyhash.png. Exact names take priority. Only the hexadecimal build suffix can change.</p>'+btn('asset-refresh','Refresh observed paths')+'<pre style="white-space:pre-wrap;overflow-wrap:anywhere">'+escape(observedAssets().join('\n')||'No supported assets observed in this document.')+'</pre>')+
@@ -376,6 +377,7 @@
      if(stats && a==='analytics-reset'&&confirm('Erase local Analytics history?'))stats.reset();
      return true;
    }
+   if(a==='gallery'){notify('workshop-gallery',{paths:observedAssets().slice(-25)});return true;}
    if(a==='regions'){window.__KS_KIRKA_STATS__?.open('servers');return true;}
    if(a==='clans'){window.__KS_KIRKA_STATS__?.open('clans');return true;}
    if(a.startsWith('pack-')){

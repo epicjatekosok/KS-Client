@@ -539,6 +539,7 @@ function receiveMessage(event, raw){
       }).catch(e=>{log('Screenshot failed: '+e.message);jsCall('setGameExtraStatus','Screenshot failed: '+e.message)});
       break;
     }
+    case 'workshop-gallery':require('./gallery.cjs').open(win,raw.paths);break;
     case 'resource-packs':void managePack(raw.command,raw.id);break;
     case 'resource-save':{
       try{
