@@ -53,7 +53,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
-      - name: Cross-compile 1.0.28 Windows launcher and updater
+      - name: Cross-compile 1.0.29 Windows launcher and updater
         shell: bash
         run: |
           cd launcher
@@ -90,6 +90,8 @@ jobs:
           python tests/test_release_123.py
           python tests/test_beta_100.py
           python tests/test_release_120.py
+      - name: Observe current public Kirka weapon asset availability
+        run: python ci/check_live_weapon_assets.py
       - name: Test source archive verification
         run: python tests/test_public_source_103.py
       - name: Automated browser UI test
@@ -100,6 +102,7 @@ jobs:
           python tests/test_profile_116.py
           python tests/test_native_lists_117.py
           python tests/test_kirka_stats_ui.py
+          python tests/test_driver_workshop_129.py
           python tests/test_features_128.py
           python tests/test_workshop_125.py
           python tests/test_menu_pacing_118.py

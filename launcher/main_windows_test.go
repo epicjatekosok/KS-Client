@@ -20,9 +20,9 @@ func TestSwitchTokenValidation(t *testing.T){
 func TestEnginePaths(t *testing.T){
  base:=filepath.Join("C:","KS-Client")
  e,dir:=runtimeFile(base,"electron")
- if filepath.Base(e)!="electron.exe"||filepath.Base(dir)!="Electron"{t.Fatal("invalid Electron path")}
+ if filepath.Base(e)!="KSClientGame.exe"||filepath.Base(dir)!="Electron"{t.Fatal("invalid Electron path")}
  c,dir:=runtimeFile(base,"cef")
- if filepath.Base(c)!="electron.exe"||filepath.Base(dir)!="Electron"{t.Fatal("invalid CEF path")}
+ if filepath.Base(c)!="KSClientGame.exe"||filepath.Base(dir)!="Electron"{t.Fatal("invalid CEF path")}
 }
 func TestInitialEngineDefaultsToElectron(t *testing.T) {
  t.Setenv("LOCALAPPDATA",t.TempDir())

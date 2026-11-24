@@ -20,7 +20,7 @@ if(-not $encoded) {
     return
 }
 $files=switch($Stage) {
-    'native' { @((Join-Path $repo 'KS-Client.exe'),(Join-Path $repo 'Uninstall-KS-Client.exe')) }
+    'native' { @((Join-Path $repo 'KS-Client.exe'),(Join-Path $repo 'Uninstall-KS-Client.exe'),(Join-Path $repo 'runtime/Electron/KSDriverLimit.exe')) }
     'setup' { @(Join-Path $repo $setupName) }
 }
 $exe=Get-Command signtool.exe -ErrorAction SilentlyContinue

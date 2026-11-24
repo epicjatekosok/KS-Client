@@ -17,11 +17,12 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 SOURCE_DIRS = {"ci", "electron-app", "installer", "ksui", "launcher", "resources", "tests", "tools", "uninstaller"}
-TEXT_SUFFIXES = {".cjs", ".go", ".html", ".js", ".json", ".md", ".mod", ".ps1", ".py", ".sum", ".yaml", ".yml"}
+TEXT_SUFFIXES = {".cpp", ".cjs", ".go", ".html", ".js", ".json", ".md", ".mod", ".ps1", ".py", ".sum", ".yaml", ".yml"}
 REQUIRED = {
     "README.md", "BUILDING.md", "CONTRIBUTING.md", "SECURITY.md", "LICENSE",
     "THIRD_PARTY_NOTICES.md", ".github/workflows/windows-build.yml",
     "electron-app/main.cjs", "electron-app/preload.cjs", "electron-app/package.json",
+    "tools/nvidia_frame_limit.cpp", "ci/Build-DriverLimit.ps1",
     "installer/go.mod", "launcher/go.mod", "uninstaller/go.mod", "ksui/go.mod",
     "ci/Build-Setup.ps1", "ci/Prepare-Electron.ps1", "ci/source_snapshot.py",
 }

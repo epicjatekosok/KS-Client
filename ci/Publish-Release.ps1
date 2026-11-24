@@ -12,13 +12,13 @@ if(-not $repo){throw 'GitHub repository not provided'}
 # The Windows build has already run inside the verified Source ZIP's files.
 # Validate the exact archive and rebuild inputs again before release credentials
 # are used. A different checkout, archive, checksum or input fails closed.
-$tag='v1.0.28-beta'
-& python ci/source_snapshot.py verify --repository $env:GITHUB_WORKSPACE --commit $env:GITHUB_SHA --version '1.0.28' --output . --rebuild-directory .
+$tag='v1.0.29-beta'
+& python ci/source_snapshot.py verify --repository $env:GITHUB_WORKSPACE --commit $env:GITHUB_SHA --version '1.0.29' --output . --rebuild-directory .
 if($LASTEXITCODE -ne 0){throw 'Source provenance verification failed'}
 $paths=@(
-  'KS-Client-beta-1.0.28-Portable.zip',
-  'KS-Client-beta-1.0.28-Setup.exe',
-  'KS-Client-beta-1.0.28-Source.zip','KS-Client-beta-1.0.28-Source.sha256.txt',
+  'KS-Client-beta-1.0.29-Portable.zip',
+  'KS-Client-beta-1.0.29-Setup.exe',
+  'KS-Client-beta-1.0.29-Source.zip','KS-Client-beta-1.0.29-Source.sha256.txt',
   'SHA256SUMS.txt','RELEASE-MANIFEST.json',
   'CI-TEST-RESULT.txt','SIGNING-STATUS.txt'
 )
@@ -26,11 +26,11 @@ foreach($path in $paths){if(-not (Test-Path $path -PathType Leaf)){throw "Cannot
 & gh release view $tag --repo $repo *> $null
 if($LASTEXITCODE -eq 0){
     # Preserve previously validated release binaries.
-    & gh release edit $tag --repo $repo --notes-file 'RELEASE_BETA_128_EN.md'
+    & gh release edit $tag --repo $repo --notes-file 'RELEASE_BETA_129_EN.md'
     if($LASTEXITCODE -ne 0){throw "Could not refresh $tag release notes"}
     Write-Host "Private release already exists; verified assets preserved."
 } else {
-    & gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client Beta 1.0.28 (Audited source release)' --prerelease --notes-file 'RELEASE_BETA_128_EN.md'
+    & gh release create $tag @paths --repo $repo --target $env:GITHUB_SHA --title 'KS Client Beta 1.0.29 (Audited source release)' --prerelease --notes-file 'RELEASE_BETA_129_EN.md'
     if($LASTEXITCODE -ne 0){throw "GitHub private release $tag publishing failed"}
 }
 Write-Host "Verified source release: https://github.com/$repo/releases/tag/$tag"
@@ -53,7 +53,7 @@ try{
         Write-Host "Public release $tag already exists; never overwrite verified downloadable assets."
     } else {
         # Public repo has its own main branch/commit, not the private source SHA.
-        & gh release create $tag @publicPaths --repo $publicRepo --target main --title 'KS Client Beta 1.0.28 (Windows binaries)' --prerelease --notes-file 'RELEASE_BETA_128_EN.md'
+        & gh release create $tag @publicPaths --repo $publicRepo --target main --title 'KS Client Beta 1.0.29 (Windows binaries)' --prerelease --notes-file 'RELEASE_BETA_129_EN.md'
         if($LASTEXITCODE -ne 0){throw "Could not publish verified update assets to $publicRepo"}
         Write-Host "Public auto-update feed: https://github.com/$publicRepo/releases/tag/$tag"
     }

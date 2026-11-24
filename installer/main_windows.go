@@ -27,7 +27,7 @@ var installationVersion string // supplied by the embedded tested installer payl
 const uninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClientTwoEngine`
 const oldUninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClient`
 
-//go:embed KS-Client-beta-1.0.28-Portable.zip
+//go:embed KS-Client-beta-1.0.29-Portable.zip
 var archive []byte
 
 // Read the version actually present in the embedded, smoke-tested offline
@@ -106,6 +106,9 @@ func safeUpdateTarget(folder string) bool {
  if info,err:=os.Lstat(cleaned);err!=nil||!info.IsDir()||info.Mode()&os.ModeSymlink!=0{return false}
  for _,name:=range []string{"KS-Client.exe","runtime/Electron/electron.exe"} {
   stat,err:=os.Lstat(filepath.Join(cleaned,filepath.FromSlash(name)))
+  if os.IsNotExist(err) && name=="runtime/Electron/electron.exe" {
+   stat,err=os.Lstat(filepath.Join(cleaned,"runtime","Electron","KSClientGame.exe"))
+  }
   if err!=nil||!stat.Mode().IsRegular(){return false}
  }
  return true
@@ -210,7 +213,7 @@ func extractPayload(staging string) error {
 			return closeErr
 		}
 	}
-	for _, exe := range []string{"KS-Client.exe", "Uninstall-KS-Client.exe", "runtime/Electron/electron.exe", "runtime/Electron/resources/app/main.cjs"} {
+	for _, exe := range []string{"KS-Client.exe", "Uninstall-KS-Client.exe", "runtime/Electron/KSClientGame.exe", "runtime/Electron/resources/app/main.cjs"} {
 		if _, err := os.Stat(filepath.Join(staging, exe)); err != nil {
 			return fmt.Errorf("package is missing %s", exe)
 		}

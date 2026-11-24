@@ -76,19 +76,120 @@ function visibleLink(row){
  }
  return null;
 }
-function friendsSnapshot(){
+let scannedFriends=null, scanRunning=false;
+function friendScope(){
+ const panel=document.querySelector('.friends');
+ if(!shown(panel))return null;
+ return {panel,list:panel.querySelector('.list')||panel,
+   tab:panel.querySelector('.tab.active,.tab.is-active,.tab[aria-selected="true"]'),
+   filter:[...panel.querySelectorAll('input')].map(input=>input.value).join('\n')};
+}
+function sameScope(a,b){return !!a&&!!b&&a.panel===b.panel&&a.list===b.list&&a.tab===b.tab&&a.filter===b.filter;}
+function currentFriends(){
  const rows=document.querySelectorAll('.friends .nickname,.friends .username,.friends .player-name');
  const entries=[];
  for(const label of rows){
    if(!shown(label))continue;
    const name=trim(label.textContent,60),row=label.closest('.friend,.friend-item,[data-friend-id],li');
    if(!name)continue;
-   const id=trim(row?.querySelector('.friend-id')?.textContent,60);
+   const id=trim(row?.querySelector('.friend-id')?.textContent||row?.dataset.friendId,60);
    const state=row?.classList.contains('is-online')||shown(row?.querySelector('.online'))?'online':
      row?.classList.contains('is-offline')||shown(row?.querySelector('.offline'))?'offline':null;
-   entries.push({name,id,state,profile:visibleLink(row)});if(entries.length>=100)break;
+   entries.push({name,id,state,profile:visibleLink(row)});
  }
- return {names:entries.map(x=>x.name),entries,source:'visible friends panel'};
+ return entries;
+}
+function friendsSnapshot(){
+ const live=currentFriends(),scope=friendScope();
+ if(!sameScope(scope,scannedFriends?.scope))scannedFriends=null;
+ const known=new Map(scannedFriends?.rows||[]);
+ for(const row of live)known.set(row.id||row.profile||row.name,row);
+ const entries=[...known.values()];
+ return {names:entries.map(row=>row.name),entries,scannedCount:scannedFriends?.rows.size||0,source:'visible friends panel'};
+}
+async function scanFriends(){
+ const scope=friendScope();
+ if(!scope)return 'Open the Kirka friends list first.';
+ if(scanRunning)return 'Friend list scan already running.';
+ scanRunning=true;
+ const {panel}=scope,rows=new Map();
+ const pause=ms=>new Promise(done=>setTimeout(done,ms));
+ const inTab=()=>{const now=friendScope();return now?.panel===panel&&now.tab===scope.tab&&now.filter===scope.filter;};
+ function scrollBox(){
+   const list=friendScope()?.list;if(!list)return null;
+   const first=list.querySelector('.friend,.friend-item,[data-friend-id]');
+   for(let el=first?.parentElement||list;el&&panel.contains(el);el=el.parentElement){
+     if(el.scrollHeight>el.clientHeight+1 && ['auto','scroll','overlay'].includes(getComputedStyle(el).overflowY))return el;
+   }
+   return list;
+ }
+ function pageButton(direction){
+   const nav=panel.querySelector('.pagination,.pager,nav[aria-label*="pagin" i]');
+   const label=direction==='next'?/^(next|next page|következő|következő oldal)$/i:/^(previous|previous page|prev|előző|előző oldal)$/i;
+   return [...(nav?.querySelectorAll('button,a[href],[role="button"]')||[])].find(el=>
+     shown(el)&&!el.disabled&&el.getAttribute('aria-disabled')!=='true'&&!el.classList.contains('disabled')&&
+     (el.getAttribute('rel')===direction||label.test(trim(el.getAttribute('aria-label')||el.title||el.textContent,40))));
+ }
+ function pageIdentity(){
+   const marker=panel.querySelector('.pagination [aria-current="page"],.pager [aria-current="page"]');
+   const ids=currentFriends().map(row=>row.id||row.name);
+   return JSON.stringify([marker?.textContent||'',ids[0],ids.at(-1),ids.length]);
+ }
+ let interrupted=false,relativePage=0,completed=false;
+ const box=scrollBox(),start=box.scrollTop,deadline=Date.now()+45000;
+ const cancel=event=>{if(event.isTrusted)interrupted=true;};
+ async function move(direction){
+   if(interrupted||!inTab())return false;
+   const button=pageButton(direction);if(!button)return false;
+   const before=pageIdentity();button.click();
+   for(let attempt=0;attempt<20;attempt++){
+     await pause(100);if(interrupted||!inTab())return false;
+     if(before!==pageIdentity()&&currentFriends().length){
+       relativePage+=direction==='next'?1:-1;return true;
+     }
+   }
+   return false;
+ }
+ for(const event of ['wheel','touchstart','click'])panel.addEventListener(event,cancel,{passive:true});
+ try{
+   let rewindOk=true;
+   while(inTab()&&pageButton('prev')&&relativePage> -40&&Date.now()<deadline){
+     if(!await move('prev')){rewindOk=false;break;}
+   }
+   if(inTab()&&pageButton('prev'))rewindOk=false;
+   let pages=0;
+   while(!interrupted&&inTab()&&pages++<80&&Date.now()<deadline){
+     const current=scrollBox();
+     current.scrollTop=0;
+     let stable=0,oldSize=-1,oldHeight=-1;
+     while(!interrupted&&inTab()&&current.isConnected&&Date.now()<deadline){
+       await pause(160);
+       if(interrupted||!inTab())break;
+       for(const row of currentFriends())rows.set(row.id||row.profile||row.name,{...row,observedEarlier:true});
+       if(current.scrollTop+current.clientHeight>=current.scrollHeight-2){
+         stable=oldSize===rows.size&&oldHeight===current.scrollHeight?stable+1:0;
+         if(stable>=4)break;
+       }else{stable=0;current.scrollTop+=Math.max(1,Math.floor(current.clientHeight*.8));}
+       oldSize=rows.size;oldHeight=current.scrollHeight;
+     }
+     if(interrupted||!inTab()||Date.now()>=deadline||!current.isConnected)break;
+     if(!pageButton('next')){completed=rewindOk;break;}
+     if(!await move('next'))break;
+   }
+ }finally{
+   try{
+     while(relativePage!==0&&!interrupted&&inTab()){
+       if(!await move(relativePage>0?'prev':'next'))break;
+     }
+     if(!interrupted&&inTab()&&relativePage===0)scrollBox().scrollTop=start;
+   }finally{
+     for(const event of ['wheel','touchstart','click'])panel.removeEventListener(event,cancel);
+     scanRunning=false;
+   }
+ }
+ if(!inTab())return 'Kirka changed the open friend list. Scan again.';
+ scannedFriends={scope:friendScope(),rows};
+ return rows.size+' friends read from this Kirka tab. '+(completed?'Reached the end of its loaded list.':'Partial scan.');
 }
 function inventorySnapshot(){
  const rows=[...document.querySelectorAll('.inventory .item-card,.inventory-item,.inventory .item')].slice(0,150);
@@ -207,7 +308,7 @@ function refresh(){
  if(current==='inventory')addInventoryCount();
 }
 function destroy(){clearInterval(timer);unsubscribeScene?.();for(const unsub of runtimeSubscriptions)unsub();runtimeSubscriptions=[];detachFeeds();listeners.clear();}
-window.__KS_DEEP__=Object.freeze({getSnapshot,inventorySnapshot,marketSnapshot,friendsSnapshot,profileSnapshot,getStatus:()=>({scene:scene(),lastError,lastJoin,joinMode,observers:observers.size}),join,on,refresh,destroy});
+window.__KS_DEEP__=Object.freeze({getSnapshot,inventorySnapshot,marketSnapshot,scanFriends,friendsSnapshot,profileSnapshot,getStatus:()=>({scene:scene(),lastError,lastJoin,joinMode,observers:observers.size}),join,on,refresh,destroy});
 // Prefer instant transitions from the shared integration core; keep a
 // lightweight timer because Kirka's SPA changes DOM without changing routes.
 if(window.__KS_GAME_RUNTIME__?.on){

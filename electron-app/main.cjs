@@ -1,12 +1,12 @@
 'use strict';
-// KS Client Beta 1.0.28: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.29: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {execFile,spawn}=require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const APP_VERSION = 'Beta 1.0.28';
+const APP_VERSION = 'Beta 1.0.29';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.28.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.29.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -124,7 +124,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.28').slice(0,40),
+      current:String(payload.current||'1.0.29').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -186,7 +186,7 @@ async function installKSUpdate(channel,language){
   });
 }
 const crypto = require('node:crypto');
-const installedEngines=Object.freeze({electron:['Electron','electron.exe']});
+const installedEngines=Object.freeze({electron:['Electron','KSClientGame.exe']});
 let switchInProgress=false;
 let switchProbeTimer = null;
 function signalSwitchReady(){
@@ -209,6 +209,34 @@ function signalSwitchReady(){
     },250);
   }
 }
+const driverTool=path.join(path.dirname(process.execPath),'KSDriverLimit.exe');
+const driverTarget=value=>Number.isInteger(value)&&value>=20&&value<=1023;
+function driverLimit(command) {
+  return new Promise((resolve,reject)=>{
+    execFile(driverTool,[String(command)],{windowsHide:true,timeout:5000,maxBuffer:4096},(error,out,err)=>{
+      if(error)reject(new Error(String(err||error.message).trim().slice(0,180)));
+      else resolve(String(out).trim());
+    });
+  });
+}
+let driverDialog=false;
+async function configureDriverLimit(value){
+  if(driverDialog || !(value===0 || driverTarget(value)))return;
+  driverDialog=true;
+  try{
+    const before=Number(await driverLimit('read'));
+    const action=value?'Set '+value+' FPS':'Restore the inherited driver limit';
+    const choice=await dialog.showMessageBox(win,{type:'question',title:'KS Client · NVIDIA',
+      message:action+' for KSClientGame.exe?',detail:'Current KS profile: '+(before||'inherited')+'. This affects installed and portable KS Client copies. Restart the client after applying. The game and monitor can still run at lower rates.',
+      buttons:['Cancel','Apply'],defaultId:0,cancelId:0});
+    if(choice.response!==1)return;
+    await driverLimit(value);
+    const after=Number(await driverLimit('read'));
+    if(after!==value)throw Error('Driver readback differs from the requested limit.');
+    await dialog.showMessageBox(win,{message:after?'NVIDIA profile confirmed: '+after+' FPS.':'Inherited NVIDIA frame policy restored.',detail:'Restart KS Client to use the new driver profile.'});
+  }catch(error){if(win&&!win.isDestroyed())await dialog.showMessageBox(win,{type:'info',message:'NVIDIA frame limit unavailable',detail:error.message});}
+  finally{driverDialog=false;}
+}
 const fixedMarker=path.join(ROOT,'electron-fixed-frame-target');
 let fixedTarget=fs.existsSync(fixedMarker);
 let desired=safeMode?{...DEFAULT_PREFS}:loadPrefs();
@@ -218,7 +246,11 @@ if(safeMode)savePrefs(desired);
 if(active.gpu==='disabled')app.disableHardwareAcceleration();
 if(active.angle==='d3d11')app.commandLine.appendSwitch('use-angle','d3d11');
 if(active.angle==='opengl')app.commandLine.appendSwitch('use-angle','gl');
-if(active.uncapFps){
+let nativeFixed=false;
+if(fixedTarget && desired.uncapFps && !safeMode && active.gpu!=='disabled'){
+  try{nativeFixed=driverTarget(Number(require('node:child_process').execFileSync(driverTool,['read'],{encoding:'utf8',windowsHide:true,timeout:2500,stdio:['ignore','pipe','ignore']}).trim()));}catch{}
+}
+if(active.uncapFps || nativeFixed){
   // Experimental Chromium startup hints: these do NOT override the game engine,
   // GPU driver, compositor, or physical monitor refresh limits.
   for(const flag of ['disable-frame-rate-limit','disable-gpu-vsync']){
@@ -314,7 +346,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.28 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.29 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
@@ -488,6 +520,7 @@ function receiveMessage(event, raw){
     }
     case 'update-check':checkKSUpdate(['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta',raw.automatic===true,raw.autoDownload===true);break;
     case 'update-install':void installKSUpdate(['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta',raw.language);break;
+    case 'nvidia-frame-limit':void configureDriverLimit(raw.fps);break;
     case 'frame-policy':{
       if(typeof raw.enabled!=='boolean'||raw.enabled===fixedTarget)break;
       try{

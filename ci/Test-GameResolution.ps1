@@ -18,7 +18,7 @@ try {
         '{"name":"ks-resolution-test","version":"1.0.0","main":"render-resolution.cjs"}' | Set-Content "$appFolder/package.json" -Encoding utf8NoBOM
         Copy-Item "$original/game-resolution.cjs","$repo/tests/render-resolution.cjs" $appFolder
     }
-    $process=Start-Process "$runtime/electron.exe" -PassThru
+    $process=Start-Process "$runtime/KSClientGame.exe" -PassThru
     if(-not $process.WaitForExit(90000)){
         $process.Kill()
         if (Test-Path $env:KS_RESOLUTION_RESULT) { Get-Content $env:KS_RESOLUTION_RESULT }

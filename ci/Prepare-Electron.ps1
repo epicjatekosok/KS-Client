@@ -24,11 +24,13 @@ $actual = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "Electron ZIP SHA256 mismatch: $actual" }
 Write-Host "Official Electron SHA256 verified: $actual"
 Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force
+Rename-Item -LiteralPath (Join-Path $dest 'electron.exe') -NewName 'KSClientGame.exe'
+& (Join-Path $PSScriptRoot 'Build-DriverLimit.ps1') -OutputDirectory $dest
 $app = Join-Path $dest 'resources\app'
 New-Item -ItemType Directory -Force -Path $app | Out-Null
 Copy-Item (Join-Path $repo 'electron-app\*') $app -Recurse -Force
 # Never require libEGL.dll: optional in some Electron distributions.
-foreach ($relative in @('electron.exe','LICENSE','LICENSES.chromium.html','resources\app\package.json','resources\app\main.cjs','resources\app\preload.cjs','resources\app\overlay\overlay.js','resources\app\assets\loading.html','resources\app\assets\ks-logo.png','resources\app\overlay\native_login_gate.js','resources\app\overlay\game_extras.js','resources\app\overlay\workshop.js','resources\app\overlay\webgl_cosmetics.js','resources\app\overlay\game_runtime.js','resources\app\overlay\render_telemetry.js','resources\app\overlay\advanced_integration.js','resources\app\overlay\freeze_guard.js','resources\app\swapper.cjs')) {
+foreach ($relative in @('KSClientGame.exe','LICENSE','LICENSES.chromium.html','resources\app\package.json','resources\app\main.cjs','resources\app\preload.cjs','resources\app\overlay\overlay.js','resources\app\assets\loading.html','resources\app\assets\ks-logo.png','resources\app\overlay\native_login_gate.js','resources\app\overlay\game_extras.js','resources\app\overlay\workshop.js','resources\app\overlay\webgl_cosmetics.js','resources\app\overlay\game_runtime.js','resources\app\overlay\render_telemetry.js','resources\app\overlay\advanced_integration.js','resources\app\overlay\freeze_guard.js','resources\app\swapper.cjs')) {
   if (-not (Test-Path (Join-Path $dest $relative))) { throw "Electron package is missing $relative" }
 }
 Write-Host 'Electron runtime and KS Client assets are assembled.'

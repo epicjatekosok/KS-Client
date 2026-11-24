@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.28 – Electron unified game overlay. */
+/* KS Client Beta 1.0.29 – Electron unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.28';
+  const CLIENT_VERSION='1.0.29';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -2277,6 +2277,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.29',en:['NVIDIA driver frame limit, weapon texture detection and friend list updates.'],hu:['NVIDIA FPS-korlát, fegyvertextúra-felismerés és barátlista-frissítés.']},
     {v:'Beta 1.0.28',en:['Foreground play analytics, regional HTTP timings, inventory sorting, shortcut recording, shared themes and the Workshop media gallery.'],hu:['Aktív játékidő, régiós HTTP-válaszidők, rendezhető felszerelés, gyorsbillentyűk, megosztható témák és médiagaléria.']},
     {v:'Beta 1.0.27',en:['Audited MIT-licensed KS Client source and Windows build instructions are now available with the release.'],hu:['A kiadáshoz letölthető az ellenőrzött, MIT-licencű KS Client-forráskód és a windowsos fordítási útmutató.']},
     {v:'Beta 1.0.26',en:['Explore public player profiles, clans, skin prices, inventories, ranked boards and regional room counts inside Kirka.'],hu:['Játékosprofilok, klánok, skinárak, felszerelések, ranglisták és régiónkénti szobalétszámok közvetlenül a játékban.']},
@@ -2551,6 +2552,7 @@
             { value: 360, label: '360 FPS' },
             ...([0,60,120,144,165,180,200,240,300,360].includes(state.fpsLimit)?[]:[{value:state.fpsLimit,label:state.fpsLimit+' FPS'}])
           ]) +
+          '<div class="ks-row"><div><div class="ks-label">NVIDIA · Max Frame Rate</div><div class="ks-desc">'+(state.language==='hu'?'A fenti értéket a KS videokártya-profiljába is beírja. Korlátlan értékkel visszaállítható. Utána indítsd újra a klienst.':'Apply the selected FPS to the KS driver profile. Apply Unlimited to restore the inherited limit. Restart afterwards.')+'</div></div><button class="ks-btn" data-action="driver-limit">'+(state.language==='hu'?'NVIDIA-profil beállítása':'Set NVIDIA profile')+'</button></div>' +
           (nativeGameCap(Number(state.fpsLimit))?'<button class="ks-btn" data-action="native-game-cap">Apply to visible game FPS control</button>':'')+
           `<label class="ks-row">Custom callback limit (1–1000, 0 = Unlimited)<input class="ks-input" type="number" min="0" max="1000" step="1" data-custom-cap value="${Number(state.fpsLimit)||0}"></label>` +
           `<div class="ks-row"><div><div class="ks-label">Activate Unlimited FPS</div><div class="ks-desc">Requests Chromium FPS unlocking and removes the KS JavaScript callback cap.</div><div class="ks-desc" id="ks-unlimited-restart-note">${unlimitedRestartNote}</div></div><button class="ks-btn primary" data-action="enable-unlimited-fps" ${!browserPrefsLoaded?'disabled':''}>Enable experimental unlock</button></div>` +
@@ -3731,6 +3733,10 @@
     graphics.slots=Array.isArray(g.slots)?g.slots.slice(0,8).filter(x=>x&&typeof x.assetURL==='string'&&skinValue(x.skinURL)).map(x=>({
       name:String(x.name||'').slice(0,48),assetURL:x.assetURL.slice(0,450),skinURL:skinValue(x.skinURL),
       hue:Number(x.hue)||0,saturation:Number(x.saturation)||100,brightness:Number(x.brightness)||100})):[];
+    graphics.discover=false;
+    graphics.weaponPoses=(Array.isArray(g.weaponPoses)?g.weaponPoses:[]).slice(0,32)
+      .filter(p=>p&&typeof p.name==='string'&&p.name.trim()&&(p.auto===true&&/^https:\/\/(?:www\.)?kirka\.io\/assets\/(?:img|media|textures|skins|ui)\/[^?#]+$/i.test(p.source)||typeof p.signature==='string'&&/^[-\d., ]{1,90}$/.test(p.signature)))
+      .map(p=>({...wk.normalizeWorkshop({poses:[p]}).poses[0],signature:p.auto?'':p.signature,auto:p.auto===true,source:String(p.source||'').slice(0,450)}));
     const workshop=wk.normalizeWorkshop(doc.workshop);
     workshop.swapEnabled=wk.getConfig().swapEnabled;
     if(!confirm(L('Replace KS settings, Workshop entries and local media with this profile? Imported scripts require manual launch.')))return;
@@ -4053,6 +4059,7 @@
     if (a === 'auth-help') { window.__KS_CLIENT__?.openAccountHelp?.(); return; }
     if (a === 'game-screenshot') notify('game-screenshot');
     if (a === 'fullscreen') notify('fullscreen');
+    if (a === 'driver-limit') notify('nvidia-frame-limit',{fps:Number(state.fpsLimit)||0});
     if (a === 'check-gpu') checkGPU();
     if (a === 'browser-check-gpu') checkBrowserGPU();
     if (a === 'update-check') {
