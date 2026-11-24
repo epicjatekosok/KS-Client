@@ -19,7 +19,7 @@ Allow access to GitHub Releases, PyPI and the Playwright browser download host w
 Download the project Source ZIP and accompanying `Source.sha256.txt` from the same [release](https://github.com/epicjatekosok/KS-Client-Updates/releases). In a directory with the downloads, run:
 
 ```powershell
-$zip = 'KS-Client-beta-1.0.27-Source.zip'
+$zip = 'KS-Client-beta-1.0.28-Source.zip'
 $expected = ((Get-Content ($zip -replace '\.zip$', '.sha256.txt') -Raw).Trim() -split '\s+')[0]
 if ((Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'Source checksum mismatch' }
 Expand-Archive $zip -DestinationPath .\ks-client-source
@@ -48,7 +48,7 @@ python ci/verify_offline.py
 ./ci/Verify-Signing.ps1
 ```
 
-The root contains `KS-Client-beta-1.0.27-Portable.zip` and `KS-Client-beta-1.0.27-Setup.exe`. The setup embeds the portable payload. For a manual smoke test, extract the portable build into a separate directory and launch `KS-Client.exe`. Use a disposable Windows account for installation and engine-migration tests that interact with the local profile. Setup works offline, though connecting to Kirka.io requires internet access.
+The root contains `KS-Client-beta-1.0.28-Portable.zip` and `KS-Client-beta-1.0.28-Setup.exe`. The setup embeds the portable payload. For a manual smoke test, extract the portable build into a separate directory and launch `KS-Client.exe`. Use a disposable Windows account for installation and engine-migration tests that interact with the local profile. Setup works offline, though connecting to Kirka.io requires internet access.
 
 ## Run tests
 

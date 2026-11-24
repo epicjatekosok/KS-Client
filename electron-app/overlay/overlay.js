@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.27 – Electron unified game overlay. */
+/* KS Client Beta 1.0.28 – Electron unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.27';
+  const CLIENT_VERSION='1.0.28';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -46,7 +46,7 @@
     gameResolution: 'native',
     fpsLimit: 0,
     smoothPreset: 'Native',
-    showGraph: true,
+    showGraph: true, frametimeHUD:false,
     limitSettingsFPS: true,
     limitLobbyFPS: false,
     protectUnlockedMenus: true,
@@ -61,7 +61,7 @@
     fontFamily: 'Segoe UI', fontSize: 110, gameFontEnabled: false,
     menuImageEnabled: true, menuSelector: '', uiImageSelector: '', menuSoundEnabled: false,
     minimalHUD: false, minimalSelectors: '', customCrosshairPresets: [],
-    language: 'en',
+    language: 'en', shortcuts: {}, communityThemes: [],
     gameKeystrokes: false, gameStats: true, gameListFilters: true, gameScreenshotKey: false,
     gameAutoMouseCapture: true, gameQuickJoin: true,
     gameKeysPosition:'bottom-left', gameKeysScale:100,
@@ -1176,7 +1176,7 @@
     #ks-panel .ks-palette-preview i{display:block;height:13px;flex:1;border-radius:3px;}
   </style>
   <div id="ks-screen">
-    <div id="ks-fps" aria-label="Estimated frame rate"></div>
+    <div id="ks-fps" aria-label="Estimated frame rate"></div><canvas id="ks-frame-hud" aria-label="Frame interval history" hidden style="position:fixed;left:18px;bottom:18px;width:250px;height:100px;background:#14171dee;pointer-events:none;border-radius:6px"></canvas>
     <div id="ks-break-reminder" role="status" aria-live="polite" hidden><span id="ks-break-text"></span><button type="button" id="ks-break-dismiss" aria-label="Dismiss">✕</button></div>
     <div id="ks-crosshair"></div>
     <div id="ks-badge" aria-label="KS Client ${CLIENT_LABEL}">KS · ${CLIENT_VERSION}</div>
@@ -1214,7 +1214,7 @@
     {key:'Graphics', items:['Performance','Frame Stability','Browser Graphics','Browser GPU Info']},
     {key:'Display', items:['Display','Eye Comfort','Crosshair']},
     {key:'Gameplay', items:['Game Integration','Lobby','Friends & Profiles']},
-    {key:'Workshop', items:['Weapon Studio','Resource Swapper','Plugins','Inventory & Market']},
+    {key:'Workshop', items:['Weapon Studio','Resource Swapper','Plugins','Inventory & Market','KS Analytics']},
     {key:'Controls', items:['Browser Controls']},
     {key:'Interface', items:['Appearance','Interface','Resources','CSS Editor']},
     {key:'Advanced', items:['General','Updates','Sharing','Diagnostics']}
@@ -2277,6 +2277,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.28',en:['Foreground play analytics, regional HTTP timings, inventory sorting, shortcut recording, shared themes and the Workshop media gallery.'],hu:['Aktív játékidő, régiós HTTP-válaszidők, rendezhető felszerelés, gyorsbillentyűk, megosztható témák és médiagaléria.']},
     {v:'Beta 1.0.27',en:['Audited MIT-licensed KS Client source and Windows build instructions are now available with the release.'],hu:['A kiadáshoz letölthető az ellenőrzött, MIT-licencű KS Client-forráskód és a windowsos fordítási útmutató.']},
     {v:'Beta 1.0.26',en:['Explore public player profiles, clans, skin prices, inventories, ranked boards and regional room counts inside Kirka.'],hu:['Játékosprofilok, klánok, skinárak, felszerelések, ranglisták és régiónkénti szobalétszámok közvetlenül a játékban.']},
     {v:'Beta 1.0.25',en:['Local resource packs, weapon texture bindings, observed prices, player tags and versioned plugins.'],hu:['Helyi erőforráscsomagok, fegyvertextúrák hozzárendelése, megfigyelt árak, játékoscímkék és verziózott bővítmények.']},
@@ -2395,8 +2396,42 @@
   const assetLabel = key => assetMeta[key] || 'No local file selected';
   const uploadRow = (titleText, description, key, accept) => `<div class="ks-row"><div><div class="ks-label">${titleText}</div><div class="ks-desc">${description}</div><div class="ks-asset-summary" data-asset-summary="${key}">${esc(assetLabel(key))}</div></div><div class="ks-stack"><label class="ks-btn" style="cursor:pointer">Browse<input type="file" data-asset="${key}" accept="${accept}" hidden></label><button class="ks-btn" data-clear-asset="${key}">Remove</button></div></div>`;
 
+  const colorsForSharing=['customAccent','customBackground','customPanel','customText','customMuted'];
+  function parseTheme(doc){
+    if(doc?.format!=='ks-theme'||doc.api!==1||typeof doc.name!=='string'||!doc.name.trim()||
+       !colorsForSharing.every(k=>/^#[a-f0-9]{6}$/i.test(doc.colors?.[k])))return null;
+    return {format:'ks-theme',api:1,name:doc.name.trim().slice(0,60),author:String(doc.author||'').slice(0,60),version:String(doc.version||'1').slice(0,24),
+      colors:Object.fromEntries(colorsForSharing.map(k=>[k,doc.colors[k]]))};
+  }
+  function communityCard(){
+    const themes=Array.isArray(state.communityThemes)?state.communityThemes.map(parseTheme).filter(Boolean):[];
+    return '<details><summary>Shared themes</summary><p>Import a local KS theme to preview its palette. Importing the same author and name updates it.</p>'+
+      '<input id="ks-theme-file" type="file" accept=".json"><button data-action="theme-import">Import</button><input id="ks-theme-name" placeholder="Theme name"><input id="ks-theme-author" placeholder="Author"><button data-action="theme-export">Export current palette</button>'+
+      themes.map((d,i)=>'<div class="ks-row"><div>'+esc(d.name)+' · '+esc(d.author)+' · '+esc(d.version)+'<div>'+Object.values(d.colors).map(c=>'<span style="color:'+c+'">■</span>').join('')+'</div></div><button data-action="theme-use-'+i+'">Apply</button><button data-action="theme-remove-'+i+'">Remove</button></div>').join('')+'<p id="ks-theme-status"></p></details>';
+  }
+  async function sharedThemeAction(action){
+    const list=(state.communityThemes||[]).map(parseTheme).filter(Boolean);
+    try{
+      if(action==='theme-import'){
+        const f=$('ks-theme-file').files[0];if(!f||f.size>16384)throw Error('Choose a KS theme under 16 KiB.');
+        const d=parseTheme(JSON.parse(await f.text()));if(!d)throw Error('Incompatible theme.');
+        const kept=list.filter(x=>x.name!==d.name||x.author!==d.author);if(kept.length>=24)throw Error('Maximum 24 themes.');
+        state.communityThemes=[...kept,d];
+      }else if(action==='theme-export'){
+        const d=parseTheme({format:'ks-theme',api:1,name:$('ks-theme-name').value,author:$('ks-theme-author').value,version:'1',colors:state});
+        if(!d)throw Error('Enter a theme name.');const url=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));
+        const link=document.createElement('a');link.href=url;link.download='KS-theme.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
+      }else{
+        const i=Number(action.split('-').pop());if(!list[i])return;
+        if(action.startsWith('theme-use-'))Object.assign(state,list[i].colors,{themePreset:'Custom'});
+        else{list.splice(i,1);state.communityThemes=list;}
+      }
+      save();apply();renderTab();
+    }catch(e){$('ks-theme-status').textContent=e.message;}
+  }
+
   function tabContent() {
-    if(["Weapon Studio","Resource Swapper","Plugins","Lobby","Friends & Profiles","Inventory & Market"].includes(selectedTab)) {
+    if(["Weapon Studio","Resource Swapper","Plugins","Lobby","Friends & Profiles","Inventory & Market","KS Analytics"].includes(selectedTab)) {
       return window.__KS_WORKSHOP__?.render(selectedTab) || '<p class="ks-hint">Workshop module is loading. Close and reopen Settings.</p>';
     }
     switch (selectedTab) {
@@ -2471,6 +2506,7 @@
           `<p class="ks-hint">${state.language==='hu'?'A cél a játék képmagassága. A szélesség az ablak képarányát követi.':'The target sets the game image height. Width follows the window aspect ratio.'} <span id="ks-display-buffer"></span></p>`;
       case 'Game Integration':
         return title('Kirka.io Game Integration','Optional browser-side game extras. All changes are visual/read-only, no gameplay automation.') +
+          shortcutCard()+toggleRow('Frametime HUD','Shows the recent frame interval history while the game is visible.','frametimeHUD')+
           `<div class="ks-card"><h3 class="ks-section-heading">Mouse & keyboard</h3>`+
           `<div class="ks-row"><div><div class="ks-label">Pointer lock status</div><div class="ks-desc">The cursor disappears only after the game canvas receives real browser pointer lock.</div></div><span id="ks-pointer-status" class="ks-code">Checking…</span></div>`+
           toggleRow('Keystroke overlay','Show held movement keys (WASD, space, shift) while playing.','gameKeystrokes')+
@@ -2648,7 +2684,7 @@
       case 'Appearance':
         return title('Appearance & Themes','Complete ready-made color palettes and optional visual-only effects. Your gameplay settings never change.') +
           `<div class="ks-grid"><div class="ks-card"><h3 class="ks-section-heading">Ready-made color palettes</h3>`+
-          paletteTiles() +
+          paletteTiles() + communityCard() +
           selectRow('Client theme','Apply a complete palette or keep custom colors','themePreset',Object.keys(themePalettes).map(name=>({value:name,label:name})).concat([{value:'Custom',label:'Custom colors'}])) +
           `<div class="ks-row"><div class="ks-label">Custom accent color</div><input data-setting="customAccent" type="color" value="${esc(state.customAccent)}"></div>` +
           `<div class="ks-row"><div class="ks-label">Background color</div><input data-setting="customBackground" type="color" value="${esc(state.customBackground)}"></div>` +
@@ -2936,7 +2972,7 @@
 
   function drawLineGraph(canvasId, values, label, maxValue, suffix) {
     const canvas = $(canvasId);
-    if (!canvas || !state.showGraph) return;
+    if (!canvas || (canvasId!=='ks-frame-hud' && !state.showGraph)) return;
     const width = Math.max(250,Math.round(canvas.clientWidth));
     const height = Math.max(100,Math.round(canvas.clientHeight));
     const dpr = Math.min(1.5,window.devicePixelRatio || 1);
@@ -2964,6 +3000,7 @@
   }
 
   function paintGraphs() {
+    if(!$('ks-frame-hud').hidden)drawLineGraph('ks-frame-hud',frameHistory,L('Frame interval'),Math.max(20,...frameHistory),'ms');
     const graphs=$('ks-graphs');
     if(graphs) graphs.style.display=state.showGraph?'block':'none';
     if(!open || selectedTab!=='Performance' || !state.showGraph)return;
@@ -3047,7 +3084,7 @@
     }
     $('ks-language-label').textContent=L('Display language');
     $('ks-language').value=Object.hasOwn(languageNames,state.language)?state.language:'en';
-    $('ks-sidebar-shortcuts').textContent='F1 · '+L('Settings')+'   F10 · HUD';
+    $('ks-sidebar-shortcuts').textContent=(keys().Settings||'—')+' · '+L('Settings')+'   '+(keys().HUD||'—')+' · HUD';
   }
 
   function renderTab() {
@@ -3065,7 +3102,7 @@
     $('ks-body').innerHTML = `<nav class="ks-subtabs" aria-label="Settings section">`+
       group.items.map(t=>`<button class="ks-subtab ${selectedTab===t?'active':''}" data-tab="${esc(t)}" aria-current="${selectedTab===t?'page':'false'}">${translateTab(t)}</button>`).join('')+
       `</nav>`+tabContent()+sectionResetMarkup()+
-      (["Weapon Studio","Resource Swapper","Plugins","Lobby","Friends & Profiles","Inventory & Market"].includes(selectedTab)
+      (["Weapon Studio","Resource Swapper","Plugins","Lobby","Friends & Profiles","Inventory & Market","KS Analytics"].includes(selectedTab)
         ? `<div class="ks-note" id="ks-wk-status">${esc(window.__KS_WORKSHOP__?.getStatus()||'Ready')}</div>`:'');
     if(group.key==='Workshop')$('ks-body').querySelector('.ks-subtabs')?.insertAdjacentHTML('afterend',
       '<div class="ks-workshop-experimental" role="note"><strong>EXPERIMENTAL · BETA</strong><span>Workshop features are still in testing. Back up your profiles before importing resources or running plugins.</span></div>');
@@ -3445,6 +3482,7 @@
     const activeLogo = assetURLs.uiImage || DEFAULT_LOGO_DATA;
     logo.style.display = activeLogo ? 'block' : 'none';
     if (activeLogo && logo.getAttribute('src')!==activeLogo) logo.src = activeLogo;
+    $('ks-frame-hud').hidden=!isGamePage||open||!state.frametimeHUD||!state.showHUD||state.minimalHUD;
     const fpsNode = $('ks-fps');
     fpsNode.style.display = isGamePage && state.showHUD && state.showFPS && state.fpsSource !== 'kirka' && !state.minimalHUD ? 'block' : 'none';
     fpsNode.style.left = state.fpsPosition === 'top-left' ? '18px' : 'auto';
@@ -3735,6 +3773,8 @@
   }
   function checkImportValue(key, value) {
     const def=defaults[key];
+    if(key==='shortcuts')return value===undefined?undefined:cleanKeys(value);
+    if(key==='communityThemes')return Array.isArray(value)?value.slice(0,24).map(parseTheme).filter(Boolean):undefined;
     if(key==='customCrosshairPresets') {
       if(!Array.isArray(value)||value.length>12)return undefined;
       return value.filter(p=>p&&typeof p.name==='string'&&p.name.length<=30&&p.settings&&typeof p.settings==='object')
@@ -3933,6 +3973,8 @@
     const el = e.target.closest('[data-action]');
     if (!el) return;
     const a = el.dataset.action;
+    if(/^theme-(import|export|use-\d+|remove-\d+)$/.test(a)){await sharedThemeAction(a);return;}
+    if(a==='reset-shortcuts'){state.shortcuts={};save();renderTab();return;}
     if(a.startsWith('wk-')) {
       try {
         const handled=await window.__KS_WORKSHOP__?.action(a,shadow,workshopNotify);
@@ -4056,19 +4098,60 @@
     }
   });
 
-  window.addEventListener('keydown', e => {
-    if(e.key==='F2' && state.gameScreenshotKey && isGamePage && !open && e.isTrusted &&
-        !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey && !e.isComposing &&
-        !e.composedPath().some(el=>el instanceof HTMLElement&&(el.isContentEditable||el.matches('input,textarea,select,[role="textbox"]')))){
+  const defaultKeys={Settings:'F1',HUD:'F10',Screenshot:'F2',FPS:'',Frametime:'',Keystrokes:'',Workshop:'','Quick Join':''};
+  // Electron owns reload, fullscreen and DevTools. The worker API owns its notification chord.
+  const reserved=new Set([
+    'F11',
+    'F12',
+    'Ctrl+KeyR',
+    'Ctrl+Shift+KeyR',
+    'Alt+F4',
+    'Alt+Shift+KeyP'
+  ]);
+  const validChord=v=>typeof v==='string'&&!reserved.has(v)&&/^(?:Ctrl\+)?(?:Alt\+)?(?:Shift\+)?(?:F(?:[1-9]|1[0-2])|Key[A-Z]|Digit[0-9])$/.test(v)&&(/F\d+$/.test(v)||v.includes('Ctrl+')||v.includes('Alt+'));
+  function cleanKeys(raw){
+    if(!raw||typeof raw!=='object'||Array.isArray(raw))return {};
+    const binds={...defaultKeys};
+    for(const key of Object.keys(binds))if(raw[key]===''||validChord(raw[key]))binds[key]=raw[key];
+    const assigned=Object.values(binds).filter(Boolean);
+    return new Set(assigned).size===assigned.length?binds:{};
+  }
+  function keys(){return {...defaultKeys,...cleanKeys(state.shortcuts)};}
+  function shortcutCard(){
+    return '<div class="ks-card"><h3>Client shortcuts</h3><p>Choose a shortcut, then press a function key or a combination with Ctrl or Alt. Delete clears it. Escape cancels.</p>'+
+      Object.entries(keys()).map(([k,v])=>'<div class="ks-row"><span>'+k+'</span><button class="ks-btn" data-bind="'+k+'">'+esc(v||'Unassigned')+'</button></div>').join('')+
+      '<button class="ks-btn" data-action="reset-shortcuts">Restore default shortcuts</button><p role="status" id="ks-bind-status"></p></div>';
+  }
+  let recording=null;
+  $('ks-body').addEventListener('click',e=>{const b=e.target.closest('[data-bind]');if(b){recording=b; b.textContent='Press keys…';}});
+  window.addEventListener('keydown',e=>{
+    if(!e.isTrusted||e.isComposing||e.metaKey)return;
+    const chord=[e.ctrlKey?'Ctrl':'',e.altKey?'Alt':'',e.shiftKey?'Shift':'',e.code||e.key].filter(Boolean).join('+');
+    if(recording && recording.isConnected && open && shadow.activeElement===recording){
       e.preventDefault();e.stopImmediatePropagation();
-      if(!e.repeat)notify('game-screenshot');
-      return;
+      if(e.repeat||['Control','Shift','Alt'].includes(e.key))return;
+      const k=recording.dataset.bind,b=keys(),next=e.key==='Delete'?'':chord;
+      if(e.key!=='Escape'){
+        if(next&&(!validChord(next)||Object.entries(b).some(([other,key])=>other!==k&&key===next))){
+          $('ks-bind-status').textContent='Reserved, conflicting or unsupported combination.';return;
+        }
+        state.shortcuts={...b,[k]:next};save();
+      }
+      recording=null;renderTab();return;
     }
-    if(e.repeat && (e.key==='F1'||e.key==='F10')){e.preventDefault();e.stopImmediatePropagation();return;}
-    if (e.key === 'F1') { e.preventDefault(); e.stopImmediatePropagation(); show(); }
-    else if (e.key === 'F10') { e.preventDefault(); e.stopImmediatePropagation(); state.showHUD = !state.showHUD; save(); apply(); }
-    else if (e.key === 'Escape' && open) { e.preventDefault(); e.stopImmediatePropagation(); restoreSettingsSnapshot();show(false); }
-  }, true);
+    recording=null;
+    if(e.key==='Escape'&&open){e.preventDefault();e.stopImmediatePropagation();restoreSettingsSnapshot();show(false);return;}
+    const action=Object.entries(keys()).find(([,v])=>v===chord)?.[0];
+    if(!action||action==='Screenshot'&&(!state.gameScreenshotKey||open||!isGamePage))return;
+    if(e.composedPath().some(el=>el instanceof HTMLElement&&(el.isContentEditable||el.matches('input,textarea,select,[role="textbox"]'))))return;
+    if(!isGamePage&&!['Settings','HUD'].includes(action))return;
+    if(action==='Quick Join'&&!state.gameQuickJoin)return;
+    e.preventDefault();e.stopImmediatePropagation();if(e.repeat)return;
+    if(action==='Settings')show();
+    else if(action==='Screenshot')notify('game-screenshot');
+    else if(action==='Workshop'||action==='Quick Join'){show(true);navigateSettingsTab(action==='Workshop'?'Weapon Studio':'Game Integration');if(action==='Quick Join')$('ks-join-link')?.focus();}
+    else {const key={HUD:'showHUD',FPS:'showFPS',Frametime:'frametimeHUD',Keystrokes:'gameKeystrokes'}[action];setSetting(key,!state[key]);}
+  },true);
 
   // Kirka.io may draw its FPS directly into a WebGL canvas. Canvas pixels
   // cannot reliably reveal the engine's FPS, so only read explicitly visible
@@ -4161,7 +4244,7 @@
   function queueMeasurement(){measurementHandle=setTimeout(sampleMeasurement,1000);}
   function measuringTab(){return open && ['Performance','Frame Stability'].includes(selectedTab);}
   function measureFrames(){
-    return !document.hidden && (measuringTab() || (!open && isGamePage && state.showHUD && state.showFPS && !state.minimalHUD && state.fpsSource!=='kirka'));
+    return !document.hidden && (measuringTab() || (!open && isGamePage && state.showHUD && (state.showFPS||state.frametimeHUD) && !state.minimalHUD && state.fpsSource!=='kirka'));
   }
   let diagnosticTimer=null, diagnosticTopic='';
   function syncDiagnosticsPoll(){
@@ -4283,7 +4366,22 @@
     shadow.appendChild(root);
     root.focus();
   }
+  function galleryThemes(){
+    return [...Object.entries(themePalettes).map(([name,p])=>({name,kind:'builtin',author:'KS Client',version:'1',accent:p.accent})),
+      ...(state.communityThemes||[]).map(parseTheme).filter(Boolean).map(t=>({name:t.name,kind:'shared',author:t.author,version:t.version,accent:t.colors.customAccent}))];
+  }
   window.__KS_CLIENT__ = {
+    galleryThemes,
+    galleryAction(kind,name,author){
+      if(kind==='theme-manager'||kind==='plugin-manager'||kind==='weapon-studio'){show(true);navigateSettingsTab({'theme-manager':'Appearance','plugin-manager':'Plugins','weapon-studio':'Weapon Studio'}[kind]);return true;}
+      if(kind==='builtin'&&Object.hasOwn(themePalettes,name)){setSetting('themePreset',name);return true;}
+      if(kind==='shared'){
+        const t=(state.communityThemes||[]).map(parseTheme).find(t=>t?.name===name&&t.author===author);
+        if(!t)return false;Object.assign(state,t.colors,{themePreset:'Custom'});save();apply();return true;
+      }
+      if(kind==='css')return window.__KS_WORKSHOP__?.toggleStyle(name,shadow)===true;
+      return false;
+    },
     // Never use native IPC for Kirka bearer tokens; account help is local UI.
     openAccountHelp: showAccountHelpDialog,
     setUpdateStatus: status => {

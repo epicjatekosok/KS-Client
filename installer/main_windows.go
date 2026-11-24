@@ -27,7 +27,7 @@ var installationVersion string // supplied by the embedded tested installer payl
 const uninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClientTwoEngine`
 const oldUninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KSClient`
 
-//go:embed KS-Client-beta-1.0.27-Portable.zip
+//go:embed KS-Client-beta-1.0.28-Portable.zip
 var archive []byte
 
 // Read the version actually present in the embedded, smoke-tested offline

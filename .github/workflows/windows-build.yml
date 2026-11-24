@@ -53,7 +53,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
-      - name: Cross-compile 1.0.27 Windows launcher and updater
+      - name: Cross-compile 1.0.28 Windows launcher and updater
         shell: bash
         run: |
           cd launcher
@@ -78,6 +78,7 @@ jobs:
           node --check electron-app/swapper.cjs
           node tests/test_kirka_stats.cjs
           node --check electron-app/overlay/kirka_stats.js
+          node tests/test_workshop_128.cjs
           node tests/test_packs_125.cjs
           python ci/check_source.py
           python tests/test_ci_release_gates.py
@@ -99,6 +100,7 @@ jobs:
           python tests/test_profile_116.py
           python tests/test_native_lists_117.py
           python tests/test_kirka_stats_ui.py
+          python tests/test_features_128.py
           python tests/test_workshop_125.py
           python tests/test_menu_pacing_118.py
           python tests/test_game_integration_112.py
@@ -161,6 +163,9 @@ jobs:
       - name: Fetch official Electron and verify its SHA256
         shell: pwsh
         run: ./ci/Prepare-Electron.ps1
+      - name: Test native Gallery in the sandboxed Windows Electron runtime
+        shell: pwsh
+        run: ./ci/Test-GameResolution.ps1 -Test gallery
       - name: Measure actual WebGL output at fixed resolutions
         shell: pwsh
         run: ./ci/Test-GameResolution.ps1

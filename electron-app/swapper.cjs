@@ -36,7 +36,7 @@ function resolve(request){
   const rel=parts.slice(1), ext=path.extname(rel[rel.length-1]).toLowerCase();
   if(!ALLOWED[parts[1]].has(ext))return null;
   const packed=packs().resolve(rel.join('/'));
-  if(packed)return {file:packed,mime:TYPES[ext]};
+  if(packed)return {file:packed,mime:packed.endsWith('.ks-gain.wav')?'audio/wav':TYPES[ext]};
   const root=path.resolve(FOLDER);
   let candidate=path.resolve(root,...rel);
   if(!candidate.startsWith(root+path.sep))return null;

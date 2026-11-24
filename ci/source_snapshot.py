@@ -183,11 +183,17 @@ def scan_secrets(directory, temp):
     # changing the scanner's defaults or adding an allowlist.
     config = temp / "gitleaks.toml"
     config.write_text("[extend]\nuseDefault = true\n", encoding="utf-8")
-    subprocess.run(
+    report = temp / "review.json"
+    result = subprocess.run(
         [str(executable), "dir", "--config", str(config), "--redact=100", "--no-banner",
-         "--ignore-gitleaks-allow", str(directory)],
-        cwd=temp, env=environment, check=True,
+         "--ignore-gitleaks-allow", "--report-format", "json", "--report-path", str(report), str(directory)],
+        cwd=temp, env=environment, check=False,
     )
+    if result.returncode and report.is_file():
+        for match in json.loads(report.read_text(encoding="utf-8")) or []:
+            # A file, line and rule suffice to triage without logging matched content.
+            print(f"Source review: {match['File']} line {match['StartLine']} rule {match['RuleID']}", flush=True)
+    result.check_returncode()
 
 
 def main():

@@ -62,7 +62,7 @@ function fields(obj, keys) {
 const norm = v=>text(v).normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 function profile(p) {
   required(p?.shortId && p?.name);
-  return {...fields(p,'name shortId id bio level clan role createdAt coins diamonds klo klo1V1 kloPOINT2V2 kloRanked kloSAD totalXp xpSinceLastLevel xpUntilNextLevel'),
+  return {...fields(p,'name shortId id bio level clan clanId rank role createdAt coins diamonds klo klo1V1 kloPOINT2V2 kloRanked kloSAD totalXp xpSinceLastLevel xpUntilNextLevel'),
     banReported:p.banned===true||p.isBanned===true||p.ban===true||/^BANNED$/i.test(p.role),
     ...fields(p.stats,'games wins kills deaths headshots scores'),body:text(p.activeBodySkin?.name),weapon:text(p.activeWeapon1Skin?.name)};
 }
@@ -109,22 +109,40 @@ async function download(url, body) {
   return Buffer.concat(parts).toString('utf8');
 }
 function createService(read=download,now=Date.now) {
-  const cache=new Map(),pending=new Map(),attempts=[];
+  const cache=new Map(),pending=new Map(),attempts=[],lastRegionalSuccess=new Map();
   const json=async(url,body)=>JSON.parse(await read(url,body));
   const route=async path=>readRoute(await read(KS+path));
   const wrap=(data,source,stamp=now())=>({data,source,stamp});
   const api=(path,body)=>json(HUB+path,body);
+  const regionCache=new Map();
+  function regional(region){
+    const previous=regionCache.get(region);
+    if(previous&&previous.until>now())return previous.request;
+    const request=(async()=>{
+        const start=performance.now();
+        try{
+          const result=await json('https://'+region+'.kirka.io/matchmake/');
+          const elapsed=Math.round(performance.now()-start), published=rooms(result);
+          lastRegionalSuccess.set(region,now());
+          return {region,rooms:published,httpMs:elapsed,lastSuccess:now()};
+        }catch{return {region,rooms:null,httpMs:null,lastSuccess:lastRegionalSuccess.get(region)??null};}
+
+    })();
+    regionCache.set(region,{until:now()+30000,request});
+    return request;
+  }
   async function load(kind,q) {
+    if(kind==='latency'){
+      const {httpMs,lastSuccess}=await regional(q);
+      return wrap({region:q,httpMs,lastSuccess},'Kirka.io regional HTTPS');
+    }
     if(kind==='market'){
       const [p,h]=await Promise.all([json(TRADES+'/priceList.json'),json(TRADES+'/finalUpdatedBaseList.json').catch(()=>[])]);
       return wrap(market(p,h),'KirkaTrades');
     }
     if(kind==='servers'){
       const sampled=json(TRADES+'/playerCount.json').then(data=>list(data).filter(x=>Number.isFinite(Date.parse(x.timestamp))).sort((a,b)=>Date.parse(b.timestamp)-Date.parse(a.timestamp))[0]).catch(()=>null);
-      const rows=await Promise.all(regions.map(async region=>{
-        try{return {region,rooms:rooms(await json('https://'+region+'.kirka.io/matchmake/'))};}
-        catch{return {region,rooms:null};}
-      }));
+      const rows=await Promise.all(regions.map(regional));
       const latest=await sampled;
       required(rows.some(r=>r.rooms)||latest);
       return wrap({regions:rows,sample:latest?regions.map(k=>num(latest[k==='oceania'?'oce':k])):null,
@@ -132,7 +150,7 @@ function createService(read=download,now=Date.now) {
     }
     if(kind==='inventory'){
       const [items,m]=await Promise.all([api('/inventory/user',{id:q,isShortId:q.length===6}),get('market').catch(()=>({data:[]}))]);
-      return wrap(inventory(items,m.data),'KirkaHub · KirkaTrades');
+      return {...wrap(inventory(items,m.data),'KirkaHub · KirkaTrades'),priceStamp:m.stamp??null,pricesStale:m.stale===true};
     }
     if(kind==='player' && q.length!==6)return wrap(profile(await api('/user/getProfile',{id:q,isShortId:false})),'KirkaHub');
     if(ranked.has(kind)){
@@ -143,15 +161,16 @@ function createService(read=download,now=Date.now) {
     const {data,stamp}=await route(path);required(data);
     if(kind==='clan'){
       required(data.name && Array.isArray(data.members));
-      return wrap({...fields(data,'name description currentClanWarPosition allScores monthScores createdAt discordLink'),members:data.members.map(m=>({...fields(m,'role allScores monthScores createdAt lastSeen'),...fields(m.user,'name shortId level')}))},'KirkaStats',stamp);
+      return wrap({...fields(data,'name id description currentClanWarPosition allScores monthScores createdAt discordLink'),members:data.members.map(m=>({...fields(m,'role allScores monthScores createdAt lastSeen'),...fields(m.user,'name shortId level')}))},'KirkaStats',stamp);
     }
     if(kind==='player')return wrap(profile(data),'KirkaStats',stamp);
     return wrap({rows:board(data).slice(0,kind==='clans'?39:1000),rewards:data.rewards?Object.fromEntries(Object.entries(data.rewards).slice(0,100).map(([rank,items])=>[rank,list(items).slice(0,30).map(i=>({amount:num(i.amount),type:text(i.type),item:i.item?{name:text(i.item.name)}:null}))])):null,endsAt:num(data.remainingTime)===null?null:stamp+data.remainingTime},'KirkaStats',stamp);
   }
   async function get(kind,arg=''){
-    required(['market','servers','inventory','player','clan','clans','leaderboard',...ranked].includes(kind));
+    required(['market','servers','latency','inventory','player','clan','clans','leaderboard',...ranked].includes(kind));
     let q=typeof arg==='string'?arg.trim():'';
     if(kind==='inventory'||kind==='player'){q=q.replace(/^#/,'');required(/^[\w-]{6,64}$/.test(q));if(q.length===6)q=q.toUpperCase();}
+    else if(kind==='latency')required(regions.includes(q));
     else if(kind==='clan')required(q.length>0&&q.length<=80&&!/[\u0000-\u001f]/.test(q)&&!['.','..'].includes(q));
     else q='';
     const key=kind+':'+q,old=cache.get(key),time=now();

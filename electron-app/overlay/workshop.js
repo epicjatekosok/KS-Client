@@ -34,6 +34,9 @@
    d.weapon={enabled:w.enabled===true,hue:clamp(w.hue,0,360,0),saturation:clamp(w.saturation,40,200,100),
      brightness:clamp(w.brightness,50,150,100),skinURL:imgURL(w.skinURL)||'',presets:inArray(w.presets,12,p=>{
        const name=trim(p.name,36);return name?{name,hue:clamp(p.hue,0,360,0),saturation:clamp(p.saturation,40,200,100),brightness:clamp(p.brightness,50,150,100),skinURL:imgURL(p.skinURL)||''}:null})};
+   d.appearance=appearance(value.appearance);
+   d.favoriteLooks=inArray(value.favoriteLooks,12,x=>({name:trim(x.name,30),...appearance(x)})).filter(x=>x.name);
+   d.poses=inArray(value.poses,32,pose).filter(x=>x.name);
    d.swapEnabled=value.swapEnabled===true;
    d.markerId=/^[A-Za-z][A-Za-z0-9_-]{0,79}$/.test(value.markerId||'')?value.markerId:'';
    d.markerColor=color(value.markerColor,'#ffffff');
@@ -48,6 +51,52 @@
  }
  function clamp(v,min,max,fallback){const n=Number(v);return Number.isFinite(n)?Math.round(Math.max(min,Math.min(max,n))):fallback}
  function color(v,fallback){return /^#[0-9a-f]{6}$/i.test(String(v))?String(v):fallback}
+ function appearance(x={}){
+   x=isObject(x)?x:{};
+   return {enabled:x.enabled===true,nameColor:color(x.nameColor,'#f0aa35'),clanColor:color(x.clanColor,'#66cddd'),
+     gradient:x.gradient===true,badge:['','KS ◆','KS ★','KS ●'].includes(x.badge)?x.badge:'',
+     card:['original','outlined','tinted'].includes(x.card)?x.card:'original'};
+ }
+ function pose(x){
+   return {name:trim(x.name,48),x:clamp(x.x,-80,80,0),y:clamp(x.y,-80,80,0),z:clamp(x.z,-80,80,0),
+     scale:clamp(x.scale,50,150,100),rx:clamp(x.rx,-180,180,0),ry:clamp(x.ry,-180,180,0),rz:clamp(x.rz,-180,180,0)};
+ }
+ function poseTransform(p){
+   return 'translate3d('+p.x+'px,'+p.y+'px,'+p.z+'px) rotateX('+p.rx+'deg) rotateY('+p.ry+'deg) rotateZ('+p.rz+'deg) scale('+p.scale/100+')';
+ }
+ function appearanceCSS(a){
+   if(!a.enabled)return '';
+   const nick=':is(.profile-cont,.card-profile,.profile-page) :is(.nickname,.username,.player-name)';
+   return nick+'{color:'+a.nameColor+'!important;'+(a.gradient?'background:linear-gradient(90deg,'+a.nameColor+','+a.clanColor+');background-clip:text;-webkit-text-fill-color:transparent;':'')+'}'+
+     ':is(.profile-cont,.card-profile,.profile-page) .clan-name{color:'+a.clanColor+'!important}'+
+     (a.badge?nick+'::after{content:" '+a.badge+'";font:600 11px system-ui;color:'+a.nameColor+';-webkit-text-fill-color:'+a.nameColor+'}':'')+
+     (a.card==='outlined'?'.card-profile{outline:1px solid '+a.clanColor+'}':a.card==='tinted'?'.card-profile{background-color:'+a.clanColor+'22!important}':'');
+ }
+ function lookControls(){
+   const a=cfg.appearance;
+   return card('Local profile style',input('look-nameColor','Profile color',a.nameColor,'color')+input('look-clanColor','Clan color',a.clanColor,'color')+
+     '<label>Gradient <input id="ks-wk-look-gradient" type="checkbox" '+(a.gradient?'checked':'')+'></label>'+
+     ['badge','card'].map(k=>'<label>'+k+' <select id="ks-wk-look-'+k+'">'+(k==='badge'?['','KS ◆','KS ★','KS ●']:['original','outlined','tinted']).map(v=>'<option value="'+v+'" '+(a[k]===v?'selected':'')+'>'+escape(v||'None')+'</option>').join('')+'</select></label>').join('')+
+     '<p id="ks-look-preview" style="color:'+a.nameColor+'">Profile · Clan '+escape(a.badge)+'</p>'+
+     btn('look-apply','Apply locally')+btn('look-reset','Restore original')+input('look-name','Preset name')+btn('look-save','Save favorite colors')+
+     cfg.favoriteLooks.map((x,i)=>btn('look-use-'+i,x.name)).join(''));
+ }
+ let editingPose=null;
+ function poseCard(){
+   const p=editingPose||pose({});
+   return card('Viewmodel pose studio','<p>Reference model preview. Live Kirka viewmodel transforms are unsupported without a verified local weapon identifier.</p>'+
+     '<div style="height:140px;display:grid;place-items:center;perspective:350px;overflow:hidden"><div id="ks-pose-preview" style="transform-style:preserve-3d;transform:'+poseTransform(p)+'"><i style="display:block;width:95px;height:16px;background:#d89c47;transform:translateZ(7px)"></i><i style="position:absolute;top:0;width:95px;height:14px;background:#9e7439;transform:rotateX(90deg);transform-origin:top"></i><i style="display:block;width:12px;height:22px;margin-left:18px;background:#75624c"></i></div></div>'+
+     input('pose-name','Weapon preset name',p.name)+['x','y','z','scale','rx','ry','rz'].map(k=>input('pose-'+k,k,p[k],'number')).join('')+
+     btn('pose-save','Save pose')+btn('pose-reset','Reset preview')+btn('pose-export','Export poses')+'<input id="ks-wk-pose-file" type="file" accept=".json">'+btn('pose-import','Import poses')+
+     cfg.poses.map((x,i)=>btn('pose-use-'+i,x.name)+btn('pose-delete-'+i,'Remove')).join(''));
+ }
+ function readPose(ui){const v=k=>ui.getElementById('ks-wk-pose-'+k)?.value;return pose(Object.fromEntries(['name','x','y','z','scale','rx','ry','rz'].map(k=>[k,v(k)])));}
+ function readLook(ui){const v=k=>ui.getElementById('ks-wk-look-'+k);return appearance({enabled:true,nameColor:v('nameColor')?.value,clanColor:v('clanColor')?.value,gradient:v('gradient')?.checked,badge:v('badge')?.value,card:v('card')?.value});}
+ document.addEventListener('input',e=>{
+   const el=e.composedPath()[0],ui=el?.getRootNode();if(!ui?.host||ui.host.id!=='ks-client-root')return;
+   if(el.id.startsWith('ks-wk-pose-')){editingPose=readPose(ui);const box=ui.getElementById('ks-pose-preview');if(box)box.style.transform=poseTransform(editingPose);}
+   if(el.id.startsWith('ks-wk-look-')){const a=readLook(ui),box=ui.getElementById('ks-look-preview');if(box){box.style.color=a.nameColor;box.style.background=a.gradient?'linear-gradient(90deg,'+a.nameColor+'35,'+a.clanColor+'66)':'';box.style.borderColor=a.clanColor;box.textContent='Profile · Clan '+a.badge;}}
+ });
  function limitSettings(s){
    const obj={};
    for(const [k,v] of Object.entries(s).slice(0,32)){
@@ -55,6 +104,7 @@
    }
    return obj;
  }
+ const cssTargets=['.profile .nickname','.profile .clan-name','.friends .nickname','.inventory .item-name','.market .listing .name'];
  let cfg=read();
  let watchFriend=null;
  let status='Workshop features are local to this browser profile.';
@@ -191,9 +241,15 @@
    if(node)node.innerHTML=packRows();
    if(result.message){status=trim(result.message,180);const n=panel?.getElementById('ks-wk-status');if(n)n.textContent=status;}
  }
+ function downloadJSON(data,name){
+   const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+   const link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ }
  function render(tab){
+   if(tab==='KS Analytics')return (window.__KS_ANALYTICS__?.render(escape)||'Analytics unavailable')+
+     btn('analytics-refresh','Refresh')+btn('analytics-export','Export statistics')+btn('analytics-reset','Reset statistics');
    if(tab==='Weapon Studio')return '<h2 class="ks-title">Weapon Studio / Custom Skin Link</h2><p class="ks-sub">Local weapon and inventory image cosmetics. 3D WebGL material replacement depends on exact supported game assets.</p>'+
-     card('Weapon & inventory visual styling',input('weapon-hue','Hue rotation (0–360)',cfg.weapon.hue,'number')+
+     poseCard()+card('Weapon & inventory visual styling',input('weapon-hue','Hue rotation (0–360)',cfg.weapon.hue,'number')+
        input('weapon-saturation','Saturation % (40–200)',cfg.weapon.saturation,'number')+
        input('weapon-brightness','Brightness % (50–150)',cfg.weapon.brightness,'number')+
        input('skin-url','Custom Skin Link (HTTPS image)',cfg.weapon.skinURL)+
@@ -201,7 +257,7 @@
        btn('weapon-apply','Apply cosmetics')+' '+btn('weapon-reset','Clear cosmetics'))+
      card('3D Weapon Studio (experimental exact-match WebGL)',
        '<p class="ks-hint">Replaces a matching WebGL image texture. The exact Kirka /assets/ URL and a CORS-compatible replacement image are required. Viewmodel transforms require a manually selected matrix signature.</p>'+
-       btn('gl-probe','Identify visible weapon image')+' '+btn('gl-use-probe','Use observed texture')+
+       btn('gallery','Open Workshop Gallery')+' '+btn('gl-probe','Identify visible weapon image')+' '+btn('gl-use-probe','Use observed texture')+
        input('gl-source','Original Kirka texture URL (exact HTTPS asset)',glCfg().assetURL||'')+
        input('gl-skin','Custom 3D Skin Link (HTTPS CORS image)',glCfg().skinURL?.startsWith('data:')?'':glCfg().skinURL||'')+
        '<label class="ks-row"><span>Local skin image</span><input id="ks-wk-gl-file" type="file" accept="image/png,image/jpeg,image/webp"></label>'+
@@ -230,6 +286,7 @@
        '<label class="ks-row">Enable replacements at startup <input type="checkbox" id="ks-wk-swap-on" '+(cfg.swapEnabled?'checked':'')+'></label>'+
        btn('swap-toggle','Save swapper state')+' '+btn('swap-folder','Open asset folder')+' '+btn('swap-scan','Scan files')+
        '<p class="ks-hint">Exact Kirka image/audio/font/CSS resource matching only. Reload after changing files; no game JavaScript interception.</p>')+
+     card('Workshop Gallery',btn('gallery','Browse images, sounds and shared packs'))+
      card('Resource packs',btn('pack-import','Import pack')+' '+btn('pack-create','Create from folder')+' '+btn('pack-list','Refresh')+
        '<div id="ks-wk-pack-list">'+packRows()+'</div>')+
      card('Observed asset paths','<p>For a versioned path such as img/logo.1234abcd.png, you can name your local file img/logo.ks-anyhash.png. Exact names take priority. Only the hexadecimal build suffix can change.</p>'+btn('asset-refresh','Refresh observed paths')+'<pre style="white-space:pre-wrap;overflow-wrap:anywhere">'+escape(observedAssets().join('\n')||'No supported assets observed in this document.')+'</pre>')+
@@ -239,12 +296,15 @@
        '<p class="ks-hint">Status: '+escape(JSON.stringify(window.__KS_FREEZE_GUARD__?.getStatus?.()||{}).slice(0,260))+'</p>')+notice;
    if(tab==='Plugins')return '<h2 class="ks-title">Safe JavaScript plugins</h2><p class="ks-sub">'+escape(srcmsg)+'</p>'+
      '<p class="ks-hint">Example: ks.message("Hello!"); ks.tint("hud","#ffaa22"); ks.snapshot().then(s=>ks.message(s.scene)); The snapshot includes only visible game data. Each run requires a click.</p>'+
-     card('Add local plugin',input('plugin-name','Plugin name')+'<textarea id="ks-wk-plugin-code" class="ks-input" rows="7" placeholder="ks.message(&#39;Hello!&#39;)"></textarea>'+input('plugin-version','Plugin version','1.0.0')+input('plugin-settings','Plugin settings (JSON)','{}')+
+     card('Add local plugin',input('plugin-name','Plugin name')+input('plugin-author','Author')+input('plugin-description','Description')+input('plugin-category','Category')+
+       '<label class="ks-row">Plugin type <select id="ks-wk-plugin-type"><option value="js">JavaScript</option><option value="css">Scoped CSS</option></select></label>'+'<textarea id="ks-wk-plugin-code" class="ks-input" rows="7" placeholder="ks.message(&#39;Hello!&#39;)"></textarea>'+input('plugin-version','Plugin version','1.0.0')+input('plugin-settings','Plugin settings (JSON)','{}')+
        '<label class="ks-row">Worker API 2 <input id="ks-wk-plugin-v2" type="checkbox"></label>'+btn('plugin-save','Save code')+
-       '<input id="ks-wk-plugin-file" type="file" accept=".json">'+btn('plugin-import','Import plugin'))+
-     card('Saved plugins',cfg.plugins.length?cfg.plugins.map((p,i)=>'<div class="ks-row"><div><strong>'+escape(p.name)+'</strong><div class="ks-desc">v'+escape(p.version)+' · API '+p.api+'</div></div>'+(p.enabled?btn('plugin-run-'+i,'Run'):'')+btn('plugin-toggle-'+i,p.enabled?'Disable':'Enable')+btn('plugin-edit-'+i,'Edit')+btn('plugin-export-'+i,'Export')+btn('plugin-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No scripts saved.</p>')+
+       '<input id="ks-wk-plugin-file" type="file" accept=".json,.js,.css">'+btn('plugin-import','Import plugin'))+
+     card('Saved plugins',cfg.plugins.length?cfg.plugins.map((p,i)=>'<div class="ks-row"><div><strong>'+escape(p.name)+'</strong><div class="ks-desc">v'+escape(p.version)+' · API '+p.api+' · '+escape([p.author,p.category,p.kind].filter(Boolean).join(' / '))+'</div><small>'+escape(p.description)+'</small></div>'+(p.enabled?btn('plugin-run-'+i,'Run'):'')+btn('plugin-toggle-'+i,p.enabled?'Disable':'Enable')+btn('plugin-edit-'+i,'Edit')+btn('plugin-export-'+i,'Export')+btn('plugin-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No scripts saved.</p>')+
+     card('CSS plugin format','<p>Use color, background-color or border-color with six-digit hex colors on these supported selectors: '+escape(cssTargets.join(', '))+'</p>')+
      card('Plugin preview','<div id="ks-wk-plugin-preview" class="ks-note">Choose Run to open an isolated preview.</div>'+btn('plugin-stop','Stop preview')+'<pre>'+escape(pluginLog.join('\n'))+'</pre>')+notice;
    if(tab==='Lobby')return '<h2 class="ks-title">Lobby / Quick Join</h2><p class="ks-sub">Save join links, room notes and supported HTML lobby form values.</p>'+
+     card('Regional latency',btn('regions','Open regional latency and servers'))+
      card('Save current room',input('room-name','Room name')+input('room-url','Kirka.io room URL',kirkaURL(location.href)||'')+
        btn('room-save','Save room + visible form values')+' '+btn('room-capture','Capture current lobby options'))+
      card('Favorite rooms',cfg.rooms.length?cfg.rooms.map((r,i)=>'<div class="ks-row"><span>'+escape(r.name)+'</span>'+
@@ -252,11 +312,12 @@
      card('Recently joined',list(cfg.history.map(h=>({name:h.url,url:h.url})), 'history'))+
      '<p class="ks-hint">Applying lobby settings changes only matching visible HTML controls, never hidden server configuration. Joining still follows Kirka.io permissions.</p>';
    if(tab==='Friends & Profiles')return '<h2 class="ks-title">Friends & Profiles</h2><p class="ks-sub">Local labels and notes for profiles you actually see. No access to private friend lists or invented spectate links.</p>'+
-     card('Create local player annotation',input('friend-nick','Visible nickname / player ID')+input('friend-note','Personal note')+
+     lookControls()+card('Create local player annotation',input('friend-nick','Visible nickname / player ID')+input('friend-note','Personal note')+
        input('friend-tag','Player tag')+'<label class="ks-row">Favorite <input id="ks-wk-friend-favorite" type="checkbox"></label>'+input('friend-color','Tag color', '#f0aa35','color')+btn('friend-save','Save note'))+
      card('Visible friend list',tableControls('friends')+'<div id="ks-live-friends"></div>'+input('watch-name','Exact visible friend name',watchFriend?.name||'')+
        btn('watch-friend','Watch for native Spectate (60 seconds)')+' '+btn('watch-cancel','Cancel')+
        '<p class="ks-hint">Keep this panel open. The game must offer Spectate for this friend.</p>')+
+     card('Clan directory',btn('clans','Search public clans'))+
      card('Visible profile details','<div id="ks-live-profile"></div>')+
      card('Saved annotations',cfg.friends.length?cfg.friends.map((f,i)=>
        ((onlyFav&&!f.favorite)||!([f.nick,f.tag,f.note].join(' ').toLocaleLowerCase().includes(query.toLocaleLowerCase())))?'':'<div class="ks-row"><div><strong>'+escape((f.favorite?'★ ':'')+f.nick+' '+(f.tag||''))+'</strong><div class="ks-desc">'+escape(f.note)+'</div></div>'+btn('friend-delete-'+i,'Delete')+'</div>').join(''):'<p class="ks-hint">No saved player notes.</p>')+notice;
@@ -362,6 +423,36 @@
    const val=id=>ui.getElementById('ks-wk-'+id)?.value??'';
    const flag=id=>!!ui.getElementById('ks-wk-'+id)?.checked;
    const number=(id,min,max,def)=>clamp(val(id),min,max,def);
+   if(a.startsWith('look-')){
+     const look=readLook(ui),name=trim(val('look-name'),30);
+     if(a==='look-reset')cfg.appearance=appearance();
+     else if(a==='look-apply')cfg.appearance=look;
+     else if(a==='look-save'){if(!name)throw Error('Preset name required');cfg.favoriteLooks=[...cfg.favoriteLooks.filter(x=>x.name!==name),{...look,name}].slice(-12);}
+     else if(a.startsWith('look-use-'))cfg.appearance=appearance(cfg.favoriteLooks[Number(a.slice(9))]);
+     save();return true;
+   }
+   if(a.startsWith('pose-')){
+     if(a==='pose-export')downloadJSON({format:'ks-viewmodel-poses',version:1,poses:cfg.poses},'KS-poses.json');
+     else if(a==='pose-import')return (async()=>{const file=ui.getElementById('ks-wk-pose-file')?.files[0];
+       if(!file||file.size>24000)throw Error('Choose a pose JSON up to 24 KiB');const doc=JSON.parse(await file.text());
+       if(doc.format!=='ks-viewmodel-poses'||doc.version!==1||!Array.isArray(doc.poses)||doc.poses.length>32)throw Error('Invalid pose pack');
+       const incoming=inArray(doc.poses,32,pose);if(incoming.some(x=>!x.name)||incoming.length!==doc.poses.length)throw Error('Invalid pose name');
+       const merged=new Map([...cfg.poses,...incoming].map(x=>[x.name,x]));if(merged.size>32)throw Error('Maximum 32 poses');cfg.poses=[...merged.values()];save();return true;})();
+     else if(a==='pose-reset')editingPose=pose({});
+     else if(a==='pose-save'){const p=readPose(ui);if(!p.name)throw Error('Enter a weapon preset name');if(!cfg.poses.some(x=>x.name===p.name)&&cfg.poses.length>=32)throw Error('Maximum 32 poses');cfg.poses=[...cfg.poses.filter(x=>x.name!==p.name),p];editingPose=p;save();}
+     else if(a.startsWith('pose-use-'))editingPose=cfg.poses[Number(a.slice(9))];
+     else if(a.startsWith('pose-delete-')){cfg.poses.splice(Number(a.slice(12)),1);save();}
+     return true;
+   }
+   if(a.startsWith('analytics-')){
+     const stats=window.__KS_ANALYTICS__;
+     if(stats && a==='analytics-export')downloadJSON(stats.exportData(),'KS-Analytics.json');
+     if(stats && a==='analytics-reset'&&confirm('Erase local Analytics history?'))stats.reset();
+     return true;
+   }
+   if(a==='gallery'){notify('workshop-gallery',{paths:observedAssets().slice(-12)});return true;}
+   if(a==='regions'){window.__KS_KIRKA_STATS__?.open('servers');return true;}
+   if(a==='clans'){window.__KS_KIRKA_STATS__?.open('clans');return true;}
    if(a.startsWith('pack-')){
      const [,command,index]=a.split('-'),id=packList[Number(index)]?.id;
      if(command==='remove'&&!confirm(window.__KS_CLIENT__?.translate?.('Remove')||'Remove'))return true;
@@ -448,22 +539,24 @@
    else if(a==='swap-scan'){notify('resource-scan');status='Scanning local assets…';}
    else if(a==='plugin-save'){
      const name=trim(val('plugin-name'),45),code=trim(val('plugin-code'),12000);
-     const p=normalizePlugin({name,code,version:val('plugin-version'),settings:JSON.parse(val('plugin-settings')||'{}'),api:flag('plugin-v2')?2:1});
+     const p=normalizePlugin({name,code,kind:val('plugin-type'),author:val('plugin-author'),description:val('plugin-description'),category:val('plugin-category'),version:val('plugin-version'),settings:JSON.parse(val('plugin-settings')||'{}'),api:flag('plugin-v2')?2:1});
      if(!p||(!cfg.plugins.some(x=>x.name===name)&&cfg.plugins.length>=12))throw Error('Invalid plugin or plugin limit reached');
      if(activePlugin===name)stopPlugin();
      cfg.plugins=[...cfg.plugins.filter(x=>x.name!==name),p];save();status='Plugin saved; not running.';
    }else if(a==='plugin-import'){
      return (async()=>{
        const file=ui.getElementById('ks-wk-plugin-file')?.files?.[0];if(!file||file.size>65536)throw Error('Select a plugin JSON up to 64 KiB');
-       const doc=JSON.parse(await file.text()),p=normalizePlugin(doc);
-       if(doc.format!=='ks-plugin'||!p||cfg.plugins.length>=12||cfg.plugins.some(x=>x.name===p.name))throw Error('Incompatible or duplicate plugin');
+       const text=await file.text(),ext=file.name.split('.').pop().toLowerCase();
+       const doc=ext==='json'?JSON.parse(text):['css','js'].includes(ext)?{format:'ks-plugin',api:2,kind:ext,version:'1.0.0',name:file.name.replace(/\.[^.]+$/,''),code:text}:null;
+       const p=doc&&normalizePlugin(doc);
+       if(doc?.format!=='ks-plugin'||!p||cfg.plugins.length>=12||cfg.plugins.some(x=>x.name===p.name))throw Error('Incompatible or duplicate plugin');
        cfg.plugins.push({...p,enabled:false});save();return true;
      })();
    }else if(a.startsWith('plugin-toggle-')){
      const p=cfg.plugins[Number(a.slice(14))];if(p){mailbox.delete(p.name);if(activePlugin===p.name)stopPlugin();p.enabled=!p.enabled;save();}
    }else if(a.startsWith('plugin-edit-')){
      const p=cfg.plugins[Number(a.slice(12))];if(p){
-       for(const [id,text] of Object.entries({name:p.name,code:p.code,version:p.version,settings:JSON.stringify(p.settings)}))ui.getElementById('ks-wk-plugin-'+id).value=text;
+       for(const [id,text] of Object.entries({name:p.name,code:p.code,type:p.kind,author:p.author,description:p.description,category:p.category,version:p.version,settings:JSON.stringify(p.settings)}))ui.getElementById('ks-wk-plugin-'+id).value=text;
        ui.getElementById('ks-wk-plugin-v2').checked=p.api===2;
      }
    }else if(a.startsWith('plugin-export-')){
@@ -502,13 +595,31 @@
    return true;
  }
  let pluginListener=null,pluginCSS=null,pluginFrame=null;
+ function scopedCSS(code){
+   const rules=[],str=code.replace(/\/\*[\s\S]*?\*\//g,'').trim();
+   const pattern=/\s*([^{}]+)\{([^{}]+)\}\s*/gy;
+   let index=0;
+   while(index<str.length){
+     const match=pattern.exec(str);if(!match||rules.length>=40)return null;
+     const selector=match[1].trim(),styles=match[2].split(';').map(x=>x.trim()).filter(Boolean);
+     if(!cssTargets.includes(selector)||!styles.length||!styles.every(x=>/^(color|background-color|border-color)\s*:\s*#[0-9a-f]{6}$/i.test(x)))return null;
+     rules.push(selector+'{'+styles.join(';')+'}');index=pattern.lastIndex;
+   }
+   return rules.length?rules.join('\n'):null;
+ }
  function normalizePlugin(x){
    const version=trim(x.version||'1.0.0',24),api=x.api??1;
-   const name=trim(x.name,45),code=trim(x.code,12000);
+   if(typeof x.code!=='string'||x.code.length>12000)return null;
+   const name=trim(x.name,45),code=x.code.trim();
    if(!name||!code||![1,2].includes(api)||!/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(version))return null;
    const settings=isObject(x.settings)?x.settings:{};
    if(JSON.stringify(settings).length>2000)return null;
-   return {name,code,api,version,enabled:x.enabled!==false,settings};
+   const kind=x.kind??'js';
+   if(!['css','js'].includes(kind)||kind==='css'&&!scopedCSS(code))return null;
+   const permissions=kind==='css'?['scoped-colors']:api===2?['panel','snapshot','events','messages']:['preview','panel','snapshot'];
+   if(x.permissions&&(!Array.isArray(x.permissions)||x.permissions.some(p=>!permissions.includes(p))))return null;
+   return {name,code,api,kind,author:trim(x.author,60),description:trim(x.description,240),category:trim(x.category,32),
+     permissions:x.permissions||permissions,version,enabled:x.enabled!==false,settings};
  }
  const pluginLog=[],mailbox=new Map();
  let activePlugin=null,cleanupWorker=null,workerStop=null;
@@ -541,7 +652,7 @@
    out.hidden=true;out.style.cssText='position:fixed;bottom:3em;right:1em;z-index:2147483600;pointer-events:none;color:white;background:#13151b;padding:.5em;font:14px system-ui';
    let ping=null,alive=Date.now(),period=Date.now(),calls=0;
    const post=msg=>frame.contentWindow?.postMessage(msg,'*');
-   const event=(name,value)=>post({type:'event',name,value});
+   const event=(name,value)=>{if(plugin.permissions.includes(name==='message'?'messages':'events'))post({type:'event',name,value});};
    const off=window.__KS_GAME_RUNTIME__?.on?.('scene',e=>event('scene',e.detail?.to||'unknown'));
    function key(e){if(!e.repeat&&e.isTrusted&&e.altKey&&e.shiftKey&&e.code==='KeyP'&&!document.hidden)event('shortcut','Alt+Shift+P');}
    function settings(e){event('settings',!!e.detail);}
@@ -551,7 +662,7 @@
      if(Date.now()-period>1000){calls=0;period=Date.now();}
      if(++calls>32||m.type==='error'){recordError(m.type==='error'?m.text:'Plugin message limit exceeded');stopPlugin();return;}
      if(m.type==='alive'){alive=Date.now();return;}
-     if(m.type==='send'){
+     if(m.type==='send'&&plugin.permissions.includes('messages')){
        const recipient=cfg.plugins.find(p=>p.name===m.to&&p.api===2&&p.enabled);
        if(recipient&&Array.isArray(recipient.settings.allowFrom)&&recipient.settings.allowFrom.includes(plugin.name)){
          const message={from:plugin.name,text:trim(m.text,140)};
@@ -559,8 +670,9 @@
          else mailbox.set(recipient.name,[...(mailbox.get(recipient.name)||[]).slice(-7),message]);
        }
      }
-     if(m.type==='panel'){out.textContent=trim(m.text,180);out.hidden=!out.textContent;}
+     if(m.type==='panel'&&plugin.permissions.includes('panel')){out.textContent=trim(m.text,180);out.hidden=!out.textContent;}
      if(m.type==='snapshot'&&Number.isSafeInteger(m.id)){
+       if(!plugin.permissions.includes('snapshot')){post({type:'reply',id:m.id,value:null});return;}
        const p=window.__KS_FRAME_PACER__?.getStats();
        post({type:'reply',id:m.id,value:{scene:window.__KS_GAME_RUNTIME__?.scene||'unknown',
          settingsOpen:!!window.__KS_CLIENT__?.isSettingsOpen(),callbackFPS:p?.estimatedCallbackFPS??null,
@@ -594,6 +706,10 @@
  }
  function runPlugin(plugin,ui){
    if(plugin.enabled===false)return;
+   if(plugin.kind==='css'){
+     stopPlugin();const css=scopedCSS(plugin.code);if(!css||!plugin.permissions.includes('scoped-colors'))return;
+     activePlugin=plugin.name;pluginCSS=document.createElement('style');pluginCSS.textContent=css;document.head.append(pluginCSS);status='Scoped colors applied locally.';return;
+   }
    if(plugin.api===2){startWorker(plugin);status='Plugin started';return;}
    stopPlugin();activePlugin=plugin.name;
    const wrap=ui.getElementById('ks-wk-plugin-preview');if(!wrap)return;
@@ -611,17 +727,17 @@
    let calls=0;
    pluginListener=e=>{
      if(e.origin!=='null'||!frame.isConnected||e.source!==frame.contentWindow||!isObject(e.data)||e.data.ksWorkshopPlugin!==1||++calls>80)return;
-     if(e.data.action==='snapshot'&&Number.isSafeInteger(e.data.id)&&e.data.id>0&&e.data.id<=100){
+     if(plugin.permissions.includes('snapshot')&&e.data.action==='snapshot'&&Number.isSafeInteger(e.data.id)&&e.data.id>0&&e.data.id<=100){
        const data=deepSnapshot();
        const safe={scene:data.scene||'unknown',stats:data.stats||{},observed:data.observed||{},
          friends:data.friends||null,inventory:data.inventory||null,market:data.market||null,profile:data.profile||null,servers:data.servers||null,input:data.input||{}};
        frame.contentWindow?.postMessage({ksWorkshopReply:1,id:e.data.id,snapshot:safe},'*');
      }
-     if(e.data.action==='message'){
+     if(plugin.permissions.includes('panel')&&e.data.action==='message'){
        status='Plugin message: '+trim(e.data.text,140);
        const node=ui.getElementById('ks-wk-status');if(node)node.textContent=window.__KS_CLIENT__?.translate(status) ?? status;
      }
-     if(e.data.action==='tint'&&Object.hasOwn(presets,e.data.target)){
+     if(plugin.permissions.includes('panel')&&e.data.action==='tint'&&Object.hasOwn(presets,e.data.target)){
        const value=color(e.data.color,'');
        if(!value)return;
        if(!pluginCSS){pluginCSS=document.createElement('style');pluginCSS.id='ks-workshop-plugin-style';document.head.appendChild(pluginCSS);}
@@ -661,7 +777,7 @@
    }
    const w=cfg.weapon;
    const filter='hue-rotate('+w.hue+'deg) saturate('+(w.saturation/100)+') brightness('+(w.brightness/100)+')';
-   const css=(w.enabled?'.inventory img,.weapons img,.weapon-icon img,.weapon-preview img,.item-card img{filter:'+filter+'!important;}':'')+
+   const css=appearanceCSS(cfg.appearance)+(w.enabled?'.inventory img,.weapons img,.weapon-icon img,.weapon-preview img,.item-card img{filter:'+filter+'!important;}':'')+
     (cfg.markerId?'#'+cfg.markerId+'{color:'+cfg.markerColor+'!important;border-color:'+cfg.markerColor+'!important}':'')+
     (cfg.killfeedColors?'.kill-bar-cont .kill-bar-item.blue{color:#73ccff}.kill-bar-cont .kill-bar-item.red{color:#ff7777}':'')+
     (cfg.gameHudTheme==='compact'?'.script-ui .ui-row{transform:scale(.92);transform-origin:top right}':'')+
@@ -725,7 +841,12 @@
    }else if(!needed){offRefresh?.();offRefresh=null;clearInterval(fallbackTimer);fallbackTimer=null;}
  }
  document.addEventListener('visibilitychange',()=>syncWork(activeTab));
- window.__KS_WORKSHOP__=Object.freeze({setPacks,render,action,refresh,syncWork,stopPlugin,stopPreview,cancelWatch:()=>{watchFriend=null;},recordJoin,normalizeWorkshop,reloadProfile:()=>{stopPlugin();mailbox.clear();cfg=read();refresh();syncWork(activeTab);},getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
+ window.__KS_WORKSHOP__=Object.freeze({
+  styles:()=>cfg.plugins.filter(p=>p.kind==='css').map(p=>({name:p.name,kind:'css',author:p.author,version:p.version,enabled:p.enabled,active:activePlugin===p.name})),
+  toggleStyle(name,ui){
+    const p=cfg.plugins.find(p=>p.kind==='css'&&p.name===name&&p.enabled);if(!p)return false;
+    if(activePlugin===p.name)stopPlugin();else runPlugin(p,ui);return true;
+  },setPacks,render,action,refresh,syncWork,stopPlugin,stopPreview,cancelWatch:()=>{watchFriend=null;},recordJoin,normalizeWorkshop,reloadProfile:()=>{stopPlugin();mailbox.clear();cfg=read();refresh();syncWork(activeTab);},getStatus:()=>status,getConfig:()=>JSON.parse(JSON.stringify(cfg)),
   setStatus:message=>{status=trim(message,400);},getRoom:idx=>cfg.rooms[idx]||null});
  if(document.body){refresh();}else document.addEventListener('DOMContentLoaded',refresh,{once:true});
  syncWork(null);

@@ -1,12 +1,12 @@
 'use strict';
-// KS Client Beta 1.0.27: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.28: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {execFile,spawn}=require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const APP_VERSION = 'Beta 1.0.27';
+const APP_VERSION = 'Beta 1.0.28';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.27.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.28.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -33,7 +33,7 @@ const frameJS = fs.readFileSync(path.join(__dirname,'overlay','frame_pacer.js'),
 const extrasJS = fs.readFileSync(path.join(__dirname,'overlay','game_extras.js'),'utf8');
 const statsService=require('./kirka-stats.cjs').createService();
 const statsJS=fs.readFileSync(path.join(__dirname,'overlay','kirka_stats.js'),'utf8');
-const workshopJS=fs.readFileSync(path.join(__dirname,'overlay','workshop.js'),'utf8');
+const workshopJS=['analytics.js','workshop.js'].map(file=>fs.readFileSync(path.join(__dirname,'overlay',file),'utf8')).join('\n;\n');
 const integrationBootJS=fs.readFileSync(path.join(__dirname,'overlay','integration_bootstrap.js'),'utf8');
 const integrationCoreJS=fs.readFileSync(path.join(__dirname,'overlay','integration_core.js'),'utf8');
 const gameRuntimeJS=fs.readFileSync(path.join(__dirname,'overlay','game_runtime.js'),'utf8');
@@ -124,7 +124,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.27').slice(0,40),
+      current:String(payload.current||'1.0.28').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -285,10 +285,8 @@ function setWindowSize(preset) {
 function installShortcuts(){
   win.webContents.on('before-input-event',(event,input)=>{
     if(input.type!=='keyDown')return;
-    if(input.isAutoRepeat && ['F1','F10','F11'].includes(input.key)){event.preventDefault();return;}
+    if(input.isAutoRepeat && input.key==='F11'){event.preventDefault();return;}
     if(input.key==='F11'){event.preventDefault();win.setFullScreen(!win.isFullScreen());}
-    if(input.key==='F1'){event.preventDefault();runJS('window.__KS_CLIENT__?.toggle?.()')}
-    if(input.key==='F10'){event.preventDefault();runJS('window.__KS_CLIENT__?.toggleHud?.()')}
     if(input.key==='F12' && desired.devTools){event.preventDefault();win.webContents.openDevTools({mode:'detach'})}
     if(input.control && input.key.toLowerCase()==='r'){event.preventDefault();win.webContents.reload()}
   });
@@ -316,7 +314,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.27 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.28 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
@@ -539,6 +537,7 @@ function receiveMessage(event, raw){
       }).catch(e=>{log('Screenshot failed: '+e.message);jsCall('setGameExtraStatus','Screenshot failed: '+e.message)});
       break;
     }
+    case 'workshop-gallery':require('./gallery.cjs').open(win,raw.paths).catch(e=>jsCall('setWorkshopStatus',e.message));break;
     case 'resource-packs':void managePack(raw.command,raw.id);break;
     case 'resource-save':{
       try{
