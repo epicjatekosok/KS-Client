@@ -76,19 +76,73 @@ function visibleLink(row){
  }
  return null;
 }
-function friendsSnapshot(){
+let scannedFriends=null, scanRunning=false;
+function friendScope(){
+ const panel=document.querySelector('.friends');
+ if(!shown(panel))return null;
+ return {panel,list:panel.querySelector('.list')||panel,
+   tab:panel.querySelector('.tab.active,.tab.is-active,.tab[aria-selected="true"]'),
+   filter:[...panel.querySelectorAll('input')].map(input=>input.value).join('\n')};
+}
+function sameScope(a,b){return !!a&&!!b&&a.panel===b.panel&&a.list===b.list&&a.tab===b.tab&&a.filter===b.filter;}
+function currentFriends(){
  const rows=document.querySelectorAll('.friends .nickname,.friends .username,.friends .player-name');
  const entries=[];
  for(const label of rows){
    if(!shown(label))continue;
    const name=trim(label.textContent,60),row=label.closest('.friend,.friend-item,[data-friend-id],li');
    if(!name)continue;
-   const id=trim(row?.querySelector('.friend-id')?.textContent,60);
+   const id=trim(row?.querySelector('.friend-id')?.textContent||row?.dataset.friendId,60);
    const state=row?.classList.contains('is-online')||shown(row?.querySelector('.online'))?'online':
      row?.classList.contains('is-offline')||shown(row?.querySelector('.offline'))?'offline':null;
-   entries.push({name,id,state,profile:visibleLink(row)});if(entries.length>=100)break;
+   entries.push({name,id,state,profile:visibleLink(row)});
  }
- return {names:entries.map(x=>x.name),entries,source:'visible friends panel'};
+ return entries;
+}
+function friendsSnapshot(){
+ const live=currentFriends(),scope=friendScope();
+ if(!sameScope(scope,scannedFriends?.scope))scannedFriends=null;
+ const known=new Map(scannedFriends?.rows||[]);
+ for(const row of live)known.set(row.id||row.profile||row.name,row);
+ const entries=[...known.values()];
+ return {names:entries.map(row=>row.name),entries,scannedCount:scannedFriends?.rows.size||0,source:'visible friends panel'};
+}
+async function scanFriends(){
+ const scope=friendScope();
+ if(!scope)return 'Open the Kirka friends list first.';
+ if(scanRunning)return 'Friend list scan already running.';
+ scanRunning=true;
+ const {list,panel}=scope;
+ let box=list;
+ const first=list.querySelector('.friend,.friend-item,[data-friend-id]');
+ for(let el=first?.parentElement||list;el&&panel.contains(el);el=el.parentElement){
+   if(el.scrollHeight>el.clientHeight+1 && ['auto','scroll','overlay'].includes(getComputedStyle(el).overflowY)){box=el;break;}
+ }
+ const start=box.scrollTop, rows=new Map();let interrupted=false, reachedEnd=false;
+ const cancel=()=>{interrupted=true;};
+ box.addEventListener('wheel',cancel,{passive:true});box.addEventListener('touchstart',cancel,{passive:true});
+ try{
+   box.scrollTop=0;
+   let stable=0,oldSize=-1,oldHeight=-1;
+   for(let step=0;step<180;step++){
+     await new Promise(done=>setTimeout(done,160));
+     if(interrupted||!sameScope(scope,friendScope()))break;
+     for(const row of currentFriends())rows.set(row.id||row.profile||row.name,{...row,observedEarlier:true});
+     if(box.scrollTop+box.clientHeight>=box.scrollHeight-2){
+       stable=oldSize===rows.size&&oldHeight===box.scrollHeight?stable+1:0;
+       if(stable>=4){reachedEnd=true;break;}
+     }else{stable=0;box.scrollTop+=Math.max(1,Math.floor(box.clientHeight*.8));}
+     oldSize=rows.size;oldHeight=box.scrollHeight;
+   }
+   if(!sameScope(scope,friendScope()))return 'Kirka changed the open friend list. Scan again.';
+   scannedFriends={scope,rows};
+   return rows.size+' friends read from this Kirka tab. '+(reachedEnd?'Reached the end of its loaded list.':'Scan interrupted or timed out.');
+ }finally{
+   box.removeEventListener('wheel',cancel);box.removeEventListener('touchstart',cancel);
+   if(!interrupted&&sameScope(scope,friendScope()))box.scrollTop=start;
+   scanRunning=false;
+ }
+
 }
 function inventorySnapshot(){
  const rows=[...document.querySelectorAll('.inventory .item-card,.inventory-item,.inventory .item')].slice(0,150);
@@ -207,7 +261,7 @@ function refresh(){
  if(current==='inventory')addInventoryCount();
 }
 function destroy(){clearInterval(timer);unsubscribeScene?.();for(const unsub of runtimeSubscriptions)unsub();runtimeSubscriptions=[];detachFeeds();listeners.clear();}
-window.__KS_DEEP__=Object.freeze({getSnapshot,inventorySnapshot,marketSnapshot,friendsSnapshot,profileSnapshot,getStatus:()=>({scene:scene(),lastError,lastJoin,joinMode,observers:observers.size}),join,on,refresh,destroy});
+window.__KS_DEEP__=Object.freeze({getSnapshot,inventorySnapshot,marketSnapshot,scanFriends,friendsSnapshot,profileSnapshot,getStatus:()=>({scene:scene(),lastError,lastJoin,joinMode,observers:observers.size}),join,on,refresh,destroy});
 // Prefer instant transitions from the shared integration core; keep a
 // lightweight timer because Kirka's SPA changes DOM without changing routes.
 if(window.__KS_GAME_RUNTIME__?.on){

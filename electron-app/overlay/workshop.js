@@ -84,10 +84,10 @@
  let editingPose=null;
  function poseCard(){
    const p=editingPose||pose({});
-   return card('Viewmodel pose studio','<p>Reference model preview. Live Kirka viewmodel transforms are unsupported without a verified local weapon identifier.</p>'+
+   return card('Viewmodel pose studio','<p>Preview locally. A live pose needs a selected Kirka weapon and its confirmed matrix signature. Offsets use hundredths of a model unit.</p>'+
      '<div style="height:140px;display:grid;place-items:center;perspective:350px;overflow:hidden"><div id="ks-pose-preview" style="transform-style:preserve-3d;transform:'+poseTransform(p)+'"><i style="display:block;width:95px;height:16px;background:#d89c47;transform:translateZ(7px)"></i><i style="position:absolute;top:0;width:95px;height:14px;background:#9e7439;transform:rotateX(90deg);transform-origin:top"></i><i style="display:block;width:12px;height:22px;margin-left:18px;background:#75624c"></i></div></div>'+
      input('pose-name','Weapon preset name',p.name)+['x','y','z','scale','rx','ry','rz'].map(k=>input('pose-'+k,k,p[k],'number')).join('')+
-     btn('pose-save','Save pose')+btn('pose-reset','Reset preview')+btn('pose-export','Export poses')+'<input id="ks-wk-pose-file" type="file" accept=".json">'+btn('pose-import','Import poses')+
+     btn('pose-save','Save pose')+btn('pose-bind','Apply pose to calibrated weapon')+btn('pose-unbind','Clear live pose bindings')+btn('pose-reset','Reset preview')+btn('pose-export','Export poses')+'<input id="ks-wk-pose-file" type="file" accept=".json">'+btn('pose-import','Import poses')+
      cfg.poses.map((x,i)=>btn('pose-use-'+i,x.name)+btn('pose-delete-'+i,'Remove')).join(''));
  }
  function readPose(ui){const v=k=>ui.getElementById('ks-wk-pose-'+k)?.value;return pose(Object.fromEntries(['name','x','y','z','scale','rx','ry','rz'].map(k=>[k,v(k)])));}
@@ -188,8 +188,8 @@
      html=friendRows.map((x,i)=>{
        const saved=cfg.friends.find(f=>f.nick.toLowerCase()===x.name.toLowerCase()||x.id&&f.nick===x.id);
        if(!has([x.name,x.id,saved?.tag,saved?.note].join(' '))||onlyFav&&!saved?.favorite)return '';
-       return '<div class="ks-row"><span>'+escape([x.name,x.id,x.state?(window.__KS_CLIENT__?.translate?.(x.state==='online'?'Online':'Offline')||x.state):'',saved?.tag,saved?.note].filter(Boolean).join(' · '))+'</span>'+
-         (x.profile?btn('profile-'+i,'Open profile'):'')+'</div>';
+       return '<div class="ks-row"><span>'+escape([x.name,x.id,x.observedEarlier?'Last seen':'',x.state?(window.__KS_CLIENT__?.translate?.(x.state==='online'?'Online':'Offline')||x.state):'',saved?.tag,saved?.note].filter(Boolean).join(' · '))+'</span>'+
+         (!x.observedEarlier&&x.profile?btn('profile-'+i,'Open profile'):'')+'</div>';
      }).join('');
    }else{
      const inventory=deep.inventorySnapshot?.();
@@ -256,8 +256,8 @@
        '<label class="ks-row">Enable local cosmetic styling <input type="checkbox" id="ks-wk-weapon-on" '+(cfg.weapon.enabled?'checked':'')+'></label>'+
        btn('weapon-apply','Apply cosmetics')+' '+btn('weapon-reset','Clear cosmetics'))+
      card('3D Weapon Studio (experimental exact-match WebGL)',
-       '<p class="ks-hint">Replaces a matching WebGL image texture. The exact Kirka /assets/ URL and a CORS-compatible replacement image are required. Viewmodel transforms require a manually selected matrix signature.</p>'+
-       btn('gallery','Open Workshop Gallery')+' '+btn('gl-probe','Identify visible weapon image')+' '+btn('gl-use-probe','Use observed texture')+
+       '<p class="ks-hint">Enable texture discovery before loading a weapon. Choose its skin image, then bind the selected weapon. The preview image must also appear in a game texture upload. Shared game textures can affect multiple models.</p>'+
+       btn('gallery','Open Workshop Gallery')+' '+btn('gl-discovery',glCfg().discover?'Stop texture discovery':'Start texture discovery')+' '+btn('gl-auto-bind','Bind skin to selected weapon')+' '+btn('gl-probe','Identify visible weapon image')+' '+btn('gl-use-probe','Use observed texture')+
        input('gl-source','Original Kirka texture URL (exact HTTPS asset)',glCfg().assetURL||'')+
        input('gl-skin','Custom 3D Skin Link (HTTPS CORS image)',glCfg().skinURL?.startsWith('data:')?'':glCfg().skinURL||'')+
        '<label class="ks-row"><span>Local skin image</span><input id="ks-wk-gl-file" type="file" accept="image/png,image/jpeg,image/webp"></label>'+
@@ -314,7 +314,7 @@
    if(tab==='Friends & Profiles')return '<h2 class="ks-title">Friends & Profiles</h2><p class="ks-sub">Local labels and notes for profiles you actually see. No access to private friend lists or invented spectate links.</p>'+
      lookControls()+card('Create local player annotation',input('friend-nick','Visible nickname / player ID')+input('friend-note','Personal note')+
        input('friend-tag','Player tag')+'<label class="ks-row">Favorite <input id="ks-wk-friend-favorite" type="checkbox"></label>'+input('friend-color','Tag color', '#f0aa35','color')+btn('friend-save','Save note'))+
-     card('Visible friend list',tableControls('friends')+'<div id="ks-live-friends"></div>'+input('watch-name','Exact visible friend name',watchFriend?.name||'')+
+     card('Visible friend list',tableControls('friends')+btn('scan-friends','Read open Kirka friend list')+'<div id="ks-live-friends"></div>'+input('watch-name','Exact visible friend name',watchFriend?.name||'')+
        btn('watch-friend','Watch for native Spectate (60 seconds)')+' '+btn('watch-cancel','Cancel')+
        '<p class="ks-hint">Keep this panel open. The game must offer Spectate for this friend.</p>')+
      card('Clan directory',btn('clans','Search public clans'))+
@@ -432,7 +432,16 @@
      save();return true;
    }
    if(a.startsWith('pose-')){
-     if(a==='pose-export')downloadJSON({format:'ks-viewmodel-poses',version:1,poses:cfg.poses},'KS-poses.json');
+     if(a==='pose-bind'){
+       const name=window.__KS_WEBGL_COSMETICS__?.selectedWeapon?.(),signature=trim(val('gl-matrix'),90);
+       if(!name||!/^[-\d., ]{1,90}$/.test(signature))throw Error('Select a Kirka weapon and enter its calibrated matrix signature first.');
+       const config=glCfg(),bindings=(config.weaponPoses||[]).filter(x=>x.name!==name);
+       if(bindings.length>=32)throw Error('Maximum 32 weapon poses');
+       config.weaponPoses=[...bindings,{...readPose(ui),name,signature}];config.enabled=true;config.matrixSignature='';
+       saveGraphics(config);status='Live pose bound to '+name;return true;
+     }else if(a==='pose-unbind'){
+       const config=glCfg();config.weaponPoses=[];saveGraphics(config);status='Live pose bindings cleared.';return true;
+     }else if(a==='pose-export')downloadJSON({format:'ks-viewmodel-poses',version:1,poses:cfg.poses},'KS-poses.json');
      else if(a==='pose-import')return (async()=>{const file=ui.getElementById('ks-wk-pose-file')?.files[0];
        if(!file||file.size>24000)throw Error('Choose a pose JSON up to 24 KiB');const doc=JSON.parse(await file.text());
        if(doc.format!=='ks-viewmodel-poses'||doc.version!==1||!Array.isArray(doc.poses)||doc.poses.length>32)throw Error('Invalid pose pack');
@@ -459,6 +468,7 @@
      notify('resource-packs',{command,id});return true;
    }
    if(a==='kirka-stats'){notify('stats');return true;}
+   if(a==='scan-friends')return (async()=>{status=await window.__KS_DEEP__?.scanFriends?.()||'Friends panel unavailable.';return true;})();
    if(a==='open-market'){marketAnchor()?.click();return true;}
    if(a==='filter'){query=trim(val('query'),80);onlyFav=flag('only-fav');sortPrice=flag('price-sort');}
    else if(a.startsWith('profile-')){
@@ -474,6 +484,9 @@
      status=name?'Waiting for the native Spectate control for '+name:'Enter the exact visible name.';
    }else if(a==='watch-cancel'){
      watchFriend=null;status='Friend spectate request cancelled.';
+   }else if(a==='gl-discovery'){
+     const config=glCfg();config.discover=!config.discover;saveGraphics(config);
+     status=config.discover?'Discovery on. Open or reload the weapon in Kirka.':'Texture discovery stopped.';
    }else if(a==='gl-probe'){
      status=window.__KS_WEBGL_COSMETICS__?.matchVisiblePreview?.()||'Renderer unavailable.';
    }else if(a==='gl-use-probe'){
@@ -488,10 +501,14 @@
    }else if(a.startsWith('gl-select-')||a.startsWith('gl-remove-')){
      const config=glCfg(),idx=Number(a.split('-').pop()),slot=config.slots?.[idx];
      if(slot){if(a.startsWith('gl-select-'))Object.assign(config,slot,{matrixSignature:''});else config.slots.splice(idx,1);saveGraphics(config);}
-   }else if(a==='gl-apply'||a==='gl-bind'){
+   }else if(a==='gl-apply'||a==='gl-bind'||a==='gl-auto-bind'){
      return (async()=>{
      const prev=glCfg(),file=ui.getElementById('ks-wk-gl-file')?.files?.[0];
-     const x={enabled:flag('gl-enabled'),assetURL:trim(val('gl-source'),450),skinURL:file?await localSkin(file):imgURL(val('gl-skin'))||(prev.skinURL?.startsWith('data:')?prev.skinURL:''),slots:prev.slots||[],
+     const auto=a==='gl-auto-bind',renderer=window.__KS_WEBGL_COSMETICS__;
+     const source=auto?renderer?.verifiedPreview?.():trim(val('gl-source'),450);
+     const selected=auto?renderer?.selectedWeapon?.():'';
+     if(auto&&(!source||!selected))throw Error('No unique selected weapon with a matching game texture upload yet.');
+     const x={discover:prev.discover===true,weaponPoses:prev.weaponPoses||[],enabled:auto||flag('gl-enabled'),assetURL:source,skinURL:file?await localSkin(file):imgURL(val('gl-skin'))||(prev.skinURL?.startsWith('data:')?prev.skinURL:''),slots:prev.slots||[],
        hue:number('gl-hue',0,360,0),saturation:number('gl-saturation',20,300,100),
        brightness:number('gl-brightness',20,250,100),scale:number('gl-scale',50,150,100),
        offsetX:Math.min(2,Math.max(-2,Number(val('gl-x'))||0)),
@@ -502,8 +519,8 @@
        status='3D texture replacement needs exact Kirka asset URL and HTTPS skin URL.';return true;
      }
      if(x.matrixSignature&&!/^[\d., -]{1,90}$/.test(x.matrixSignature)){status='Invalid calibration signature';return true;}
-     if(a==='gl-bind'){
-       const name=trim(val('gl-name'),48);if(!name)throw Error('Preset name required');
+     if(a==='gl-bind'||auto){
+       const name=selected||trim(val('gl-name'),48);if(!name)throw Error('Preset name required');
        const slots=x.slots.filter(p=>p.assetURL!==x.assetURL);
        if(slots.length>=8)throw Error('Maximum eight weapon bindings');
        x.slots=[...slots,{name,assetURL:x.assetURL,skinURL:x.skinURL,hue:x.hue,saturation:x.saturation,brightness:x.brightness}];

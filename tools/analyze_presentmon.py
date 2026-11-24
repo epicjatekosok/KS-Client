@@ -16,7 +16,7 @@ def summarize(stream, pid, swapchain):
     durations = []
     submissions = []
     submit_metric = 'FrameTime' if 'FrameTime' in fields else 'MsBetweenPresents'
-    engines = {'electron.exe', 'ks.cef.client.exe', 'cefsharp.browsersubprocess.exe'}
+    engines = {'ksclientgame.exe', 'electron.exe', 'ks.cef.client.exe', 'cefsharp.browsersubprocess.exe'}
     for row in reader:
         if row['ProcessID'] != str(pid) or row['SwapChainAddress'].lower() != swapchain.lower():
             continue

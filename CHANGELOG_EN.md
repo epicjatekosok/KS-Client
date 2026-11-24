@@ -1,5 +1,9 @@
 # KS Client Beta 1.0.25
 
+## Beta 1.0.29
+
+See [Driver frame limit and game integration](RELEASE_BETA_129_EN.md).
+
 ## Beta 1.0.28
 
 See [Workshop and gameplay update](RELEASE_BETA_128_EN.md).

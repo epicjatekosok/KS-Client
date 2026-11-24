@@ -11,7 +11,7 @@ if($packageVersion -notmatch '^[0-9]+[.][0-9]+[.][0-9]+-beta$'){
 }
 $releaseNumber=$packageVersion -replace '-beta$',''
 $setupName="KS-Client-beta-$releaseNumber-Setup.exe"
-$files=@('KS-Client.exe','Uninstall-KS-Client.exe',
+$files=@('KS-Client.exe','Uninstall-KS-Client.exe','runtime/Electron/KSDriverLimit.exe',
   $setupName)
 $require=[bool]$env:KS_SIGNING_PFX_BASE64
 $allValid=$true

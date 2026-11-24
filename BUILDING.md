@@ -19,7 +19,7 @@ Allow access to GitHub Releases, PyPI and the Playwright browser download host w
 Download the project Source ZIP and accompanying `Source.sha256.txt` from the same [release](https://github.com/epicjatekosok/KS-Client-Updates/releases). In a directory with the downloads, run:
 
 ```powershell
-$zip = 'KS-Client-beta-1.0.28-Source.zip'
+$zip = 'KS-Client-beta-1.0.29-Source.zip'
 $expected = ((Get-Content ($zip -replace '\.zip$', '.sha256.txt') -Raw).Trim() -split '\s+')[0]
 if ((Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'Source checksum mismatch' }
 Expand-Archive $zip -DestinationPath .\ks-client-source
@@ -48,7 +48,7 @@ python ci/verify_offline.py
 ./ci/Verify-Signing.ps1
 ```
 
-The root contains `KS-Client-beta-1.0.28-Portable.zip` and `KS-Client-beta-1.0.28-Setup.exe`. The setup embeds the portable payload. For a manual smoke test, extract the portable build into a separate directory and launch `KS-Client.exe`. Use a disposable Windows account for installation and engine-migration tests that interact with the local profile. Setup works offline, though connecting to Kirka.io requires internet access.
+The root contains `KS-Client-beta-1.0.29-Portable.zip` and `KS-Client-beta-1.0.29-Setup.exe`. The setup embeds the portable payload. For a manual smoke test, extract the portable build into a separate directory and launch `KS-Client.exe`. Use a disposable Windows account for installation and engine-migration tests that interact with the local profile. Setup works offline, though connecting to Kirka.io requires internet access.
 
 ## Run tests
 
@@ -80,3 +80,7 @@ Local developer builds work unsigned. To use your own publisher certificate, pro
 GitHub Actions packages and scans the exact checked-out commit before building from the extracted archive on Windows. Release credentials are supplied only to their respective workflow steps. A successful maintainer release supplies the source and binary downloads, SHA-256 checksums, a manifest, test results and the actual signing status. A local build may differ at the byte level due to ZIP metadata, tool patch versions and signatures. The public release checksums identify the original artifacts.
 
 From an authorized maintainer checkout, `./ci/Package-Source.ps1` uses Git, Python and a pinned Gitleaks binary to verify and package the committed tree. The packager requires network access for the verified scanner download. The publication step is reserved for a successful build on the maintainer repository's main branch.
+
+## Native NVIDIA frame-rate helper
+
+Install the Visual Studio 2022 Desktop development with C++ workload (x64 MSVC and Windows SDK), Git and PowerShell 7. `ci/Prepare-Electron.ps1` verifies the official Electron archive, assigns the runtime its KS-specific filename and calls `ci/Build-DriverLimit.ps1`. The script fetches the exact NVIDIA SDK revision listed in the third-party notices. The driver itself is supplied by Windows or the user. An NVIDIA GPU is optional for building and running the rest of the client.

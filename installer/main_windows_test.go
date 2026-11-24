@@ -19,7 +19,7 @@ func TestOfflinePayloadIncludesOnlyElectron(t *testing.T) {
   expected:=map[string]bool{
     "KS-Client.exe":false,
     "Uninstall-KS-Client.exe":false,
-    "runtime/Electron/electron.exe":false,
+    "runtime/Electron/KSClientGame.exe":false,
     "runtime/Electron/resources/app/main.cjs":false,
   }
   for _, f:=range r.File {if strings.HasPrefix(f.Name,"runtime/CEF/"){t.Fatal("legacy runtime packaged")};if _,ok:=expected[f.Name];ok{expected[f.Name]=true}}
@@ -39,7 +39,7 @@ func TestExtractAndCopyOfflinePayload(t *testing.T) {
   stage:=t.TempDir()
   if err=extractPayload(stage);err!=nil {t.Fatal("cannot extract offline payload:",err)}
   if err=installFiles(stage,dir);err!=nil {t.Fatal("cannot install offline payload:",err)}
-  for _,rel:=range []string{"KS-Client.exe","runtime/Electron/electron.exe"} {
+  for _,rel:=range []string{"KS-Client.exe","runtime/Electron/KSClientGame.exe"} {
     info,err:=os.Stat(filepath.Join(dir,filepath.FromSlash(rel)))
     if err!=nil || info.Size()==0 {t.Errorf("installed runtime missing: %s: %v",rel,err)}
   }

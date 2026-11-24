@@ -4,7 +4,7 @@ from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 import hashlib, json
 root=Path(__file__).resolve().parents[1]
-version='1.0.28'
+version='1.0.29'
 zipname=f'KS-Client-beta-{version}-Portable.zip'
 zipfile=root/zipname
 def verify_engine(name, exe_name):
@@ -14,14 +14,14 @@ def verify_engine(name, exe_name):
  if not exe.is_file() or not marker.is_file():raise SystemExit(f'{name}: missing smoke-test marker; refusing release')
  data=json.loads(marker.read_text(encoding='utf-8-sig'))
  digest=hashlib.sha256(exe.read_bytes()).hexdigest()
- if not (data.get('version')=='1.0.28' and data.get('engine')==name and data.get('exeName')==exe_name and data.get('runner')=='windows' and data.get('result')=='PASS' and data.get('exeSha256')==digest):
+ if not (data.get('version')=='1.0.29' and data.get('engine')==name and data.get('exeName')==exe_name and data.get('runner')=='windows' and data.get('result')=='PASS' and data.get('exeSha256')==digest):
   raise SystemExit(f'{name}: test marker does not match executable')
  return folder
-verify_engine('Electron','electron.exe')
+verify_engine('Electron','KSClientGame.exe')
 required=[
  'runtime/Electron/ks-smoke-pass.json','runtime/Electron/resources/app/overlay/frame_pacer.js','runtime/Electron/resources/app/overlay/overlay.js','runtime/Electron/resources/app/overlay/game_extras.js',
  'KS-Client.exe','Uninstall-KS-Client.exe',
- 'runtime/Electron/electron.exe','runtime/Electron/LICENSE','runtime/Electron/LICENSES.chromium.html','runtime/Electron/resources/app/main.cjs','runtime/Electron/resources/app/game-resolution.cjs',
+ 'runtime/Electron/KSClientGame.exe','runtime/Electron/KSDriverLimit.exe','runtime/Electron/LICENSE','runtime/Electron/LICENSES.chromium.html','runtime/Electron/resources/app/main.cjs','runtime/Electron/resources/app/game-resolution.cjs',
  'runtime/Electron/resources/app/assets/loading.html','runtime/Electron/resources/app/assets/ks-logo.png','runtime/Electron/resources/app/overlay/native_login_gate.js','runtime/Electron/resources/app/overlay/workshop.js','runtime/Electron/resources/app/overlay/integration_core.js','runtime/Electron/resources/app/overlay/game_runtime.js','runtime/Electron/resources/app/overlay/render_telemetry.js','runtime/Electron/resources/app/overlay/integration_bootstrap.js','runtime/Electron/resources/app/overlay/webgl_cosmetics.js','runtime/Electron/resources/app/overlay/advanced_integration.js','runtime/Electron/resources/app/overlay/freeze_guard.js','runtime/Electron/resources/app/swapper.cjs','runtime/Electron/resources/app/kirka-stats.cjs','runtime/Electron/resources/app/overlay/kirka_stats.js','runtime/Electron/resources/app/resource-packs.cjs',
 ]
 for rel in required:
