@@ -64,6 +64,18 @@ with sync_playwright() as pw:
     assert page.evaluate("document.querySelector('.friends .list').scrollTop")==10
     page.evaluate("document.querySelector('.friend').remove()")
     assert page.evaluate("__KS_DEEP__.friendsSnapshot().entries.find(x=>x.id==='#0').observedEarlier")
+    page.evaluate("""() => {
+        const list=document.querySelector('.friends .list'), nav=document.createElement('nav');
+        nav.className='pagination';nav.innerHTML='<button rel="prev">Previous</button><button rel="next">Next</button>';
+        list.after(nav);window.fpage=1;
+        function render(){
+            list.innerHTML='<div class="friend"><b class="nickname">Friend '+fpage+'</b><span class="friend-id">#'+fpage+'</span></div>';
+            nav.firstChild.disabled=fpage===0;nav.lastChild.disabled=fpage===2;
+        }
+        nav.firstChild.onclick=()=>{fpage--;render()};nav.lastChild.onclick=()=>{fpage++;render()};render();
+    }""")
+    assert '3 friends' in page.evaluate('__KS_DEEP__.scanFriends()')
+    assert page.evaluate('fpage')==1
     page.evaluate("document.querySelector('.friends').remove()")
     assert page.evaluate('__KS_DEEP__.friendsSnapshot().entries.length')==0
     browser.close()
