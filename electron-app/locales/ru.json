@@ -923,5 +923,19 @@
   "original": "оригинальный",
   "↺ Reset to Default": "⁇  Перезагрузка на дефолт",
   "● ACTIVE": "● АКТИВНО",
-  "● INSTALLED": "● УСТАНОВЛЕНО"
+  "● INSTALLED": "● УСТАНОВЛЕНО",
+  "Import a look": "Импорт оформления",
+  "Drop one CSS file or KS theme here to preview it. Apply keeps the change.": "Перетащите CSS или тему KS для просмотра. Нажмите «Применить», чтобы сохранить.",
+  "Choose CSS or theme": "Выбрать CSS или тему",
+  "Choose one file at a time.": "Выберите один файл.",
+  "Choose a .css or KS theme .json file.": "Выберите файл .css или тему KS .json.",
+  "Empty or oversized file. CSS limit 256 KiB, theme limit 16 KiB.": "Файл пуст или слишком велик. CSS до 256 КиБ, тема до 16 КиБ.",
+  "Invalid stylesheet.": "Некорректная таблица стилей.",
+  "Share KS Client activity": "Показывать активность KS Client",
+  "A registered Discord Application ID is needed.": "Нужен зарегистрированный ID приложения Discord.",
+  "Discord confirmed the activity.": "Discord подтвердил активность.",
+  "Waiting for Discord desktop.": "Ожидание настольного Discord.",
+  "Activity sharing is off.": "Показ активности отключён.",
+  "Discord rejected the activity. Check the Application ID.": "Discord отклонил активность. Проверьте ID приложения.",
+  "Enter a valid public Discord Application ID.": "Введите действительный публичный ID приложения Discord."
 }

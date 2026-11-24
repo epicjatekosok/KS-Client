@@ -923,5 +923,19 @@
   "original": "eredeti",
   "↺ Reset to Default": "⁇  Állítsa vissza a alapértelmezett",
   "● ACTIVE": "● AKTÍV",
-  "● INSTALLED": "● TELEPÍTVE"
+  "● INSTALLED": "● TELEPÍTVE",
+  "Import a look": "Kinézet betöltése",
+  "Drop one CSS file or KS theme here to preview it. Apply keeps the change.": "Húzz ide egy CSS-fájlt vagy KS-témát az előnézethez. Az Alkalmaz gombbal mentheted.",
+  "Choose CSS or theme": "CSS vagy téma kiválasztása",
+  "Choose one file at a time.": "Egyszerre egy fájlt válassz.",
+  "Choose a .css or KS theme .json file.": "Válassz egy .css fájlt vagy .json formátumú KS-témát.",
+  "Empty or oversized file. CSS limit 256 KiB, theme limit 16 KiB.": "Üres vagy túl nagy fájl. A CSS legfeljebb 256 KiB, a téma 16 KiB lehet.",
+  "Invalid stylesheet.": "Érvénytelen stíluslap.",
+  "Share KS Client activity": "KS Client-játéktevékenység megosztása",
+  "A registered Discord Application ID is needed.": "A jelenléthez regisztrált Discord Application ID szükséges.",
+  "Discord confirmed the activity.": "A Discord visszaigazolta a játéktevékenységet.",
+  "Waiting for Discord desktop.": "Várakozás az asztali Discordra.",
+  "Activity sharing is off.": "A tevékenység megosztása ki van kapcsolva.",
+  "Discord rejected the activity. Check the Application ID.": "A Discord elutasította a tevékenységet. Ellenőrizd az alkalmazásazonosítót.",
+  "Enter a valid public Discord Application ID.": "Adj meg egy érvényes nyilvános Discord-alkalmazásazonosítót."
 }

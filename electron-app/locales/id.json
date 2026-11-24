@@ -923,5 +923,19 @@
   "original": "asli",
   "↺ Reset to Default": "⁇  Setel ulang ke Default",
   "● ACTIVE": "● AKTIF",
-  "● INSTALLED": "● TERINSTAL"
+  "● INSTALLED": "● TERINSTAL",
+  "Import a look": "Impor tampilan",
+  "Drop one CSS file or KS theme here to preview it. Apply keeps the change.": "Letakkan satu berkas CSS atau tema KS untuk pratinjau. Tekan Terapkan untuk menyimpan.",
+  "Choose CSS or theme": "Pilih CSS atau tema",
+  "Choose one file at a time.": "Pilih satu berkas saja.",
+  "Choose a .css or KS theme .json file.": "Pilih berkas .css atau tema KS .json.",
+  "Empty or oversized file. CSS limit 256 KiB, theme limit 16 KiB.": "Berkas kosong atau terlalu besar. Batas CSS 256 KiB, tema 16 KiB.",
+  "Invalid stylesheet.": "Lembar gaya tidak valid.",
+  "Share KS Client activity": "Bagikan aktivitas KS Client",
+  "A registered Discord Application ID is needed.": "Perlu ID aplikasi Discord terdaftar.",
+  "Discord confirmed the activity.": "Discord mengonfirmasi aktivitas.",
+  "Waiting for Discord desktop.": "Menunggu Discord desktop.",
+  "Activity sharing is off.": "Berbagi aktivitas dinonaktifkan.",
+  "Discord rejected the activity. Check the Application ID.": "Discord menolak aktivitas. Periksa ID aplikasi.",
+  "Enter a valid public Discord Application ID.": "Masukkan ID aplikasi Discord publik yang valid."
 }

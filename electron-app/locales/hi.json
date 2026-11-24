@@ -923,5 +923,19 @@
   "original": "मूल",
   "↺ Reset to Default": "⁇  डिफ़ॉल्ट पर रीसेट करें",
   "● ACTIVE": "● सक्रिय",
-  "● INSTALLED": "● इंस्टॉल किया गया"
+  "● INSTALLED": "● इंस्टॉल किया गया",
+  "Import a look": "रूप आयात करें",
+  "Drop one CSS file or KS theme here to preview it. Apply keeps the change.": "पूर्वावलोकन के लिए CSS फ़ाइल या KS थीम यहाँ छोड़ें। सहेजने के लिए लागू करें दबाएँ।",
+  "Choose CSS or theme": "CSS या थीम चुनें",
+  "Choose one file at a time.": "एक बार में एक फ़ाइल चुनें।",
+  "Choose a .css or KS theme .json file.": ".css फ़ाइल या KS थीम की .json फ़ाइल चुनें।",
+  "Empty or oversized file. CSS limit 256 KiB, theme limit 16 KiB.": "फ़ाइल खाली है या बहुत बड़ी है। CSS की सीमा 256 KiB और थीम की 16 KiB है।",
+  "Invalid stylesheet.": "स्टाइलशीट अमान्य है।",
+  "Share KS Client activity": "KS Client की गतिविधि साझा करें",
+  "A registered Discord Application ID is needed.": "पंजीकृत Discord एप्लिकेशन आईडी आवश्यक है।",
+  "Discord confirmed the activity.": "Discord ने गतिविधि की पुष्टि की।",
+  "Waiting for Discord desktop.": "Discord डेस्कटॉप की प्रतीक्षा है।",
+  "Activity sharing is off.": "गतिविधि साझा करना बंद है।",
+  "Discord rejected the activity. Check the Application ID.": "Discord ने गतिविधि अस्वीकार की। एप्लिकेशन आईडी जाँचें।",
+  "Enter a valid public Discord Application ID.": "मान्य सार्वजनिक Discord एप्लिकेशन आईडी दर्ज करें।"
 }

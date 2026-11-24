@@ -923,5 +923,19 @@
   "original": "原始",
   "↺ Reset to Default": "⁇  设置返回默认",
   "● ACTIVE": "● 已启用",
-  "● INSTALLED": "● 已安装"
+  "● INSTALLED": "● 已安装",
+  "Import a look": "导入外观",
+  "Drop one CSS file or KS theme here to preview it. Apply keeps the change.": "将一个 CSS 文件或 KS 主题拖到此处预览。点击应用即可保存。",
+  "Choose CSS or theme": "选择 CSS 或主题",
+  "Choose one file at a time.": "请一次选择一个文件。",
+  "Choose a .css or KS theme .json file.": "请选择 .css 文件或 KS 主题 .json 文件。",
+  "Empty or oversized file. CSS limit 256 KiB, theme limit 16 KiB.": "文件为空或过大。CSS 上限为 256 KiB，主题上限为 16 KiB。",
+  "Invalid stylesheet.": "样式表无效。",
+  "Share KS Client activity": "分享 KS Client 游戏动态",
+  "A registered Discord Application ID is needed.": "需要已注册的 Discord 应用程序 ID。",
+  "Discord confirmed the activity.": "Discord 已确认游戏动态。",
+  "Waiting for Discord desktop.": "正在等待 Discord 桌面客户端。",
+  "Activity sharing is off.": "已关闭动态分享。",
+  "Discord rejected the activity. Check the Application ID.": "Discord 拒绝了动态请求。请检查应用程序 ID。",
+  "Enter a valid public Discord Application ID.": "请输入有效的公开 Discord 应用程序 ID。"
 }

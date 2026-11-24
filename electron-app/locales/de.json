@@ -923,5 +923,19 @@
   "original": "Original",
   "↺ Reset to Default": "⁇  Zur Standard-Reset",
   "● ACTIVE": "● AKTIV",
-  "● INSTALLED": "● INSTALLIERT"
+  "● INSTALLED": "● INSTALLIERT",
+  "Import a look": "Design importieren",
+  "Drop one CSS file or KS theme here to preview it. Apply keeps the change.": "Eine CSS-Datei oder ein KS-Design hier ablegen. Übernehmen speichert die Vorschau.",
+  "Choose CSS or theme": "CSS oder Design wählen",
+  "Choose one file at a time.": "Bitte eine einzelne Datei wählen.",
+  "Choose a .css or KS theme .json file.": "Eine CSS-Datei oder ein KS-Design im JSON-Format wählen.",
+  "Empty or oversized file. CSS limit 256 KiB, theme limit 16 KiB.": "Datei leer oder zu groß. CSS maximal 256 KiB, Design 16 KiB.",
+  "Invalid stylesheet.": "Ungültiges Stylesheet.",
+  "Share KS Client activity": "KS-Client-Aktivität teilen",
+  "A registered Discord Application ID is needed.": "Eine registrierte Discord-Anwendungs-ID ist erforderlich.",
+  "Discord confirmed the activity.": "Discord hat die Aktivität bestätigt.",
+  "Waiting for Discord desktop.": "Warten auf die Discord-Desktop-App.",
+  "Activity sharing is off.": "Aktivitätsfreigabe ausgeschaltet.",
+  "Discord rejected the activity. Check the Application ID.": "Discord hat die Aktivität abgelehnt. Anwendungs-ID prüfen.",
+  "Enter a valid public Discord Application ID.": "Eine gültige öffentliche Discord-Anwendungs-ID eingeben."
 }

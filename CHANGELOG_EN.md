@@ -1,5 +1,9 @@
 # KS Client Beta 1.0.25
 
+## Beta 1.0.30
+
+See [Lobby controls, Discord and style imports](RELEASE_BETA_130_EN.md).
+
 ## Beta 1.0.29
 
 See [Driver frame limit and game integration](RELEASE_BETA_129_EN.md).
