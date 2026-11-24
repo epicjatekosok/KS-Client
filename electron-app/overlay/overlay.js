@@ -1,10 +1,10 @@
-/* KS Client Beta 1.0.29 – Electron unified game overlay. */
+/* KS Client Beta 1.0.30 – Electron unified game overlay. */
 (() => {
   'use strict';
   if (window.__KS_CLIENT__) return;
   // Single build label for all current-version UI and settings exports.
   // Historical changelog items deliberately retain their original version.
-  const CLIENT_VERSION='1.0.29';
+  const CLIENT_VERSION='1.0.30';
   const CLIENT_LABEL='Beta '+CLIENT_VERSION;
 
   const allowedHosts = new Set([
@@ -1534,7 +1534,7 @@
   "Custom stylesheet editor": "Egyedi stíluslap szerkesztése",
   "Enable custom CSS": "Egyedi CSS engedélyezése",
   "Applies only on pages using the KS Client overlay.": "Csak a KS Client felülettel megnyitott oldalakra vonatkozik.",
-  "Custom stylesheet (max 12,000 characters)": "Egyedi stíluslap (legfeljebb 12 000 karakter)",
+  "Custom stylesheet (256 KiB file limit)": "Egyedi stíluslap (legfeljebb 256 KiB-os fájl)",
   "Apply CSS": "CSS alkalmazása",
   "Clear CSS": "CSS törlése",
   "Styles can change or break page layouts. Use Clear CSS to undo custom changes. Script execution is not supported by this editor.": "A CSS megváltoztathatja vagy elronthatja az oldalak elrendezését. A CSS törlése gombbal visszavonhatod a módosításokat. Ez a szerkesztő nem futtat JavaScriptet.",
@@ -1546,7 +1546,7 @@
   "Download the SHA-256-verified update into your Downloads folder?": "Letöltöd az SHA-256-tal ellenőrzött frissítést a Letöltések mappába?",
   "Install the verified update and restart KS Client? The old EXE will be backed up.": "Telepíted az ellenőrzött frissítést, majd újraindítod a KS Clientet? A régi EXE-ről biztonsági másolat készül.",
   "Maximum 12 crosshair presets. Remove one first.": "Legfeljebb 12 célkeresztprofil menthető. Előbb törölj egyet.",
-  "Please choose a JSON backup smaller than 256 KB.": "Válassz egy 256 KB-nál kisebb JSON-mentést.",
+  "Please choose a JSON backup smaller than 2.2 MB.": "Válassz egy 256 KB-nál kisebb JSON-mentést.",
   "Unsupported KS Client settings format.": "Nem támogatott KS Client beállításformátum.",
   "WebGL unavailable": "WebGL nem érhető el",
   "Unknown": "Ismeretlen",
@@ -2277,6 +2277,7 @@
 
 
   const releaseHistory = [
+    {v:'Beta 1.0.30',en:['New lobby and Kirka settings shortcuts, Discord activity support and drag-and-drop styles.'],hu:['Új lobbygombok és Kirka-beállításfül, Discord-jelenlét és behúzható stílusok.']},
     {v:'Beta 1.0.29',en:['NVIDIA driver frame limit, weapon texture detection and friend list updates.'],hu:['NVIDIA FPS-korlát, fegyvertextúra-felismerés és barátlista-frissítés.']},
     {v:'Beta 1.0.28',en:['Foreground play analytics, regional HTTP timings, inventory sorting, shortcut recording, shared themes and the Workshop media gallery.'],hu:['Aktív játékidő, régiós HTTP-válaszidők, rendezhető felszerelés, gyorsbillentyűk, megosztható témák és médiagaléria.']},
     {v:'Beta 1.0.27',en:['Audited MIT-licensed KS Client source and Windows build instructions are now available with the release.'],hu:['A kiadáshoz letölthető az ellenőrzött, MIT-licencű KS Client-forráskód és a windowsos fordítási útmutató.']},
@@ -2404,6 +2405,61 @@
     return {format:'ks-theme',api:1,name:doc.name.trim().slice(0,60),author:String(doc.author||'').slice(0,60),version:String(doc.version||'1').slice(0,24),
       colors:Object.fromEntries(colorsForSharing.map(k=>[k,doc.colors[k]]))};
   }
+  const CSS_LIMIT=262144;
+  let styleMessage='',discordActivity={status:'waiting',enabled:true,applicationId:'',bundled:false};
+  const discordLabels={active:'Discord confirmed the activity.',waiting:'Waiting for Discord desktop.',off:'Activity sharing is off.',
+    rejected:'Discord rejected the activity. Check the Application ID.', 'missing-id':'A registered Discord Application ID is needed.'};
+  function discordCard(){
+    return '<div class="ks-card"><h3 class="ks-section-heading">Discord Rich Presence</h3>'+
+      '<label class="ks-row"><span>'+esc(L('Share KS Client activity'))+'</span><input id="ks-activity-on" type="checkbox" '+(discordActivity.enabled?'checked':'')+'></label>'+
+      '<div class="ks-row"><label>Discord Application ID <input id="ks-activity-id" class="ks-input" inputmode="numeric" maxlength="20" value="'+esc(discordActivity.applicationId)+'" placeholder="'+(discordActivity.bundled?'Default':'')+'"></label>'+
+      '<button type="button" class="ks-btn" data-action="activity-save">'+esc(L('Apply'))+'</button></div>'+
+      '<p class="ks-hint" role="status" id="ks-activity-status">'+esc(L(discordLabels[discordActivity.status]||discordLabels.waiting))+'</p></div>';
+  }
+  function styleImporter(){
+    return '<div class="ks-card" id="ks-style-drop"><h3 class="ks-section-heading">'+esc(L('Import a look'))+'</h3>'+
+      '<p class="ks-desc">'+esc(L('Drop one CSS file or KS theme here to preview it. Apply keeps the change.'))+'</p>'+
+      '<button type="button" class="ks-btn primary" data-action="pick-style">'+esc(L('Choose CSS or theme'))+'</button>'+
+      '<input type="file" id="ks-style-file" accept=".css,.json,text/css,application/json" hidden>'+
+      '<p id="ks-style-result" role="status" class="ks-hint">'+esc(styleMessage)+'</p></div>';
+  }
+  async function importLook(files,zone){
+    const status=zone.querySelector('[role="status"]');
+    try{
+      if(files.length!==1)throw Error(L('Choose one file at a time.'));
+      const f=files[0], css=/\.css$/i.test(f.name);
+      if(!css&&!/\.json$/i.test(f.name))throw Error(L('Choose a .css or KS theme .json file.'));
+      if(!f.size||f.size>(css?CSS_LIMIT:16384))throw Error(L('Empty or oversized file. CSS limit 256 KiB, theme limit 16 KiB.'));
+      const data=await f.text();if(!zone.isConnected||!open)return;
+      let patch;
+      if(css){
+        if(!data.trim()||data.includes('\u0000'))throw Error(L('Invalid stylesheet.'));
+        patch={customCSS:data,customCSSEnabled:true};
+      }else{
+        let d;try{d=parseTheme(JSON.parse(data));}catch{}
+        if(!d)throw Error(L('Incompatible theme.'));
+        const kept=(state.communityThemes||[]).map(parseTheme).filter(t=>t&&(t.name!==d.name||t.author!==d.author));
+        if(kept.length>=24)throw Error(L('Maximum 24 themes.'));
+        patch={communityThemes:[...kept,d],...d.colors,themePreset:'Custom'};
+      }
+      const next={...state,...patch};
+      localStorage.setItem(KEY,JSON.stringify(next));state=next;
+      styleMessage=L('Preview')+' · '+f.name;apply();renderTab();
+    }catch(e){if(zone.isConnected)status.textContent=String(e.message);}
+  }
+  $('ks-body').addEventListener('change',e=>{
+    if(e.target.id==='ks-style-file'&&e.target.files.length)void importLook([...e.target.files],e.target.closest('#ks-style-drop'));
+  });
+  for(const kind of ['dragover','drop']){
+    $('ks-body').addEventListener(kind,e=>{
+      const zone=e.target.closest('#ks-style-drop');
+      if(!zone||!Array.from(e.dataTransfer?.types||[]).includes('Files'))return;
+      e.preventDefault();e.stopPropagation();
+      if(kind==='drop')void importLook([...e.dataTransfer.files],zone);
+      else e.dataTransfer.dropEffect='copy';
+    });
+  }
+
   function communityCard(){
     const themes=Array.isArray(state.communityThemes)?state.communityThemes.map(parseTheme).filter(Boolean):[];
     return '<details><summary>Shared themes</summary><p>Import a local KS theme to preview its palette. Importing the same author and name updates it.</p>'+
@@ -2459,7 +2515,7 @@
           '<div class="ks-note">The public KS-Client-Updates repository now contains verified ZIP and EXE releases. Check for updates and automatic downloads use this feed without login. The actual installation always asks permission and preserves your settings. Open GitHub Releases is a public manual-download fallback.</div>'+
           '</div>';
       case 'General':
-        return title('Client Overview', esc(formatText('KS Client {0} uses Electron.',CLIENT_LABEL))) +
+        return title('Client Overview', esc(formatText('KS Client {0} uses Electron.',CLIENT_LABEL))) + discordCard() +
           `<div class="ks-card">` +
           `<div class="ks-row"><div><div class="ks-label">Active browser engine</div><div class="ks-desc">${esc(activeEngine)}</div></div><span class="ks-pill">● ACTIVE</span></div>` +
           `<div class="ks-row"><div class="ks-label">Switch browser engine</div><div class="ks-stack"><button class="ks-btn" disabled aria-pressed="true" data-action="engine-switch" data-engine="electron">Electron</button><button class="ks-btn" disabled>KS Engine coming soon</button></div></div>` +
@@ -2686,7 +2742,7 @@
       case 'Appearance':
         return title('Appearance & Themes','Complete ready-made color palettes and optional visual-only effects. Your gameplay settings never change.') +
           `<div class="ks-grid"><div class="ks-card"><h3 class="ks-section-heading">Ready-made color palettes</h3>`+
-          paletteTiles() + communityCard() +
+          styleImporter() + paletteTiles() + communityCard() +
           selectRow('Client theme','Apply a complete palette or keep custom colors','themePreset',Object.keys(themePalettes).map(name=>({value:name,label:name})).concat([{value:'Custom',label:'Custom colors'}])) +
           `<div class="ks-row"><div class="ks-label">Custom accent color</div><input data-setting="customAccent" type="color" value="${esc(state.customAccent)}"></div>` +
           `<div class="ks-row"><div class="ks-label">Background color</div><input data-setting="customBackground" type="color" value="${esc(state.customBackground)}"></div>` +
@@ -2721,7 +2777,7 @@
           `<p class="ks-note">Resource swapping here affects KS Client UI and optionally selected game HTML elements via CSS. It does not intercept Kirka.io network assets, replace 3D textures, or alter game data. Upload rights-cleared assets only.</p>`;
       case 'CSS Editor':
         return title('Custom CSS Editor','Personalize HTML-based Kirka.io menus with your own stylesheet.') +
-          `<div class="ks-card"><h3 class="ks-section-heading">Game HTML styling options</h3>` +
+          styleImporter() + `<div class="ks-card"><h3 class="ks-section-heading">Game HTML styling options</h3>` +
           toggleRow('Apply theme to game HTML menus','Best effort CSS styling of HTML buttons only; does not recolor WebGL-rendered menus.','gameThemeEnabled') +
           toggleRow('Apply font to game HTML menus','Optional HTML-only font override; not WebGL textures.','gameFontEnabled') +
           `<label class="ks-field"><span class="ks-label">Game menu CSS selector (advanced)</span><input class="ks-input" data-setting="menuSelector" value="${esc(state.menuSelector)}" placeholder="Optional HTML element selector e.g. .menu-background" maxlength="120"></label>` +
@@ -2729,7 +2785,7 @@
           `<label class="ks-field"><span class="ks-label">Optional game HTML elements to hide (CSS selector)</span><input class="ks-input" data-setting="minimalSelectors" value="${esc(state.minimalSelectors)}" maxlength="120" placeholder="e.g. .optional-panel"></label>` +
           `<h3 class="ks-section-heading">Custom stylesheet editor</h3>` +
           toggleRow('Enable custom CSS','Applies only on pages using the KS Client overlay.','customCSSEnabled') +
-          `<label class="ks-field"><span class="ks-label">Custom stylesheet (max 12,000 characters)</span><textarea class="ks-input" data-setting="customCSS" maxlength="12000" style="min-height:250px;font-family:Consolas,monospace" spellcheck="false" placeholder="/* Example: button { border-radius: 6px; } */">${esc(state.customCSS)}</textarea></label>` +
+          `<label class="ks-field"><span class="ks-label">Custom stylesheet (256 KiB file limit)</span><textarea class="ks-input" data-setting="customCSS" maxlength="${CSS_LIMIT}" style="min-height:250px;font-family:Consolas,monospace" spellcheck="false" placeholder="/* Example: button { border-radius: 6px; } */">${esc(state.customCSS)}</textarea></label>` +
           `<div class="ks-stack"><button class="ks-btn primary" data-action="css-apply">Apply CSS</button><button class="ks-btn danger" data-action="css-clear">Clear CSS</button></div>` +
           `</div><p class="ks-hint">Styles can change or break page layouts. Use Clear CSS to undo custom changes. Script execution is not supported by this editor.</p>`;
       case 'Interface':
@@ -2882,7 +2938,7 @@
   function buildPageStyles() {
     const css=[];
     const accent=currentAccent();
-    if(state.customCSSEnabled)css.push(String(state.customCSS).slice(0,12000));
+    if(state.customCSSEnabled)css.push(String(state.customCSS).slice(0,CSS_LIMIT));
     if(state.gameThemeEnabled)css.push(`button:not([disabled]),[role="button"]{accent-color:${accent};}button:focus-visible{outline-color:${accent} !important;}`);
     if(state.gameFontEnabled) {
       let family=state.fontFamily;
@@ -3569,7 +3625,7 @@
     const next=typeof toggle==='boolean'?toggle:!open;
     if(next && !open)settingsSnapshot={state:JSON.parse(JSON.stringify(state)),browser:{...browserPrefs}};
     const opening=next&&!open,closing=!next&&open;
-    if(opening)priorFocus=document.activeElement;
+    if(opening){priorFocus=document.activeElement;styleMessage='';}
     open=next;
     if(opening||closing)window.dispatchEvent(new CustomEvent('ks-settings-visible',{detail:next}));
     if(!open){window.__KS_WORKSHOP__?.stopPreview?.();window.__KS_WORKSHOP__?.syncWork?.(null);}
@@ -3607,7 +3663,7 @@
   function setSetting(k, value) {
     if (!(k in defaults)) return;
     if (typeof defaults[k] === 'number') value = Number(value);
-    if (k === 'customCSS') value = String(value).slice(0, 12000);
+    if (k === 'customCSS') value = String(value).slice(0,CSS_LIMIT);
     if(k==='gameKeysScale')value=Math.max(70,Math.min(170,Math.round(Number(value)||100)));
     if(k==='gameKeysPosition' && !['bottom-left','bottom-right','top-left','top-right'].includes(value))return;
     if (k === 'performancePreset') { applyPerformancePreset(value); return; }
@@ -3788,7 +3844,7 @@
     }
     if(typeof value!==typeof def)return undefined;
     if(typeof def==='number' && (!Number.isFinite(value)||Math.abs(value)>20000))return undefined;
-    if(typeof def==='string' && value.length>12000)return undefined;
+    if(typeof def==='string' && value.length>(key==='customCSS'?CSS_LIMIT:12000))return undefined;
     if(['color','customAccent','centerDotColor','centerDotOutlineColor','outlineColor','shadowColor'].includes(key) && !/^#[a-f0-9]{6}$/i.test(value))return undefined;
     if(key==='language' && !Object.hasOwn(languageNames,value))return undefined;
     if(key==='fpsLimit' && (!Number.isInteger(value)||value<0||value>1000))return undefined;
@@ -3801,7 +3857,7 @@
     return value;
   }
   async function importSettings(file) {
-    if(!file||file.size>256000||file.size===0)throw Error(L('Please choose a JSON backup smaller than 256 KB.'));
+    if(!file||file.size>2200000||file.size===0)throw Error(L('Please choose a JSON backup smaller than 2.2 MB.'));
     const data=JSON.parse(await file.text());
     if(!data||data.format!==backupFormat||data.schemaVersion!==1||!data.settings||typeof data.settings!=='object'||Array.isArray(data.settings))throw Error(L('Unsupported KS Client settings format.'));
     if(!confirm(L('Import this settings backup? Personal CSS will remain disabled for safety. Local assets will not be changed.')))return;
@@ -4004,7 +4060,13 @@
     if (a === 'test-menu-sound') {void playMenuSound();}
     if (a === 'verify-assets') {verifyAssets();}
     if (a === 'pixel-perfect') {state.menuResolution='native';state.gameResolution='native';save();notify('menu-resolution',{preset:'native'});notify('game-resolution',{preset:'native'});renderTab();apply();}
-    if (a === 'css-apply') { const editor=$('ks-body').querySelector('textarea[data-setting="customCSS"]'); if(editor) {state.customCSS=editor.value.slice(0,12000); state.customCSSEnabled=true;save();apply();renderTab();} }
+    if(a==='activity-save'){
+      const id=$('ks-activity-id').value.trim();
+      if(id&&!/^[1-9]\d{16,19}$/.test(id))$('ks-activity-status').textContent=L('Enter a valid public Discord Application ID.');
+      else notify('discord-activity-save',{enabled:$('ks-activity-on').checked,applicationId:id});
+    }
+    if (a === 'pick-style') $('ks-style-file')?.click();
+    if (a === 'css-apply') { const editor=$('ks-body').querySelector('textarea[data-setting="customCSS"]'); if(editor) {state.customCSS=editor.value.slice(0,CSS_LIMIT); state.customCSSEnabled=true;save();apply();renderTab();} }
     if (a === 'css-clear') {state.customCSS='';state.customCSSEnabled=false;save();apply();renderTab();}
     if (a === 'preset-save') {
       const name=$('ks-preset-name')?.value.trim().slice(0,30) || `Preset ${savedPresets().length + 1}`;
@@ -4378,7 +4440,12 @@
       ...(state.communityThemes||[]).map(parseTheme).filter(Boolean).map(t=>({name:t.name,kind:'shared',author:t.author,version:t.version,accent:t.colors.customAccent}))];
   }
   window.__KS_CLIENT__ = {
-    galleryThemes,
+    galleryThemes,openCommunity,
+    setDiscordActivity(info){
+      if(!info||!Object.hasOwn(discordLabels,info.status))return;
+      discordActivity=info;
+      const status=$('ks-activity-status');if(status)status.textContent=L(discordLabels[info.status]);
+    },
     galleryAction(kind,name,author){
       if(kind==='theme-manager'||kind==='plugin-manager'||kind==='weapon-studio'){show(true);navigateSettingsTab({'theme-manager':'Appearance','plugin-manager':'Plugins','weapon-studio':'Weapon Studio'}[kind]);return true;}
       if(kind==='builtin'&&Object.hasOwn(themePalettes,name)){setSetting('themePreset',name);return true;}

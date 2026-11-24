@@ -1,12 +1,12 @@
 'use strict';
-// KS Client Beta 1.0.29: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.30: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {execFile,spawn}=require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const APP_VERSION = 'Beta 1.0.29';
+const APP_VERSION = 'Beta 1.0.30';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +16,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.29.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.30.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -30,6 +30,7 @@ const overlayJS = 'window.__KS_LOCALES__=' + JSON.stringify(bundledLocales) + ';
   fs.readFileSync(path.join(__dirname,'overlay','overlay.js'),'utf8');
 const nativeLoginGateJS = fs.readFileSync(path.join(__dirname,'overlay','native_login_gate.js'),'utf8');
 const frameJS = fs.readFileSync(path.join(__dirname,'overlay','frame_pacer.js'),'utf8');
+const lobbyControlsJS=fs.readFileSync(path.join(__dirname,'overlay','lobby_controls.js'),'utf8');
 const extrasJS = fs.readFileSync(path.join(__dirname,'overlay','game_extras.js'),'utf8');
 const statsService=require('./kirka-stats.cjs').createService();
 const statsJS=fs.readFileSync(path.join(__dirname,'overlay','kirka_stats.js'),'utf8');
@@ -124,7 +125,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.29').slice(0,40),
+      current:String(payload.current||'1.0.30').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -259,6 +260,44 @@ if(active.uncapFps || nativeFixed){
   log('Experimental FPS unlock requested on Electron startup');
 }
 let win=null;
+const {createPresence,publicId}=require('./discord-presence.cjs');
+const registeredDiscordId=publicId(process.env.KS_DISCORD_APPLICATION_ID,require('./discord-application.json').applicationId);
+const presenceFile=path.join(ROOT,'discord-presence.json');
+let activityPreferences={enabled:true,applicationId:''};
+try{
+  const saved=JSON.parse(fs.readFileSync(presenceFile,'utf8'));
+  activityPreferences={enabled:saved.enabled!==false,applicationId:publicId(saved.applicationId)};
+}catch{}
+const presence=createPresence({report:()=>sendActivityStatus()});
+function sendActivityStatus(){
+  if(win&&!win.isDestroyed())jsCall('setDiscordActivity',{
+    status:presence.getStatus(),enabled:activityPreferences.enabled,applicationId:activityPreferences.applicationId,
+    bundled:!!registeredDiscordId
+  });
+}
+function applyActivity(){
+  if(activityPreferences.enabled)presence.start(publicId(activityPreferences.applicationId,registeredDiscordId));
+  else presence.stop();
+}
+let activityDialog=false;
+async function saveActivity(raw){
+  if(activityDialog||typeof raw.enabled!=='boolean'||typeof raw.applicationId!=='string')return;
+  const applicationId=raw.applicationId.trim();
+  if(applicationId&&!publicId(applicationId))return;
+  activityDialog=true;
+  try{
+    const decision=await dialog.showMessageBox(win,{type:'question',message:'Update Discord activity sharing?',
+      detail:raw.enabled?'Share Playing Kirka.io · KS Client with your Discord desktop app.':'Stop sharing KS Client activity with Discord.',
+      buttons:['Cancel','Apply'],defaultId:0,cancelId:0});
+    if(decision.response!==1){sendActivityStatus();return;}
+    const next={enabled:raw.enabled,applicationId};
+    const temp=presenceFile+'.'+process.pid+'.tmp';
+    fs.writeFileSync(temp,JSON.stringify(next),'utf8');fs.renameSync(temp,presenceFile);
+    activityPreferences=next;applyActivity();sendActivityStatus();
+  }catch(e){log('Discord preference: '+String(e.message).slice(0,160));}
+  finally{activityDialog=false;}
+}
+
 let splash=null;
 let splashTimeout=null;
 function closeSplash(){
@@ -346,7 +385,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.29 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.30 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
@@ -368,6 +407,7 @@ function createWindow(){
       await win.webContents.executeJavaScript(drawTelemetryJS,true);
       await win.webContents.executeJavaScript(gameRuntimeJS,true);
       await win.webContents.executeJavaScript(overlayJS,true);
+      if(validURL(win.webContents.getURL(),true))await win.webContents.executeJavaScript(lobbyControlsJS,true);
       await win.webContents.executeJavaScript(extrasJS,true);
       await win.webContents.executeJavaScript(workshopJS,true);
       if(validURL(win.webContents.getURL(),true))await win.webContents.executeJavaScript(statsJS,true);
@@ -375,6 +415,7 @@ function createWindow(){
       await win.webContents.executeJavaScript(graphicsJS,true);
       await win.webContents.executeJavaScript(advancedJS,true);
       await win.webContents.executeJavaScript(freezeJS,true);
+      sendActivityStatus();
       jsCall('setEngineInfo','Electron');
       browserConfig();
     }catch(e){log('Overlay: '+e.message)}
@@ -504,6 +545,8 @@ function receiveMessage(event, raw){
     case 'game':navigate(GAME);break;
     case 'update-open-release':void shell.openExternal('https://github.com/epicjatekosok/KS-Client-Updates/releases').catch(e=>log('Public release page: '+e.message));break;
     case 'discord-community':openKSDiscord();break;
+    case 'discord-activity-info':sendActivityStatus();break;
+    case 'discord-activity-save':void saveActivity(raw);break;
     case 'auth-help':jsCall('openAccountHelp');break;
     case 'fullscreen':win.setFullScreen(!win.isFullScreen());break;
     case 'game-buffer-ready':gameDisplay.bufferReady();break;
@@ -709,5 +752,7 @@ app.whenReady().then(()=>{
     gpuVsyncSwitch:app.commandLine.hasSwitch('disable-gpu-vsync')
   }));
   createWindow();
+  if(!switchProbe)applyActivity();
 }).catch(e=>{log(e.stack||e);dialog.showErrorBox('KS Client Electron',String(e.message||e));app.exit(1)});
+app.on('will-quit',()=>presence.stop());
 app.on('window-all-closed',()=>app.quit());

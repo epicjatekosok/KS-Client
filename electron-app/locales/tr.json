@@ -923,5 +923,19 @@
   "original": "Orijinal",
   "↺ Reset to Default": "⁇  Öntanımlı olarak yeniden ayarlan",
   "● ACTIVE": "● ETKİN",
-  "● INSTALLED": "● KURULU"
+  "● INSTALLED": "● KURULU",
+  "Import a look": "Görünüm içe aktar",
+  "Drop one CSS file or KS theme here to preview it. Apply keeps the change.": "Önizlemek için bir CSS dosyası veya KS teması bırakın. Kaydetmek için Uygula’ya basın.",
+  "Choose CSS or theme": "CSS veya tema seç",
+  "Choose one file at a time.": "Tek bir dosya seçin.",
+  "Choose a .css or KS theme .json file.": "Bir .css dosyası veya .json KS teması seçin.",
+  "Empty or oversized file. CSS limit 256 KiB, theme limit 16 KiB.": "Dosya boş veya çok büyük. CSS sınırı 256 KiB, tema sınırı 16 KiB.",
+  "Invalid stylesheet.": "Geçersiz stil sayfası.",
+  "Share KS Client activity": "KS Client etkinliğini paylaş",
+  "A registered Discord Application ID is needed.": "Kayıtlı bir Discord uygulama kimliği gerekiyor.",
+  "Discord confirmed the activity.": "Discord etkinliği doğruladı.",
+  "Waiting for Discord desktop.": "Discord masaüstü bekleniyor.",
+  "Activity sharing is off.": "Etkinlik paylaşımı kapalı.",
+  "Discord rejected the activity. Check the Application ID.": "Discord etkinliği reddetti. Uygulama kimliğini kontrol edin.",
+  "Enter a valid public Discord Application ID.": "Geçerli bir herkese açık Discord uygulama kimliği girin."
 }

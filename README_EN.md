@@ -1,8 +1,8 @@
-# KS Client Beta 1.0.29
+# KS Client Beta 1.0.30
 
 This release ships Electron only. Older engine selections open Electron automatically. The previous releases below are historical.
 
-[Beta 1.0.29 release notes](RELEASE_BETA_129_EN.md)
+[Beta 1.0.30 release notes](RELEASE_BETA_130_EN.md)
 
 # KS Client Beta 1.0.14 — new FPS limits, CEF fullscreen and Settings languages
 
@@ -154,4 +154,6 @@ The in-client counter identifies page callbacks or browser ticks. For a separate
 
 ### Desktop Discord activity
 
-To opt in, set the Windows user environment variable KS_DISCORD_APPLICATION_ID to the public application ID registered for your Discord activity and restart KS Client from its launcher. The launcher connects to the local Discord desktop application and displays the chosen engine. Closing the engine closes the pipe. Remove the variable to turn the integration off.
+KS Client connects to the local Discord desktop app at startup when a registered public application ID is available. It reconnects if Discord opens later. Activity privacy is controlled by Discord and the client switch in Advanced → General. A local ID can be supplied there if the distributor has not configured one. The older KS_DISCORD_APPLICATION_ID environment setting remains supported.
+
+Use the gold settings control or the violet KS Discord control in the Kirka lobby. The original Kirka gear has an additional KS Client entry. Open Interface → Appearance or CSS Editor to drop a local CSS file or KS palette JSON. Apply keeps the preview and Cancel restores earlier preferences.

@@ -1,6 +1,6 @@
 //go:build windows
 
-// KS Client Beta 1.0.29: engine-neutral Windows launcher.
+// KS Client Beta 1.0.30: engine-neutral Windows launcher.
 // A switch is committed only after the newly started native host acknowledges
 // its own readiness. A transient game page/network failure is not engine failure.
 package main
@@ -18,7 +18,7 @@ import (
  "time"
 )
 
-const version = "1.0.29"
+const version = "1.0.30"
 const releaseTrack = "beta" // Release lifecycle: alpha -> beta -> stable.
 const switchTimeout = 45 * time.Second
 
@@ -168,18 +168,16 @@ func main(){
   if token==""{message("KS Client - Launch Error",detail,0)}
   return
  }
- pid:=cmd.Process.Pid
  if token!=""{
   if err:=awaitEngineSwitch(cmd,engine,token);err!=nil{
    appendLog("Switch failure: "+err.Error())
    reportSwitchFailure(token,err.Error())
    if explicitEngine && !probe {
-    message("KS Client - Engine Launch Error",err.Error()+"\nCheck %LOCALAPPDATA%\\KSClient\\launcher-1.0.29.log",0)
+    message("KS Client - Engine Launch Error",err.Error()+"\nCheck %LOCALAPPDATA%\\KSClient\\launcher-1.0.30.log",0)
    }
-  }else if !probe{keepPresence(pid,engine)}
+  }
   return
  }
  _=cmd.Process.Release()
  if err:=saveEngine(engine);err!=nil{message("KS Client - Preference Warning",err.Error(),0)}
- if !probe{keepPresence(pid,engine)}
 }

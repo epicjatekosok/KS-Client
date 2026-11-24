@@ -923,5 +923,19 @@
   "original": "原作",
   "↺ Reset to Default": "⁇  デフォルトにリセット",
   "● ACTIVE": "● 有効",
-  "● INSTALLED": "● インストール済み"
+  "● INSTALLED": "● インストール済み",
+  "Import a look": "外観を読み込む",
+  "Drop one CSS file or KS theme here to preview it. Apply keeps the change.": "CSS または KS テーマをここにドロップしてプレビューします。「適用」で保存します。",
+  "Choose CSS or theme": "CSS またはテーマを選択",
+  "Choose one file at a time.": "ファイルを1つ選んでください。",
+  "Choose a .css or KS theme .json file.": ".css ファイルまたは KS テーマの .json を選んでください。",
+  "Empty or oversized file. CSS limit 256 KiB, theme limit 16 KiB.": "ファイルが空か大きすぎます。上限は CSS が 256 KiB、テーマが 16 KiB です。",
+  "Invalid stylesheet.": "無効なスタイルシートです。",
+  "Share KS Client activity": "KS Client のアクティビティを共有",
+  "A registered Discord Application ID is needed.": "登録済みの Discord アプリケーション ID が必要です。",
+  "Discord confirmed the activity.": "Discord がアクティビティを確認しました。",
+  "Waiting for Discord desktop.": "デスクトップ版 Discord を待っています。",
+  "Activity sharing is off.": "アクティビティ共有はオフです。",
+  "Discord rejected the activity. Check the Application ID.": "Discord が拒否しました。アプリケーション ID を確認してください。",
+  "Enter a valid public Discord Application ID.": "有効な公開 Discord アプリケーション ID を入力してください。"
 }

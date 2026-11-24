@@ -923,5 +923,19 @@
   "original": "মূল",
   "↺ Reset to Default": "⁇  ডিফল্ট এ রিসেট করুন",
   "● ACTIVE": "● সক্রিয়",
-  "● INSTALLED": "● ইনস্টল করা হয়েছে"
+  "● INSTALLED": "● ইনস্টল করা হয়েছে",
+  "Import a look": "নতুন সাজ আমদানি করুন",
+  "Drop one CSS file or KS theme here to preview it. Apply keeps the change.": "প্রিভিউ দেখতে এখানে একটি CSS ফাইল বা KS থিম ছাড়ুন। সংরক্ষণ করতে প্রয়োগ করুন।",
+  "Choose CSS or theme": "CSS বা থিম বেছে নিন",
+  "Choose one file at a time.": "একবারে একটি ফাইল বেছে নিন।",
+  "Choose a .css or KS theme .json file.": "একটি .css ফাইল বা KS থিমের .json ফাইল বেছে নিন।",
+  "Empty or oversized file. CSS limit 256 KiB, theme limit 16 KiB.": "ফাইল খালি বা খুব বড়। CSS-এর সীমা ২৫৬ KiB, থিমের ১৬ KiB।",
+  "Invalid stylesheet.": "স্টাইলশিটটি সঠিক নয়।",
+  "Share KS Client activity": "KS Client-এর কার্যকলাপ শেয়ার করুন",
+  "A registered Discord Application ID is needed.": "নিবন্ধিত Discord অ্যাপ্লিকেশন আইডি প্রয়োজন।",
+  "Discord confirmed the activity.": "Discord কার্যকলাপ নিশ্চিত করেছে।",
+  "Waiting for Discord desktop.": "Discord ডেস্কটপের জন্য অপেক্ষা চলছে।",
+  "Activity sharing is off.": "কার্যকলাপ শেয়ার করা বন্ধ।",
+  "Discord rejected the activity. Check the Application ID.": "Discord কার্যকলাপ প্রত্যাখ্যান করেছে। অ্যাপ্লিকেশন আইডি পরীক্ষা করুন।",
+  "Enter a valid public Discord Application ID.": "একটি বৈধ প্রকাশ্য Discord অ্যাপ্লিকেশন আইডি দিন।"
 }

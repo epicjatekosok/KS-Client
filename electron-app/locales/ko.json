@@ -923,5 +923,19 @@
   "original": "본래",
   "↺ Reset to Default": "⁇  기본 설정",
   "● ACTIVE": "● 활성",
-  "● INSTALLED": "● 설치됨"
+  "● INSTALLED": "● 설치됨",
+  "Import a look": "외형 가져오기",
+  "Drop one CSS file or KS theme here to preview it. Apply keeps the change.": "CSS 파일이나 KS 테마를 끌어 놓아 미리 보세요. 적용을 누르면 저장됩니다.",
+  "Choose CSS or theme": "CSS 또는 테마 선택",
+  "Choose one file at a time.": "파일을 하나씩 선택하세요.",
+  "Choose a .css or KS theme .json file.": ".css 파일이나 KS 테마 .json을 선택하세요.",
+  "Empty or oversized file. CSS limit 256 KiB, theme limit 16 KiB.": "파일이 비었거나 너무 큽니다. CSS는 256 KiB, 테마는 16 KiB까지입니다.",
+  "Invalid stylesheet.": "잘못된 스타일시트입니다.",
+  "Share KS Client activity": "KS Client 활동 공유",
+  "A registered Discord Application ID is needed.": "등록된 Discord 애플리케이션 ID가 필요합니다.",
+  "Discord confirmed the activity.": "Discord가 활동을 확인했습니다.",
+  "Waiting for Discord desktop.": "데스크톱 Discord를 기다리는 중입니다.",
+  "Activity sharing is off.": "활동 공유가 꺼져 있습니다.",
+  "Discord rejected the activity. Check the Application ID.": "Discord가 활동을 거부했습니다. 애플리케이션 ID를 확인하세요.",
+  "Enter a valid public Discord Application ID.": "유효한 공개 Discord 애플리케이션 ID를 입력하세요."
 }
