@@ -52,8 +52,32 @@ with sync_playwright() as pw:
     }""")
     assert page.evaluate('__KS_WEBGL_COSMETICS__.verifiedPreview()').endswith('texture.b3fc7981.webp')
     assert page.evaluate('__KS_WEBGL_COSMETICS__.compatibility().replacementsForTexture')==0
+    page.evaluate("document.querySelector('.weapon-name').textContent='AR-9'")
+    assert page.evaluate('__KS_WEBGL_COSMETICS__.bindingSource()').endswith('texture.1794de31.webp')
+    assert page.evaluate('__KS_WEBGL_COSMETICS__.verifiedPreview()')==''
     page.evaluate("document.querySelector('.weapon-name').textContent='Unknown'")
     assert page.evaluate('__KS_WEBGL_COSMETICS__.verifiedPreview()')==''
+    page.evaluate(r"""() => {
+        const g=document.querySelector('#game').getContext('webgl2'), program=g.createProgram();
+        for(const [kind,source] of [[g.VERTEX_SHADER,'#version 300 es\nin vec4 p; uniform mat4 pose; void main(){gl_Position=pose*p;}'],
+                                    [g.FRAGMENT_SHADER,'#version 300 es\nprecision mediump float; out vec4 c; void main(){c=vec4(1.);}']]){
+           const shader=g.createShader(kind);g.shaderSource(shader,source);g.compileShader(shader);
+           if(!g.getShaderParameter(shader,g.COMPILE_STATUS))throw Error(g.getShaderInfoLog(shader));
+           g.attachShader(program,shader);
+        }
+        g.linkProgram(program);g.useProgram(program);
+        const loc=g.getUniformLocation(program,'pose'), original=new Float32Array(16);
+        original[0]=original[5]=original[10]=original[15]=1;
+        window.poseValue=()=>{g.uniformMatrix4fv(loc,false,original);return [...g.getUniform(program,loc)]};
+        const config={enabled:true,weaponPoses:[{name:'SCAR',signature:'1.000,1.000,1.000,0.000,0.000,0.000',scale:120,x:25,rz:90}]};
+        document.querySelector('.weapon-name').textContent='SCAR';
+        localStorage.setItem('ksclient.webgl.v114',JSON.stringify(config));__KS_WEBGL_COSMETICS__.refresh();
+    }""")
+    transformed=page.evaluate('poseValue()')
+    assert abs(transformed[1]-1.2)<.0001 and abs(transformed[12]-.25)<.0001
+    page.evaluate("document.querySelector('.weapon-name').textContent='Other'")
+    unchanged=page.evaluate('poseValue()')
+    assert unchanged[0]==1 and unchanged[1]==0 and unchanged[12]==0
     page.add_script_tag(content=(scripts/'advanced_integration.js').read_text())
     page.evaluate("""() => {
         const list=document.querySelector('.friends .list');

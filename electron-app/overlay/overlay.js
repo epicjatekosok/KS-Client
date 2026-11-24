@@ -3733,6 +3733,10 @@
     graphics.slots=Array.isArray(g.slots)?g.slots.slice(0,8).filter(x=>x&&typeof x.assetURL==='string'&&skinValue(x.skinURL)).map(x=>({
       name:String(x.name||'').slice(0,48),assetURL:x.assetURL.slice(0,450),skinURL:skinValue(x.skinURL),
       hue:Number(x.hue)||0,saturation:Number(x.saturation)||100,brightness:Number(x.brightness)||100})):[];
+    graphics.discover=false;
+    graphics.weaponPoses=(Array.isArray(g.weaponPoses)?g.weaponPoses:[]).slice(0,32)
+      .filter(p=>p&&typeof p.name==='string'&&p.name.trim()&&typeof p.signature==='string'&&/^[-\d., ]{1,90}$/.test(p.signature))
+      .map(p=>({...wk.normalizeWorkshop({poses:[p]}).poses[0],signature:p.signature}));
     const workshop=wk.normalizeWorkshop(doc.workshop);
     workshop.swapEnabled=wk.getConfig().swapEnabled;
     if(!confirm(L('Replace KS settings, Workshop entries and local media with this profile? Imported scripts require manual launch.')))return;

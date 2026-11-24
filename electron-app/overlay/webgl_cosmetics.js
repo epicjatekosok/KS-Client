@@ -43,8 +43,12 @@ function previewURL(){
 const defaultTextures=Object.freeze({scar:'b3fc7981',ar9:'1794de31',mac10:'36d894bd',m60:'b658c822',
  tomahawk:'397a3f05',vita:'b2a49027',shark:'6c8a6582',revolver:'0bed9187',bayonet:'76c24e59',lar:'d97db214',weatie:'212a85fe'});
 const sessionCounts=new Map();
+function defaultHash(name){
+ const key=String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+ return Object.hasOwn(defaultTextures,key)?defaultTextures[key]:'';
+}
 function observedDefault(name){
- const hash=defaultTextures[String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'')];
+ const hash=defaultHash(name);
  if(!hash)return '';
  const hits=[...uploadHistory.keys()].filter(url=>{
    const file=new URL(url).pathname.split('/').pop().toLowerCase();
@@ -231,6 +235,9 @@ window.addEventListener('ks-webgl-settings',reload);
 window.__KS_WEBGL_COSMETICS__=Object.freeze({
  selectedWeapon:()=>selectedWeapon()?.name||'',
  verifiedPreview,
+ bindingSource:()=>{const observed=verifiedPreview();if(observed)return observed;
+   const hash=defaultHash(selectedWeapon()?.name);
+   return hash?'https://kirka.io/assets/img/texture.'+hash+'.webp':'';},
  compatibility:()=>{const url=verifiedPreview();return {gameCanvasContexts:contexts,weapon:selectedWeapon()?.name||null,observedTexture:!!url,observedFile:url?new URL(url).pathname.split('/').pop():null,replacementsForTexture:sessionCounts.get(url)||0,allMatrixTransforms:transforms,uploadFallbacks:missed};},
  getStatus:()=>({selectedWeapon:selectedWeapon()?.name||'',observedImages:uploadHistory.size,discovery,enabled:cfg.enabled,contexts,hookup,textureReplacements:textures,matrixTransforms:transforms,
   fallbacks:missed,ready:images.size>0,readyMappings:images.size,diagnostic,assetURL:cfg.assetURL,signature:cfg.matrixSignature,

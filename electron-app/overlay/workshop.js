@@ -256,7 +256,7 @@
        '<label class="ks-row">Enable local cosmetic styling <input type="checkbox" id="ks-wk-weapon-on" '+(cfg.weapon.enabled?'checked':'')+'></label>'+
        btn('weapon-apply','Apply cosmetics')+' '+btn('weapon-reset','Clear cosmetics'))+
      card('3D Weapon Studio (experimental exact-match WebGL)',
-       '<p class="ks-hint">Enable texture discovery before loading a weapon. Choose its skin image, then bind the selected weapon. Detection uses an uploaded preview texture or a recognized default weapon texture from the game canvas. Shared game textures can affect multiple models.</p>'+
+       '<p class="ks-hint">Select a Kirka weapon, choose its skin image, then bind it. Known default weapons work immediately on their next texture upload. For other weapons enable discovery before opening the preview. Shared game textures can affect multiple models.</p>'+
        btn('gallery','Open Workshop Gallery')+' '+btn('gl-discovery',glCfg().discover?'Stop texture discovery':'Start texture discovery')+' '+btn('gl-auto-bind','Bind skin to selected weapon')+' '+btn('gl-report','Live compatibility report')+' '+btn('gl-probe','Identify visible weapon image')+' '+btn('gl-use-probe','Use observed texture')+
        input('gl-source','Original Kirka texture URL (exact HTTPS asset)',glCfg().assetURL||'')+
        input('gl-skin','Custom 3D Skin Link (HTTPS CORS image)',glCfg().skinURL?.startsWith('data:')?'':glCfg().skinURL||'')+
@@ -509,9 +509,9 @@
      return (async()=>{
      const prev=glCfg(),file=ui.getElementById('ks-wk-gl-file')?.files?.[0];
      const auto=a==='gl-auto-bind',renderer=window.__KS_WEBGL_COSMETICS__;
-     const source=auto?renderer?.verifiedPreview?.():trim(val('gl-source'),450);
+     const source=auto?renderer?.bindingSource?.():trim(val('gl-source'),450);
      const selected=auto?renderer?.selectedWeapon?.():'';
-     if(auto&&(!source||!selected))throw Error('No unique selected weapon with a matching game texture upload yet.');
+     if(auto&&(!source||!selected))throw Error('Select a supported default weapon, or enable discovery and open a weapon with an observed texture.');
      const x={discover:prev.discover===true,weaponPoses:prev.weaponPoses||[],enabled:auto||flag('gl-enabled'),assetURL:source,skinURL:file?await localSkin(file):imgURL(val('gl-skin'))||(prev.skinURL?.startsWith('data:')?prev.skinURL:''),slots:prev.slots||[],
        hue:number('gl-hue',0,360,0),saturation:number('gl-saturation',20,300,100),
        brightness:number('gl-brightness',20,250,100),scale:number('gl-scale',50,150,100),
