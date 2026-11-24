@@ -3735,8 +3735,8 @@
       hue:Number(x.hue)||0,saturation:Number(x.saturation)||100,brightness:Number(x.brightness)||100})):[];
     graphics.discover=false;
     graphics.weaponPoses=(Array.isArray(g.weaponPoses)?g.weaponPoses:[]).slice(0,32)
-      .filter(p=>p&&typeof p.name==='string'&&p.name.trim()&&typeof p.signature==='string'&&/^[-\d., ]{1,90}$/.test(p.signature))
-      .map(p=>({...wk.normalizeWorkshop({poses:[p]}).poses[0],signature:p.signature}));
+      .filter(p=>p&&typeof p.name==='string'&&p.name.trim()&&(p.auto===true&&/^https:\/\/(?:www\.)?kirka\.io\/assets\/(?:img|media|textures|skins|ui)\/[^?#]+$/i.test(p.source)||typeof p.signature==='string'&&/^[-\d., ]{1,90}$/.test(p.signature)))
+      .map(p=>({...wk.normalizeWorkshop({poses:[p]}).poses[0],signature:p.auto?'':p.signature,auto:p.auto===true,source:String(p.source||'').slice(0,450)}));
     const workshop=wk.normalizeWorkshop(doc.workshop);
     workshop.swapEnabled=wk.getConfig().swapEnabled;
     if(!confirm(L('Replace KS settings, Workshop entries and local media with this profile? Imported scripts require manual launch.')))return;

@@ -78,6 +78,42 @@ with sync_playwright() as pw:
     page.evaluate("document.querySelector('.weapon-name').textContent='Other'")
     unchanged=page.evaluate('poseValue()')
     assert unchanged[0]==1 and unchanged[1]==0 and unchanged[12]==0
+    page.evaluate(r"""async () => {
+        const g=document.querySelector('#game').getContext('webgl2'), canvas=g.canvas;
+        canvas.width=canvas.height=32;g.viewport(0,0,32,32);g.bindFramebuffer(g.FRAMEBUFFER,null);
+        document.querySelector('.weapon-name').textContent='SCAR';
+        const source='https://kirka.io/assets/img/texture.b3fc7981.webp';
+        localStorage.setItem('ksclient.webgl.v114',JSON.stringify({enabled:true,weaponPoses:[
+          {name:'SCAR',auto:true,source,x:50,scale:100}]}));__KS_WEBGL_COSMETICS__.refresh();
+        window.__KS_GAME_RUNTIME__={getStatus:()=>({scene:'match'})};
+        window.testLock=true;Object.defineProperty(document,'pointerLockElement',{configurable:true,get:()=>testLock?canvas:null});
+        const pr=g.createProgram();
+        for(const [kind,src] of [[g.VERTEX_SHADER,'#version 300 es\nuniform mat4 modelViewMatrix; void main(){gl_Position=modelViewMatrix*vec4(0.,0.,0.,1.);gl_PointSize=3.;}'],
+           [g.FRAGMENT_SHADER,'#version 300 es\nprecision highp float;uniform sampler2D map;out vec4 c;void main(){c=vec4(texture(map,vec2(.5)).r,1.,0.,1.);}']]){
+           const sh=g.createShader(kind);g.shaderSource(sh,src);g.compileShader(sh);g.attachShader(pr,sh);
+        }
+        g.linkProgram(pr);if(!g.getProgramParameter(pr,g.LINK_STATUS))throw Error(g.getProgramInfoLog(pr));
+        g.useProgram(pr);
+        const loc=g.getUniformLocation(pr,'modelViewMatrix'),sampler=g.getUniformLocation(pr,'map');
+        g.uniform1i(sampler,0);g.activeTexture(g.TEXTURE0);const texture=g.createTexture();
+        g.bindTexture(g.TEXTURE_2D,texture);g.texParameteri(g.TEXTURE_2D,g.TEXTURE_MIN_FILTER,g.NEAREST);
+        const img=new Image();img.src=source;await img.decode();
+        g.texImage2D(g.TEXTURE_2D,0,g.RGBA,g.RGBA,g.UNSIGNED_BYTE,img);
+        const identity=new Float32Array(16);identity[0]=identity[5]=identity[10]=identity[15]=1;
+        window.drawForeground=(split=true)=>{
+          g.clearColor(0,0,0,1);g.clear(g.COLOR_BUFFER_BIT|g.DEPTH_BUFFER_BIT);
+          g.uniformMatrix4fv(loc,false,identity);g.drawArrays(g.POINTS,0,1);
+          if(split)g.clear(g.DEPTH_BUFFER_BIT);
+          g.uniformMatrix4fv(loc,false,identity);g.drawArrays(g.POINTS,0,1);
+          const px=new Uint8Array(4);g.readPixels(24,16,1,1,g.RGBA,g.UNSIGNED_BYTE,px);
+          return [px[1],g.getUniform(pr,loc)[12]];
+        };
+    }""")
+    assert page.evaluate('drawForeground()')==[255,0]
+    assert page.evaluate('__KS_WEBGL_COSMETICS__.compatibility().automaticForegroundDraws')==1
+    assert page.evaluate('drawForeground(false)')==[0,0]
+    assert page.evaluate('testLock=false;drawForeground()')==[0,0]
+    page.evaluate("delete window.__KS_GAME_RUNTIME__")
     page.add_script_tag(content=(scripts/'advanced_integration.js').read_text())
     page.evaluate("""() => {
         const list=document.querySelector('.friends .list');

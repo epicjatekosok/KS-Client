@@ -15,6 +15,7 @@ const safeURL=s=>{
 const asset=s=>{const u=safeURL(s);return /^https:\/\/(?:www\.)?kirka\.io\/assets\/(?:img|media|textures|skins|ui)\/[^?#]+$/i.test(u)?u:''};
 const skin=s=>typeof s==='string'&&s.length<=180000&&/^data:image\/webp;base64,[A-Za-z0-9+/]+=*$/.test(s)?s:safeURL(s);
 const uploadHistory=new Map();
+let autoTransforms=0;
 let hasBoundPoses=false,discovery=false,weaponPoses={},selectionRoot=null,selectedName='',selectionObserver=null;
 const visible=el=>!!el?.getClientRects().length&&getComputedStyle(el).visibility==='visible';
 function selectedWeapon(){
@@ -67,8 +68,8 @@ function read(){
  discovery=o.discover===true;
  weaponPoses=Object.create(null);
  for(const b of (Array.isArray(o.weaponPoses)?o.weaponPoses:[]).slice(0,32)){
-   if(typeof b?.name!=='string'||!b.name.trim()||b.name.length>48||!/^[-\d., ]{1,90}$/.test(b.signature))continue;
-   weaponPoses[b.name]={signature:b.signature,scale:clamp(b.scale,50,150,100),x:clamp(b.x,-80,80,0)/100,y:clamp(b.y,-80,80,0)/100,z:clamp(b.z,-80,80,0)/100,angles:['rx','ry','rz'].map(k=>clamp(b[k],-180,180,0)*Math.PI/180)};
+   if(typeof b?.name!=='string'||!b.name.trim()||b.name.length>48||!(b.auto===true&&asset(b.source)||typeof b.signature==='string'&&/^[-\d., ]{1,90}$/.test(b.signature)))continue;
+   weaponPoses[b.name]={auto:b.auto===true,source:asset(b.source),signature:b.auto?'':b.signature,scale:clamp(b.scale,50,150,100),x:clamp(b.x,-80,80,0)/100,y:clamp(b.y,-80,80,0)/100,z:clamp(b.z,-80,80,0)/100,angles:['rx','ry','rz'].map(k=>clamp(b[k],-180,180,0)*Math.PI/180)};
  }
  hasBoundPoses=Object.keys(weaponPoses).length>0;
  slots=Array.isArray(o.slots)?o.slots.slice(0,8).filter(p=>p&&asset(p.assetURL)&&skin(p.skinURL)):[];
@@ -120,7 +121,104 @@ function loadImage(){
    img.src=p.skinURL;
  }
 }
+function posedMatrix(m,bound){
+ const copy=new Float32Array(m);
+ const pairs=[[4,8],[8,0],[0,4]];
+ for(const [axis,angle] of bound.angles.entries()){
+   if(!angle)continue;
+   const [a,b]=pairs[axis],c=Math.cos(angle),s=Math.sin(angle);
+   for(let i=0;i<3;i++){const u=copy[a+i],v=copy[b+i];copy[a+i]=c*u+s*v;copy[b+i]=c*v-s*u;}
+ }
+ for(const j of [0,1,2,4,5,6,8,9,10])copy[j]*=bound.scale/100;
+ copy[12]+=bound.x;copy[13]+=bound.y;copy[14]+=bound.z;
+ return copy;
+}
+// Observe the default framebuffer's separate foreground pass. Match its active
+// material sampler, selected weapon, and model-view uniform before altering a
+// single draw. All game state is restored synchronously after that draw.
+function foregroundPose(gl,canvas,rawMatrix){
+ let active=false,wrappers=[],materials,programs,locations,units,program,unit,phase,worldDraw,screen,epoch=0;
+ function reset(){
+   materials=new WeakMap();programs=new WeakMap();locations=new WeakMap();units=new Map();
+   program=null;unit=0;phase=0;worldDraw=false;screen=false;epoch++;
+ }
+ reset();
+ function hook(name,observe){
+   const original=gl[name];if(typeof original!=='function')return;
+   function wrapped(){const result=Reflect.apply(original,this,arguments);if(active&&this===gl)observe(arguments,result);return result;}
+   gl[name]=wrapped;wrappers.push([name,original,wrapped]);
+ }
+ function setEnabled(on){
+   if(on===active)return;
+   if(!on){
+     active=false;
+     for(const [name,original,wrapped] of wrappers)if(gl[name]===wrapped)gl[name]=original;
+     wrappers=[];reset();return;
+   }
+   active=true;
+   try{
+     unit=gl.getParameter(gl.ACTIVE_TEXTURE)-gl.TEXTURE0;
+     screen=gl.getParameter(gl.FRAMEBUFFER_BINDING)===null;
+     hook('activeTexture',a=>{unit=a[0]-gl.TEXTURE0;});
+     hook('bindTexture',a=>{if(a[0]===gl.TEXTURE_2D)units.set(unit,a[1]);});
+     for(const name of ['texSubImage2D','compressedTexImage2D','compressedTexSubImage2D','copyTexImage2D','copyTexSubImage2D']){
+       hook(name,a=>{const texture=units.get(unit);if(texture&&a[0]===gl.TEXTURE_2D&&a[1]===0)materials.delete(texture);});
+     }
+     hook('bindFramebuffer',a=>{
+       if(a[0]!==gl.FRAMEBUFFER&&a[0]!==gl.DRAW_FRAMEBUFFER)return;
+       const next=a[1]===null;if(next!==screen){phase=0;worldDraw=false;}screen=next;
+     });
+     hook('clear',a=>{
+       if(!screen)return;
+       if(a[0]&gl.COLOR_BUFFER_BIT){phase=1;worldDraw=false;epoch++;}
+       else if(phase===1&&worldDraw&&a[0]===gl.DEPTH_BUFFER_BIT){
+         phase=2;const tag=++epoch;queueMicrotask(()=>{if(tag===epoch)phase=0;});
+       }else phase=0;
+     });
+     hook('useProgram',a=>{program=a[0];});
+     hook('linkProgram',a=>{programs.delete(a[0]);});
+     hook('getUniformLocation',(a,loc)=>{
+       if(!loc||(a[1]!=='modelViewMatrix'&&a[1]!=='map'))return;
+       let meta=programs.get(a[0]);
+       if(!meta){meta={mapUnit:null,model:null,modelLoc:null};programs.set(a[0],meta);}
+       locations.set(loc,{semantic:a[1],program:a[0],meta});
+     });
+     hook('uniform1i',a=>{
+       const u=locations.get(a[0]);if(u?.semantic==='map'&&u.program===program)u.meta.mapUnit=a[1];
+     });
+     for(const name of ['drawElements','drawArrays']){
+       const original=gl[name];if(typeof original!=='function')continue;
+       function draw(){
+         if(active&&screen&&phase===1)worldDraw=true;
+         if(!active||!screen||phase!==2)return Reflect.apply(original,this,arguments);
+         const bound=selectionRoot?.isConnected&&weaponPoses[selectedName];
+         const meta=bound?.auto&&program&&programs.get(program);
+         const image=meta?.model&&meta.tag===epoch&&materials.get(units.get(meta.mapUnit));
+         const lock=document.pointerLockElement;
+         if(!image||image!==bound.source||!lock||(lock!==canvas&&lock!==document.body)||
+            window.__KS_GAME_RUNTIME__?.getStatus?.().scene!=='match')return Reflect.apply(original,this,arguments);
+         Reflect.apply(rawMatrix,gl,[meta.modelLoc,false,posedMatrix(meta.model,bound)]);
+         try{const out=Reflect.apply(original,this,arguments);autoTransforms++;transforms++;return out;}
+         finally{Reflect.apply(rawMatrix,gl,[meta.modelLoc,false,meta.model]);}
+       }
+       gl[name]=draw;wrappers.push([name,original,draw]);
+     }
+   }catch{setEnabled(false);diagnostic='Automatic pose pass unavailable';}
+ }
+ return {setEnabled,reset,
+   image(args,url){if(!active||args[0]!==gl.TEXTURE_2D||args[1]!==0)return;
+     const texture=units.get(unit);if(texture){if(url)materials.set(texture,url);else materials.delete(texture);}},
+   matrix(loc,transpose,data,offset=0,length=0){
+     if(!active||!screen||phase!==2)return;const u=locations.get(loc);
+     if(u?.semantic!=='modelViewMatrix'||u.program!==program)return;
+     if(transpose||!data||(length||data.length-offset)!==16){u.meta.model=null;return;}
+     if(!u.meta.model)u.meta.model=new Float32Array(16);
+     for(let i=0;i<16;i++)u.meta.model[i]=data[offset+i];
+     u.meta.modelLoc=loc;u.meta.tag=epoch;
+   }};
+}
 function syncMatrix(record){
+ record.pass.setEnabled(cfg.enabled&&Object.values(weaponPoses).some(p=>p.auto));
  const {gl,matrix,origMatrix}=record;
  if(cfg.enabled && gl.uniformMatrix4fv===origMatrix)gl.uniformMatrix4fv=matrix;
  if(!cfg.enabled && gl.uniformMatrix4fv===matrix)gl.uniformMatrix4fv=origMatrix;
@@ -132,12 +230,14 @@ function install(gl,canvas){
  if(!gl||hooked.has(gl))return;
  hooked.add(gl);contexts++;
  const rawTex=gl.texImage2D, rawMatrix=gl.uniformMatrix4fv;
+ const pass=foregroundPose(gl,canvas,rawMatrix);
  const origTex=(...args)=>Reflect.apply(rawTex,gl,args);
  const origMatrix=(...args)=>Reflect.apply(rawMatrix,gl,args);
  function tex(...args){
    // Only TexImageSource overloads with real DOM image provenance are supported.
    const index=args.length===6?5:args.length===9?8:-1;
    const src=args[index];
+   pass.image(args,typeof HTMLImageElement!=='undefined'&&src instanceof HTMLImageElement?asset(src.currentSrc||src.src):'');
    if(index>=0 && typeof HTMLImageElement!=='undefined' && src instanceof HTMLImageElement){
      const url=asset(src.currentSrc||src.src);
      if(url){
@@ -162,6 +262,7 @@ function install(gl,canvas){
    // Observe only the game's own canvas. Do not probe other 3D objects,
    // rewrite depth state, or transform anything without manual signature.
    if(!cfg.enabled)return Reflect.apply(rawMatrix,this,arguments);
+   pass.matrix(location,transpose,data,offset,length);
    if(data&&data.length>=16){
      try{
        const base=Number.isInteger(offset)?offset:0;
@@ -175,17 +276,7 @@ function install(gl,canvas){
            candidates.set(fp,(candidates.get(fp)||0)+1);
          }
          if(cfg.enabled&&signature&&fp===signature){
-           const copy=new Float32Array(m),scale=(bound?bound.scale:cfg.scale)/100;
-           if(bound){
-             const pairs=[[4,8],[8,0],[0,4]];
-             for(const [axis,angle] of bound.angles.entries()){
-               if(!angle)continue;
-               const [a,b]=pairs[axis],c=Math.cos(angle),s=Math.sin(angle);
-               for(let i=0;i<3;i++){const u=copy[a+i],v=copy[b+i];copy[a+i]=c*u+s*v;copy[b+i]=c*v-s*u;}
-             }
-           }
-           for(const j of [0,1,2,4,5,6,8,9,10])copy[j]*=scale;
-           copy[12]+=bound?bound.x:cfg.offsetX;copy[13]+=bound?bound.y:cfg.offsetY;copy[14]+=bound?bound.z:cfg.offsetZ;
+           const copy=posedMatrix(m,bound||{angles:[],scale:cfg.scale,x:cfg.offsetX,y:cfg.offsetY,z:cfg.offsetZ});
            try{const value=origMatrix(location,transpose,copy);transforms++;return value}
            catch(e){missed++;diagnostic='Matrix fallback: '+String(e.message).slice(0,100)}
          }
@@ -195,10 +286,10 @@ function install(gl,canvas){
    return Reflect.apply(rawMatrix,this,arguments);
  }
  try{
-  const record={gl,origTex:rawTex,origMatrix:rawMatrix,tex,matrix};
+  const record={gl,origTex:rawTex,origMatrix:rawMatrix,tex,matrix,pass};
   records.add(record);syncMatrix(record);syncTexture(record);
  }catch(e){diagnostic='Read-only WebGL context; hook refused: '+String(e.message).slice(0,100)}
- canvas.addEventListener('webglcontextlost',()=>{imageGeneration++;images.clear();diagnostic='Context lost, awaiting recovery'},{passive:true});
+ canvas.addEventListener('webglcontextlost',()=>{pass.reset();imageGeneration++;images.clear();diagnostic='Context lost, awaiting recovery'},{passive:true});
  canvas.addEventListener('webglcontextrestored',()=>reload(),{passive:true});
 }
 // Prefer the shared early observer. It replays contexts which already existed
@@ -238,13 +329,13 @@ window.__KS_WEBGL_COSMETICS__=Object.freeze({
  bindingSource:()=>{const observed=verifiedPreview();if(observed)return observed;
    const hash=defaultHash(selectedWeapon()?.name);
    return hash?'https://kirka.io/assets/img/texture.'+hash+'.webp':'';},
- compatibility:()=>{const url=verifiedPreview();return {gameCanvasContexts:contexts,weapon:selectedWeapon()?.name||null,observedTexture:!!url,observedFile:url?new URL(url).pathname.split('/').pop():null,replacementsForTexture:sessionCounts.get(url)||0,allMatrixTransforms:transforms,uploadFallbacks:missed};},
+ compatibility:()=>{const url=verifiedPreview();return {gameCanvasContexts:contexts,weapon:selectedWeapon()?.name||null,observedTexture:!!url,observedFile:url?new URL(url).pathname.split('/').pop():null,replacementsForTexture:sessionCounts.get(url)||0,automaticForegroundDraws:autoTransforms,allMatrixTransforms:transforms,uploadFallbacks:missed};},
  getStatus:()=>({selectedWeapon:selectedWeapon()?.name||'',observedImages:uploadHistory.size,discovery,enabled:cfg.enabled,contexts,hookup,textureReplacements:textures,matrixTransforms:transforms,
   fallbacks:missed,ready:images.size>0,readyMappings:images.size,diagnostic,assetURL:cfg.assetURL,signature:cfg.matrixSignature,
   sampledSignatures:[...candidates.entries()].map(([signature,count])=>({signature,count})).slice(0,20)}),
  matchVisiblePreview,
  matchedPreview:verifiedPreview,
  refresh:reload,
- restore:()=>{refreshOff?.();selectionObserver?.disconnect();clearTimeout(probeTimeout);unsubscribe?.();window.removeEventListener('ks-render-observer-ready',connect);window.removeEventListener('ks-webgl-settings',reload);for(const r of records){if(r.gl.texImage2D===r.tex)r.gl.texImage2D=r.origTex;if(r.gl.uniformMatrix4fv===r.matrix)r.gl.uniformMatrix4fv=r.origMatrix;}if(fallbackWrapped&&HTMLCanvasElement.prototype.getContext===fallbackWrapped)HTMLCanvasElement.prototype.getContext=fallbackOriginal;}
+ restore:()=>{refreshOff?.();selectionObserver?.disconnect();clearTimeout(probeTimeout);unsubscribe?.();window.removeEventListener('ks-render-observer-ready',connect);window.removeEventListener('ks-webgl-settings',reload);for(const r of records){r.pass.setEnabled(false);if(r.gl.texImage2D===r.tex)r.gl.texImage2D=r.origTex;if(r.gl.uniformMatrix4fv===r.matrix)r.gl.uniformMatrix4fv=r.origMatrix;}if(fallbackWrapped&&HTMLCanvasElement.prototype.getContext===fallbackWrapped)HTMLCanvasElement.prototype.getContext=fallbackOriginal;}
 });
 })();

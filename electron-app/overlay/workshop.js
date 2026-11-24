@@ -84,10 +84,10 @@
  let editingPose=null;
  function poseCard(){
    const p=editingPose||pose({});
-   return card('Viewmodel pose studio','<p>Preview locally. A live pose needs a selected Kirka weapon and its confirmed matrix signature. Offsets use hundredths of a model unit.</p>'+
+   return card('Viewmodel pose studio','<p>Preview locally. Bind an automatic pose to a selected weapon, then reload Kirka. It runs only on a recognized foreground weapon draw. Manual calibration is also available. Offsets use hundredths of a model unit.</p>'+
      '<div style="height:140px;display:grid;place-items:center;perspective:350px;overflow:hidden"><div id="ks-pose-preview" style="transform-style:preserve-3d;transform:'+poseTransform(p)+'"><i style="display:block;width:95px;height:16px;background:#d89c47;transform:translateZ(7px)"></i><i style="position:absolute;top:0;width:95px;height:14px;background:#9e7439;transform:rotateX(90deg);transform-origin:top"></i><i style="display:block;width:12px;height:22px;margin-left:18px;background:#75624c"></i></div></div>'+
      input('pose-name','Weapon preset name',p.name)+['x','y','z','scale','rx','ry','rz'].map(k=>input('pose-'+k,k,p[k],'number')).join('')+
-     btn('pose-save','Save pose')+btn('pose-bind','Apply pose to calibrated weapon')+btn('pose-unbind','Clear live pose bindings')+btn('pose-reset','Reset preview')+btn('pose-export','Export poses')+'<input id="ks-wk-pose-file" type="file" accept=".json">'+btn('pose-import','Import poses')+
+     btn('pose-save','Save pose')+btn('pose-auto','Apply automatic weapon pose')+btn('pose-bind','Apply pose to calibrated weapon')+btn('pose-unbind','Clear live pose bindings')+btn('pose-reset','Reset preview')+btn('pose-export','Export poses')+'<input id="ks-wk-pose-file" type="file" accept=".json">'+btn('pose-import','Import poses')+
      cfg.poses.map((x,i)=>btn('pose-use-'+i,x.name)+btn('pose-delete-'+i,'Remove')).join(''));
  }
  function readPose(ui){const v=k=>ui.getElementById('ks-wk-pose-'+k)?.value;return pose(Object.fromEntries(['name','x','y','z','scale','rx','ry','rz'].map(k=>[k,v(k)])));}
@@ -432,13 +432,14 @@
      save();return true;
    }
    if(a.startsWith('pose-')){
-     if(a==='pose-bind'){
+     if(a==='pose-bind'||a==='pose-auto'){
+       const auto=a==='pose-auto',source=auto?window.__KS_WEBGL_COSMETICS__?.bindingSource?.():'';
        const name=window.__KS_WEBGL_COSMETICS__?.selectedWeapon?.(),signature=trim(val('gl-matrix'),90);
-       if(!name||!/^[-\d., ]{1,90}$/.test(signature))throw Error('Select a Kirka weapon and enter its calibrated matrix signature first.');
+       if(!name||(auto?!source:!/^[-\d., ]{1,90}$/.test(signature)))throw Error('Select a recognized Kirka weapon for automatic mode, or enter a confirmed signature for manual mode.');
        const config=glCfg(),bindings=(config.weaponPoses||[]).filter(x=>x.name!==name);
        if(bindings.length>=32)throw Error('Maximum 32 weapon poses');
-       config.weaponPoses=[...bindings,{...readPose(ui),name,signature}];config.enabled=true;config.matrixSignature='';
-       saveGraphics(config);status='Live pose bound to '+name;return true;
+       config.weaponPoses=[...bindings,{...readPose(ui),name,auto,source,signature:auto?'':signature}];config.enabled=true;config.matrixSignature='';
+       saveGraphics(config);status='Live pose bound to '+name+(auto?'. Reload Kirka to observe shader setup.':'');return true;
      }else if(a==='pose-unbind'){
        const config=glCfg();config.weaponPoses=[];saveGraphics(config);status='Live pose bindings cleared.';return true;
      }else if(a==='pose-export')downloadJSON({format:'ks-viewmodel-poses',version:1,poses:cfg.poses},'KS-poses.json');
