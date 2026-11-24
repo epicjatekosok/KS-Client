@@ -90,6 +90,8 @@ jobs:
           python tests/test_release_123.py
           python tests/test_beta_100.py
           python tests/test_release_120.py
+      - name: Observe current public Kirka weapon asset availability
+        run: python ci/check_live_weapon_assets.py
       - name: Test source archive verification
         run: python tests/test_public_source_103.py
       - name: Automated browser UI test

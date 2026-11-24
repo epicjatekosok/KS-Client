@@ -38,8 +38,24 @@ function previewURL(){
  const urls=new Set(nodes.filter(visible).map(img=>asset(img.dataset.ksWorkshopOriginal||img.currentSrc||img.src)).filter(Boolean));
  return urls.size===1?[...urls][0]:'';
 }
+// Historical public asset fingerprints. Accept only a file uploaded by this game
+// session on the allowlisted origin. A changed game asset simply stops matching.
+const defaultTextures=Object.freeze({scar:'b3fc7981',ar9:'1794de31',mac10:'36d894bd',m60:'b658c822',
+ tomahawk:'397a3f05',vita:'b2a49027',shark:'6c8a6582',revolver:'0bed9187',bayonet:'76c24e59',lar:'d97db214',weatie:'212a85fe'});
+const sessionCounts=new Map();
+function observedDefault(name){
+ const hash=defaultTextures[String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'')];
+ if(!hash)return '';
+ const hits=[...uploadHistory.keys()].filter(url=>{
+   const file=new URL(url).pathname.split('/').pop().toLowerCase();
+   return file==='texture.'+hash+'.webp'||file==='texture.'+hash+'.png';
+ });
+ return hits.length===1?hits[0]:'';
+}
 function verifiedPreview(){
- const url=previewURL();return url&&(uploadHistory.has(url)||previewProbe?.matched&&previewProbe.url===url)?url:'';
+ const url=previewURL();
+ if(url&&(uploadHistory.has(url)||previewProbe?.matched&&previewProbe.url===url))return url;
+ return observedDefault(selectedWeapon()?.name);
 }
 let slots=[],images=new Map(),imageGeneration=0;
 function read(){
@@ -130,7 +146,7 @@ function install(gl,canvas){
        if(replacement){
          // Keep the original upload geometry on sized WebGL2 subresources.
          if(index===8&&(args[3]!==replacement.width||args[4]!==replacement.height))missed++;
-         else try{const copy=args.slice();copy[index]=replacement;const output=origTex(...copy);textures++;return output;}
+         else try{const copy=args.slice();copy[index]=replacement;const output=origTex(...copy);textures++;sessionCounts.set(url,(sessionCounts.get(url)||0)+1);if(sessionCounts.size>128)sessionCounts.delete(sessionCounts.keys().next().value);return output;}
          catch{missed++;diagnostic='Upload rejected; using original image';}
        }
      }
@@ -215,6 +231,7 @@ window.addEventListener('ks-webgl-settings',reload);
 window.__KS_WEBGL_COSMETICS__=Object.freeze({
  selectedWeapon:()=>selectedWeapon()?.name||'',
  verifiedPreview,
+ compatibility:()=>{const url=verifiedPreview();return {gameCanvasContexts:contexts,weapon:selectedWeapon()?.name||null,observedTexture:!!url,observedFile:url?new URL(url).pathname.split('/').pop():null,replacementsForTexture:sessionCounts.get(url)||0,allMatrixTransforms:transforms,uploadFallbacks:missed};},
  getStatus:()=>({selectedWeapon:selectedWeapon()?.name||'',observedImages:uploadHistory.size,discovery,enabled:cfg.enabled,contexts,hookup,textureReplacements:textures,matrixTransforms:transforms,
   fallbacks:missed,ready:images.size>0,readyMappings:images.size,diagnostic,assetURL:cfg.assetURL,signature:cfg.matrixSignature,
   sampledSignatures:[...candidates.entries()].map(([signature,count])=>({signature,count})).slice(0,20)}),

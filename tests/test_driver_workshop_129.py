@@ -11,6 +11,7 @@ with sync_playwright() as pw:
         <div class="list-weapons"><div class="weapon-cont"><div class="bottom is-selected">Selected</div>
         <b class="weapon-name">Test weapon</b><img width="20" height="20" src="/assets/textures/test.svg"></div></div>
         <div class="friends"><div class="list" style="height:30px;overflow:auto"></div></div>"""))
+    page.route('**/texture.b3fc7981.webp', lambda r: r.fulfill(content_type='image/svg+xml',body='<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>'))
     page.route('**/test.svg', lambda r: r.fulfill(content_type='image/svg+xml',
         body='<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4" fill="red"/></svg>'))
     page.goto('https://kirka.io/')
@@ -42,6 +43,17 @@ with sync_playwright() as pw:
     red,green,blue,alpha=page.evaluate('pixel()')
     assert green>245 and red<10 and blue<10 and alpha==255
     assert page.evaluate('__KS_WEBGL_COSMETICS__.getStatus().textureReplacements')==1
+    page.evaluate("""async () => {
+        document.querySelector('.weapon-name').textContent='SCAR';
+        const img=new Image();img.src='/assets/img/texture.b3fc7981.webp';await img.decode();
+        const gl=document.querySelector('#game').getContext('webgl2');
+        gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
+        const preview=document.querySelector('.weapon-cont img');preview.src='/thumbnail-only'; 
+    }""")
+    assert page.evaluate('__KS_WEBGL_COSMETICS__.verifiedPreview()').endswith('texture.b3fc7981.webp')
+    assert page.evaluate('__KS_WEBGL_COSMETICS__.compatibility().replacementsForTexture')==0
+    page.evaluate("document.querySelector('.weapon-name').textContent='Unknown'")
+    assert page.evaluate('__KS_WEBGL_COSMETICS__.verifiedPreview()')==''
     page.add_script_tag(content=(scripts/'advanced_integration.js').read_text())
     page.evaluate("""() => {
         const list=document.querySelector('.friends .list');

@@ -256,8 +256,8 @@
        '<label class="ks-row">Enable local cosmetic styling <input type="checkbox" id="ks-wk-weapon-on" '+(cfg.weapon.enabled?'checked':'')+'></label>'+
        btn('weapon-apply','Apply cosmetics')+' '+btn('weapon-reset','Clear cosmetics'))+
      card('3D Weapon Studio (experimental exact-match WebGL)',
-       '<p class="ks-hint">Enable texture discovery before loading a weapon. Choose its skin image, then bind the selected weapon. The preview image must also appear in a game texture upload. Shared game textures can affect multiple models.</p>'+
-       btn('gallery','Open Workshop Gallery')+' '+btn('gl-discovery',glCfg().discover?'Stop texture discovery':'Start texture discovery')+' '+btn('gl-auto-bind','Bind skin to selected weapon')+' '+btn('gl-probe','Identify visible weapon image')+' '+btn('gl-use-probe','Use observed texture')+
+       '<p class="ks-hint">Enable texture discovery before loading a weapon. Choose its skin image, then bind the selected weapon. Detection uses an uploaded preview texture or a recognized default weapon texture from the game canvas. Shared game textures can affect multiple models.</p>'+
+       btn('gallery','Open Workshop Gallery')+' '+btn('gl-discovery',glCfg().discover?'Stop texture discovery':'Start texture discovery')+' '+btn('gl-auto-bind','Bind skin to selected weapon')+' '+btn('gl-report','Live compatibility report')+' '+btn('gl-probe','Identify visible weapon image')+' '+btn('gl-use-probe','Use observed texture')+
        input('gl-source','Original Kirka texture URL (exact HTTPS asset)',glCfg().assetURL||'')+
        input('gl-skin','Custom 3D Skin Link (HTTPS CORS image)',glCfg().skinURL?.startsWith('data:')?'':glCfg().skinURL||'')+
        '<label class="ks-row"><span>Local skin image</span><input id="ks-wk-gl-file" type="file" accept="image/png,image/jpeg,image/webp"></label>'+
@@ -484,6 +484,10 @@
      status=name?'Waiting for the native Spectate control for '+name:'Enter the exact visible name.';
    }else if(a==='watch-cancel'){
      watchFriend=null;status='Friend spectate request cancelled.';
+   }else if(a==='gl-report'){
+     const report=window.__KS_WEBGL_COSMETICS__?.compatibility?.();
+     if(!report)throw Error('Game renderer unavailable.');
+     status=JSON.stringify(report);downloadJSON(report,'KS-live-weapon-check.json');
    }else if(a==='gl-discovery'){
      const config=glCfg();config.discover=!config.discover;saveGraphics(config);
      status=config.discover?'Discovery on. Open or reload the weapon in Kirka.':'Texture discovery stopped.';
