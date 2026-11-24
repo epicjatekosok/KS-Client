@@ -10,7 +10,7 @@ toolbar="""<div class="settings-and-socicons"><a class="soc-group" href="https:/
 with sync_playwright() as pw:
     browser=pw.chromium.launch()
     page=browser.new_page()
-    page.route('https://kirka.io/**',lambda r:r.fulfill(body='<div class="interface">'+toolbar+'</div>',content_type='text/html'))
+    page.route('https://kirka.io/**',lambda r:r.fulfill(body='<style>.settings-and-socicons{position:fixed;right:0;top:0;width:379px;display:flex}.settings-holder{position:fixed;top:20%;left:20%}</style><div class="interface">'+toolbar+'</div>',content_type='text/html'))
     page.goto('https://kirka.io/')
     page.evaluate("""() => {
       window.sent=[];window.stockCalls=0;window.__KS_NATIVE__={post:m=>sent.push(m)};

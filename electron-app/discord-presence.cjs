@@ -21,7 +21,7 @@ function createPresence({connect=net.createConnection,report=()=>{},retryMs=1500
         update('waiting');timer=setTimeout(()=>attempt(0),retryMs);timer.unref?.();return;
       }
       const pipe=connect({path:'\\\\.\\pipe\\discord-ipc-'+index});
-      socket=pipe;let pending=Buffer.alloc(0),ready=false,accepted=false;
+      socket=pipe;let pending=Buffer.alloc(0),ready=false,accepted=false,rejected=false;
       const nonce='ks-'+pid;
       function frame(op,payload){
         const body=Buffer.isBuffer(payload)?payload:Buffer.from(JSON.stringify(payload));
@@ -42,7 +42,7 @@ function createPresence({connect=net.createConnection,report=()=>{},retryMs=1500
           if(op===3){frame(4,data);continue;}
           if(op!==1)continue;
           let msg;try{msg=JSON.parse(data);}catch{pipe.destroy();return;}
-          if(msg?.evt==='ERROR'){update('rejected');pipe.destroy();return;}
+          if(msg?.evt==='ERROR'){rejected=true;update('rejected');pipe.destroy();return;}
           if(!ready&&msg?.evt==='READY'){
             ready=true;frame(1,{cmd:'SET_ACTIVITY',nonce,args:{pid,activity:{
               type:0,details:'Playing Kirka.io',state:'KS Client',timestamps:{start:started}
@@ -56,8 +56,8 @@ function createPresence({connect=net.createConnection,report=()=>{},retryMs=1500
       pipe.once('close',()=>{
         if(current!==generation)return;
         socket=null;
-        if(accepted||ready||status==='rejected'){
-          if(status!=='rejected')update('waiting');
+        if(accepted||ready||rejected){
+          if(!rejected)update('waiting');
           timer=setTimeout(()=>attempt(0),retryMs);timer.unref?.();
         }else attempt(index+1);
       });
