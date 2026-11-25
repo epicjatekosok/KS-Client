@@ -141,3 +141,16 @@ advance(2400,240);
 assert(Math.abs(deliveries-lowSteps-300)<=1);
 assert(p.getStats().nativeWakes-lowWakes<=650,'30 FPS should sleep through intermediate 240 Hz refreshes');
 win.cancelAnimationFrame(pending);
+
+for (const hz of [60,75,120,144,165,180,200,240,280,300,360,480,540]) {
+  p.setRefreshRate(hz);
+  for (const cap of [0,30,60,75,90,120,144,165,180,200,240,280,300,360,480,500,1000,137]) {
+    p.setLimit(cap);
+    deliveries=0;
+    pending=win.requestAnimationFrame(game);
+    advance(hz*3,hz);
+    win.cancelAnimationFrame(pending);
+    assert(Math.abs(deliveries/3-Math.min(hz,cap||hz))<=1,JSON.stringify({hz,cap,deliveries}));
+  }
+}
+console.log('PASS 221 monitor/target combinations on simulated native clocks (60–540 Hz)');

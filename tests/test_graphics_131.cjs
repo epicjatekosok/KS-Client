@@ -10,6 +10,8 @@ const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'ks-recovery-test-'));
 try {
   const desired={...defaults,angle:'vulkan'};
   host.recovery(tmp,desired,defaults,true);
+  const clean=host.recovery(tmp,desired,defaults,false);
+  clean.close();
   const journal=path.join(tmp,'graphics-startup.json');
   const crash=()=>{const rec=JSON.parse(fs.readFileSync(journal));rec.pid=2147483647;fs.writeFileSync(journal,JSON.stringify(rec));};
   crash();
@@ -19,6 +21,10 @@ try {
   const good=host.recovery(tmp,desired,defaults,true);good.confirm();
   desired.angle='vulkan';host.recovery(tmp,desired,defaults,true);crash();
   host.recovery(tmp,desired,defaults,true);assert.equal(desired.angle,'opengl');
+  desired.angle='software';
+  host.recovery(tmp,desired,defaults,true).close();
+  assert.equal(host.recovery(tmp,desired,defaults,true).message,'');
+  assert.equal(desired.angle,'software');
 } finally { fs.rmSync(tmp,{recursive:true,force:true}); }
 const hardware=host.describe({gpuDevice:[{active:false,vendorId:32902},{active:true,vendorId:4318,deviceString:'fixture RTX',driverVersion:'123'}],auxAttributes:{glRenderer:'ANGLE (NVIDIA, Direct3D11 vs_5_0)'}},{gpu_compositing:'enabled'});
 assert.equal(hardware.vendor,'NVIDIA');assert.equal(hardware.backend,'d3d11');
@@ -43,3 +49,7 @@ console.log('PASS actual document-start bundle, authenticated origin, backend id
 const workflow=fs.readFileSync(path.join(__dirname,'../.github/workflows/windows-build.yml'),'utf8');
 assert(workflow.includes("github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'"));
 assert(workflow.includes('--draft --prerelease'));
+
+const [sensor]=host.parseNvidiaSensors('GPU-abc123, 0, 12.7, 41, [N/A], 16384');
+assert.deepEqual(sensor,{uuid:'GPU-abc123',load:0,watts:12.7,temperature:41,used:null,capacity:16384});
+assert.deepEqual(host.parseNvidiaSensors('No devices found'),[]);

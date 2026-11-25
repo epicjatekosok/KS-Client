@@ -182,6 +182,9 @@ jobs:
       - name: Measure actual WebGL output at fixed resolutions
         shell: pwsh
         run: ./ci/Test-GameResolution.ps1
+      - name: Measure visible Electron frames and native PresentMon intervals
+        shell: pwsh
+        run: ./ci/Test-FrameOutput.ps1
       - name: Real Windows Electron startup smoke test
         shell: pwsh
         run: ./ci/Test-Engines.ps1 -Engine Electron

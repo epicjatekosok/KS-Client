@@ -10,7 +10,14 @@
   if(location.protocol!=='https:' || !['kirka.io','www.kirka.io'].includes(location.hostname))return;
   const KEY='ksclient.settings.alpha';
   const match=()=>window.__KS_GAME_RUNTIME__ ? window.__KS_GAME_RUNTIME__.scene==='match' : /^\/(games\/|hub\/ranked)/.test(location.pathname);
-  function settings(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(_){return {}}}
+  let cachedText, cachedSettings = {};
+  function settings(){
+    try {
+      const text = localStorage.getItem(KEY);
+      if(text!==cachedText){cachedSettings=JSON.parse(text||'{}');cachedText=text;}
+      return cachedSettings;
+    } catch { return {}; }
+  }
   let state=settings();
   const root=document.createElement('div');
   root.id='ks-game-extras';
@@ -94,18 +101,22 @@
   document.addEventListener('pointerlockchange',()=>{
     refresh();
 
-    if(nativeCursor())relativeMoves=0;
+    if(nativeCursor()){
+      relativeMoves=0;
+      document.addEventListener('mousemove',countMove,{capture:true,passive:true});
+    }else document.removeEventListener('mousemove',countMove,true);
   },true);
   document.addEventListener('pointerlockerror',()=>{
     lockErrors++;
 
     console.warn('[KS Client] Pointer lock failed: inspect native focus and permissions');
   },true);
-  document.addEventListener('mousemove',event=>{
-    if(!nativeCursor()||!event.isTrusted)return;
+  function countMove(event){
+    if(!event.isTrusted)return;
     if(event.movementX===0&&event.movementY===0)return;
     relativeMoves++;
-  },true);
+  }
+  if(nativeCursor())document.addEventListener('mousemove',countMove,{capture:true,passive:true});
   function firstText(selectors){
     for(const selector of selectors){
       const el=document.querySelector(selector);

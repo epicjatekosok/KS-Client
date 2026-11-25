@@ -68,6 +68,7 @@ if __name__ == '__main__':
     parser.add_argument('csv', type=Path)
     parser.add_argument('--pid', type=int)
     parser.add_argument('--swapchain')
+    parser.add_argument('--all-chains', action='store_true', help='Summarize each KS process and swap chain separately')
     args = parser.parse_args()
     try:
         with args.csv.open(encoding='utf-8-sig', newline='') as capture:
@@ -77,7 +78,13 @@ if __name__ == '__main__':
                     if PureWindowsPath(row['Application']).name.lower() in ENGINES:
                         key=(row['ProcessID'],row['SwapChainAddress'])
                         groups[key]=groups.get(key,0)+1
+                if not groups and args.all_chains:
+                    print('No KS swap chain observed; native FPS unavailable')
                 for (pid, chain), rows in groups.items():
+                    if args.all_chains:
+                        capture.seek(0)
+                        print(json.dumps(dict(process=pid, swapchain=chain, **summarize(capture,pid,chain)), allow_nan=False))
+                        continue
                     print(f'--pid {pid} --swapchain {chain}   ({rows} capture rows)')
             elif args.pid is None or args.swapchain is None:
                 parser.error('Select both --pid and --swapchain')

@@ -251,6 +251,7 @@ try { aboveRefresh=fs.readFileSync(fixedMarker,'utf8')==='above-refresh'; } catc
 let desired=loadPrefs();
 if(safeMode) desired={...desired,gpu:'enabled',angle:'default',uncapFps:false};
 const startup=graphicsHost.recovery(ROOT,desired,DEFAULT_PREFS,!selfTest&&!switchProbe&&!safeMode);
+app.once('will-quit',()=>startup.close());
 if(startup.message) { try { savePrefs(desired); } catch(e) { log(e.message); } log(startup.message); }
 const wantsUnlock=()=>!safeMode && desired.gpu!=='disabled' && (fixedTarget ? aboveRefresh : desired.uncapFps);
 const active={...desired,uncapFps:wantsUnlock()};
@@ -700,10 +701,11 @@ function receiveMessage(event, raw){
       const total=(items,read)=>items.length && items.every(i=>Number.isFinite(read(i))) ? items.reduce((n,i)=>n+read(i),0) : null;
       const host=metrics.find(item=>item.pid===process.pid);
       const owner=win.webContents;
-      void gpuDetails().then(hardware=>{
+      void gpuDetails().then(async hardware=>{
+        const sensors=hardware.devices.some(device=>device.vendor==='NVIDIA') ? await graphicsHost.nvidiaSensors() : [];
         if(!win||win.isDestroyed()||owner!==win.webContents)return;
         jsCall('setDiagnostics',{
-        hardware,display:graphicsHost.displayInfo(screen,win),gpuProcess:metrics.find(x=>x.type==='GPU')?.pid,
+        hardware,sensors,display:graphicsHost.displayInfo(screen,win),gpuProcess:metrics.find(x=>x.type==='GPU')?.pid,
         graphicsFault, browserCPU:total(children,i=>i.cpu?.percentCPUUsage),
         browserRAM:total(children,i=>i.memory?.workingSetSize/1024),
         browserProcesses:metrics.length||null,

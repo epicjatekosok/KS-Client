@@ -663,8 +663,8 @@
        The controls and native settings integration remain unchanged. */
     #ks-dimmer {
       background:rgba(2,3,7,.83);
-      backdrop-filter:blur(10px);
-      -webkit-backdrop-filter:blur(10px);
+      backdrop-filter:none;
+      -webkit-backdrop-filter:none;
     }
     #ks-panel {
       --ks-orange:#ff8e00;
@@ -1275,7 +1275,7 @@
   let browserWebGL = { webgl:'Not tested', webgl2:'Not tested', renderer:'Not checked', compositing:'Not accessible from WebGL' };
   const browserGroups = new Set(['Browser Graphics','Browser Controls','Browser GPU Info']);
   function browserSelect(label, description, key, options) {
-    return `<div class="ks-row"><div><div class="ks-label">${label}</div><div class="ks-desc">${description}</div></div><select class="ks-input" data-browser="${key}" ${!browserPrefsLoaded?'disabled':''}>${options.map(o=>`<option value="${esc(o.value)}" ${browserPrefs[key]===o.value?'selected':''}>${o.label}</option>`).join('')}</select></div>`;
+    return `<div class="ks-row"><div><div class="ks-label">${label}</div><div class="ks-desc">${description}</div></div><select class="ks-input" data-browser="${key}" ${!browserPrefsLoaded?'disabled':''}>${options.map(o=>`<option value="${esc(o.value)}" ${o.disabled?'disabled':''} ${browserPrefs[key]===o.value?'selected':''}>${o.label}</option>`).join('')}</select></div>`;
   }
   function browserCheckbox(label, description, key) {
     return `<div class="ks-row"><div><div class="ks-label">${label}</div><div class="ks-desc">${description}</div></div><input type="checkbox" data-browser="${key}" ${browserPrefs[key]?'checked':''} ${!browserPrefsLoaded?'disabled':''} aria-label="${label}"></div>`;
@@ -2814,9 +2814,9 @@
           `<div class="ks-card"><h3 class="ks-section-heading">ANGLE graphics backend</h3>`+
           browserSelect('ANGLE graphics backend','ANGLE changes and GPU startup flags require restarting KS Client.','angle',[
             {value:'default',label:'Automatic – Recommended'},
-            ...[...new Set([...availableBackends,...(browserPrefs.angle!=='default'?[browserPrefs.angle]:[])])].map(value=>({value,label:({
+            ...[...new Set([...availableBackends,...(browserPrefs.angle!=='default'?[browserPrefs.angle]:[])])].map(value=>({value,disabled:!availableBackends.includes(value),label:({
               d3d11:'Direct3D 11 · Windows hardware renderer',d3d11on12:'Direct3D 11 on 12 · translation layer',opengl:'OpenGL · desktop driver',
-              vulkan:'Vulkan · ANGLE Vulkan backend',software:'Software · Microsoft WARP compatibility mode'})[value]}))])+
+              vulkan:'Vulkan · ANGLE Vulkan backend',software:'Software · Microsoft WARP compatibility mode'})[value]+(availableBackends.includes(value)?'':' · saved, pending verification')}))])+
           '<button class="ks-btn" data-action="graphics-probe">Check available backends</button>'+
           '<p class="ks-hint">Checks draw a test pixel in a separate local Electron process. Restart KS Client after choosing a backend.</p>'+
           selectRow('Game GPU preference','Hint for the next game WebGL context. Reload the game to apply. Windows and the driver select the adapter.','gpuPreference',[
@@ -3052,12 +3052,19 @@
         'Game FPS (Kirka HUD)':readGameHUDValue(),'Browser callback FPS':pacer?.estimatedCallbackFPS||null,
         'Active callback limit':pacer?(pacer.effectiveLimit||'Native / uncapped'):null,'Performance profile':state.performancePreset,
         'Render FPS':null,'Application Present FPS (live)':null,'Displayed FPS (live)':null,'VSync / VRR (observed)':null,
-        'GPU usage / power / temperature':null,'VRAM usage':null,'Last graphics fault':d?.graphicsFault||'None reported'};
+        ...(d?.sensors?.length?{}:{'GPU usage / power / temperature':null,'VRAM usage':null}),'Last graphics fault':d?.graphicsFault||'None reported'};
+      for(const sensor of d?.sensors||[]){
+        const unit=(v,suffix)=>Number.isFinite(v)?v+' '+suffix:L('Unavailable');
+        rows['NVIDIA adapter '+sensor.uuid]=[
+          'GPU '+unit(sensor.load,'%'),unit(sensor.watts,'W'),unit(sensor.temperature,'°C'),
+          'VRAM '+unit(sensor.used,'MiB')+' / '+unit(sensor.capacity,'MiB')
+        ].join(' · ');
+      }
       const fragment=document.createDocumentFragment();
       for(const [label,value] of Object.entries(rows)){
         const row=document.createElement('div');row.className='ks-row';
         const name=document.createElement('span'),v=document.createElement('span');v.className='ks-code';
-        name.textContent=L(label);v.textContent=value||L('Unavailable');row.append(name,v);fragment.append(row);
+        name.textContent=L(label);v.textContent=value==null||value===''?L('Unavailable'):value;row.append(name,v);fragment.append(row);
       }
       details.replaceChildren(fragment);
     }

@@ -69,6 +69,29 @@ function describe(info = {}, features = {}) {
     compositing:features.gpu_compositing,webgl:features.webgl,webgl2:features.webgl2,
     cpu:os.cpus()[0]?.model,systemRAM:Math.round(os.totalmem()/1048576)};
 }
+// NVIDIA reports whole-adapter counters. Keep every adapter identified on hybrid systems.
+function parseNvidiaSensors(csv) {
+  return csv.trim().split(/\r?\n/).flatMap(line => {
+    const fields = line.split(',').map(value => value.trim());
+    if (fields.length !== 6 || !/^GPU-[a-f0-9-]+$/i.test(fields[0])) return [];
+    const number = raw => /^\d+(?:\.\d+)?$/.test(raw) ? Number(raw) : null;
+    const [load, watts, temperature, used, capacity] = fields.slice(1).map(number);
+    return [{uuid:fields[0], load, watts, temperature, used, capacity}];
+  });
+}
+let nextSensorRead = 0, sensorResult = Promise.resolve([]);
+function nvidiaSensors() {
+  if (process.platform !== 'win32' || !process.env.SystemRoot) return Promise.resolve([]);
+  if (Date.now() < nextSensorRead) return sensorResult;
+  nextSensorRead = Date.now()+5000;
+  const exe = path.join(process.env.SystemRoot,'System32','nvidia-smi.exe');
+  sensorResult = new Promise(resolve => {
+    execFile(exe,['--query-gpu=uuid,utilization.gpu,power.draw,temperature.gpu,memory.used,memory.total',
+      '--format=csv,noheader,nounits'],{windowsHide:true,timeout:1800,maxBuffer:16384},
+      (error,stdout) => resolve(error ? [] : parseNvidiaSensors(stdout)));
+  });
+  return sensorResult;
+}
 function displayInfo(screen,win) {
   const current = screen.getDisplayMatching(win.getBounds());
   const display = d => ({id:d.id,label:d.label||String(d.id),hz:d.displayFrequency>0?d.displayFrequency:null,
@@ -110,10 +133,16 @@ function recovery(root, prefs, defaults, enabled) {
     try { save(state); } catch { /* A read-only profile must still start. */ }
   };
   store({last,fallback,trial:pending ? selected : null,pid:owner});
-  return {message, confirm() {
+  let faulted = false;
+  return {message, close() {
+    // Closing while still at login is a clean, unverified trial. Retry the choice next launch.
+    if (!confirmed && !faulted) store({last,fallback,pid:owner});
+  }, confirm() {
+    faulted = false;
     if (!confirmed) { store({last:selected,fallback,pid:owner}); confirmed=true; }
   }, fail() {
+    faulted = true;
     if (enabled) { store({last:selected,fallback,trial:selected,pid:owner}); confirmed=false; }
   }};
 }
-module.exports = {backends,identify,runProbe,probeInstalled,describe,displayInfo,recovery};
+module.exports = {backends,identify,runProbe,probeInstalled,describe,displayInfo,recovery,nvidiaSensors,parseNvidiaSensors};
