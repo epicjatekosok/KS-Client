@@ -1,5 +1,9 @@
 # KS Client Beta 1.0.25
 
+## Beta 1.0.31
+
+See [Rendering, pacing and hardware diagnostics](RELEASE_BETA_131_EN.md).
+
 ## Beta 1.0.30
 
 See [Lobby controls, Discord and style imports](RELEASE_BETA_130_EN.md).

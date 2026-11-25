@@ -53,7 +53,7 @@ with sync_playwright() as pw:
       window.__KS_GAME_RUNTIME__.refresh();
     }""")
     assert page.evaluate('window.__KS_FRAME_PACER__.getStats().effectiveLimit') == 180
-    assert page.evaluate('window.__KS_FRAME_PACER__.getStats().nativeWakes') == 0
+    assert page.evaluate('window.__KS_FRAME_PACER__.getStats().nativeWakes') > 0
     assert cross.is_visible()
     assert not page.locator(".crosshair-dot").is_visible()
     page.evaluate("document.querySelector('canvas').style.cssText='position:fixed;left:43.5px;top:19px;width:407px;height:221px'")

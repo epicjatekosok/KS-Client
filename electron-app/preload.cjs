@@ -5,7 +5,7 @@ const ALLOWED=new Set(['kirka.io','www.kirka.io','kirka-stats.lovable.app','kirk
 if(location.protocol==='https:' && ALLOWED.has(location.hostname)){
   // Read-only engine identity is available synchronously, even if the IPC request
   // sent by the overlay races with the native host.
-  contextBridge.exposeInMainWorld('__KS_RUNTIME__',Object.freeze({engine:'Electron',clientVersion:'Beta 1.0.30'}));
+  contextBridge.exposeInMainWorld('__KS_RUNTIME__',Object.freeze({engine:'Electron',clientVersion:'Beta 1.0.31'}));
   contextBridge.exposeInMainWorld('__KS_NATIVE__',Object.freeze({post:(message)=>{
     if(message && typeof message==='object' && !Array.isArray(message))ipcRenderer.send('ks:message',message);
   }}));
@@ -27,7 +27,7 @@ if(location.protocol==='https:' && ALLOWED.has(location.hostname)){
     // Authenticated games keep every existing early browser/game feature.
     try{
       const src=ipcRenderer.sendSync('ks:early-bundle');
-      if(typeof src==='string'&&src.length>0&&src.length<50000){
+      if(typeof src==='string'&&src.length>0){
         webFrame.executeJavaScriptInIsolatedWorld(0,[{code:src}],false).catch(()=>{});
       }
     }catch(_){}

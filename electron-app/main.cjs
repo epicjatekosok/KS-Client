@@ -1,12 +1,18 @@
 'use strict';
-// KS Client Beta 1.0.30: real Electron host. No WebView2 dependency.
+// KS Client Beta 1.0.31: real Electron host. No WebView2 dependency.
 const { app, BrowserWindow, ipcMain, screen, dialog, session, shell } = require('electron');
 const {execFile,spawn}=require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const APP_VERSION = 'Beta 1.0.30';
+const graphicsHost = require('./graphics-host.cjs');
+const probeArg = process.argv.find(arg => arg.startsWith('--ks-probe-angle='));
+if (probeArg) {
+  graphicsHost.runProbe(app,BrowserWindow,probeArg.slice('--ks-probe-angle='.length));
+  return;
+}
+const APP_VERSION = 'Beta 1.0.31';
 const GAME = 'https://kirka.io/';
 const STATS = 'https://kirka-stats.lovable.app/';
 const CLANS = 'https://kirka-clan-tracker-notpro9.lovable.app/';
@@ -16,7 +22,7 @@ const ROOT = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(),'AppDa
 const PROFILE = path.join(ROOT,'ElectronProfile');
 const PREFS_FILE = path.join(ROOT, 'browser-settings.json');
 const UPDATE_PREFS_FILE = path.join(ROOT, 'updater-preferences.json');
-const LOG_FILE = path.join(ROOT, 'electron-1.0.30.log');
+const LOG_FILE = path.join(ROOT, 'electron-1.0.31.log');
 fs.mkdirSync(ROOT,{recursive:true});
 fs.mkdirSync(PROFILE,{recursive:true});
 app.setPath('userData', PROFILE);
@@ -77,7 +83,7 @@ function openKSDiscord(){
 }
 function normPrefs(o) {
   if (!o || typeof o !== 'object') o={};
-  return {gpu:o.gpu==='disabled'?'disabled':'enabled',angle:['d3d11','opengl'].includes(o.angle)?o.angle:'default',
+  return {gpu:o.gpu==='disabled'?'disabled':'enabled',angle:Object.hasOwn(graphicsHost.backends,o.angle)?o.angle:'default',
     devTools:o.devTools===true,contextMenu:o.contextMenu===true,uncapFps:o.uncapFps===true};
 }
 function loadPrefs(){ try{return normPrefs(JSON.parse(fs.readFileSync(PREFS_FILE,'utf8')))}catch(_){return {...DEFAULT_PREFS}} }
@@ -125,7 +131,7 @@ function updateSplashStatus(status){
 function emitUpdateStatus(payload){
   if(!payload || typeof payload!=='object'||Array.isArray(payload))return;
   const safe={state:String(payload.state||'error').slice(0,40),
-      current:String(payload.current||'1.0.30').slice(0,40),
+      current:String(payload.current||'1.0.31').slice(0,40),
       version:String(payload.version||'').slice(0,40),
       channel:String(payload.channel||nativeUpdatePreferences.channel).slice(0,12),
       message:String(payload.message||'').slice(0,380),
@@ -240,25 +246,34 @@ async function configureDriverLimit(value){
 }
 const fixedMarker=path.join(ROOT,'electron-fixed-frame-target');
 let fixedTarget=fs.existsSync(fixedMarker);
-let desired=safeMode?{...DEFAULT_PREFS}:loadPrefs();
-const active={...desired,uncapFps:desired.uncapFps&&!fixedTarget};
-if(safeMode)savePrefs(desired);
-// Chromium flags MUST be set before app.whenReady. Experimental; not guaranteed to unlock game FPS.
+let aboveRefresh=false;
+try { aboveRefresh=fs.readFileSync(fixedMarker,'utf8')==='above-refresh'; } catch {}
+let desired=loadPrefs();
+if(safeMode) desired={...desired,gpu:'enabled',angle:'default',uncapFps:false};
+const startup=graphicsHost.recovery(ROOT,desired,DEFAULT_PREFS,!selfTest&&!switchProbe&&!safeMode);
+app.once('will-quit',()=>startup.close());
+if(startup.message) { try { savePrefs(desired); } catch(e) { log(e.message); } log(startup.message); }
+const wantsUnlock=()=>!safeMode && desired.gpu!=='disabled' && (fixedTarget ? aboveRefresh : desired.uncapFps);
+const active={...desired,uncapFps:wantsUnlock()};
 if(active.gpu==='disabled')app.disableHardwareAcceleration();
-if(active.angle==='d3d11')app.commandLine.appendSwitch('use-angle','d3d11');
-if(active.angle==='opengl')app.commandLine.appendSwitch('use-angle','gl');
-let nativeFixed=false;
-if(fixedTarget && desired.uncapFps && !safeMode && active.gpu!=='disabled'){
-  try{nativeFixed=driverTarget(Number(require('node:child_process').execFileSync(driverTool,['read'],{encoding:'utf8',windowsHide:true,timeout:2500,stdio:['ignore','pipe','ignore']}).trim()));}catch{}
+else if(graphicsHost.backends[active.angle])app.commandLine.appendSwitch('use-angle',graphicsHost.backends[active.angle]);
+// Chromium 156 Viz disables begin-frame throttling in cc and display;
+// disable-frame-rate-limit also disables GPU vsync in this version.
+if(active.uncapFps)app.commandLine.appendSwitch('disable-frame-rate-limit');
+let verifiedBackends=[],probeRunning=false,lastProbe=0,gpuSnapshot=null;
+let graphicsFault='',gpuFailures=0;
+async function gpuDetails(){
+  if(!gpuSnapshot)gpuSnapshot=app.getGPUInfo('complete').then(info=>graphicsHost.describe(info,app.getGPUFeatureStatus()))
+    .catch(()=>{gpuSnapshot=null;return graphicsHost.describe();});
+  return gpuSnapshot;
 }
-if(active.uncapFps || nativeFixed){
-  // Experimental Chromium startup hints: these do NOT override the game engine,
-  // GPU driver, compositor, or physical monitor refresh limits.
-  for(const flag of ['disable-frame-rate-limit','disable-gpu-vsync']){
-    app.commandLine.appendSwitch(flag);
-  }
-  log('Experimental FPS unlock requested on Electron startup');
-}
+app.on('gpu-info-update',()=>{gpuSnapshot=null;});
+app.on('child-process-gone',(_event,details)=>{
+  if(details.type!=='GPU'||details.reason==='clean-exit')return;
+  gpuSnapshot=null;  verifiedBackends=[];
+  graphicsFault='GPU process: '+details.reason; log(graphicsFault);
+  if(++gpuFailures>=2) startup.fail();
+});
 let win=null;
 const {createPresence,publicId}=require('./discord-presence.cjs');
 const registeredDiscordId=publicId(process.env.KS_DISCORD_APPLICATION_ID,require('./discord-application.json').applicationId);
@@ -333,13 +348,18 @@ let currentURL=GAME;
 let menuResolution='native';
 let gameDisplay;
 const RES={720:[1280,720],1080:[1920,1080],1440:[2560,1440],2160:[3840,2160]};
-function needsRestart(){return active.gpu!==desired.gpu||active.angle!==desired.angle||active.uncapFps!==(desired.uncapFps&&!fixedTarget)}
+function needsRestart(){return active.gpu!==desired.gpu||active.angle!==desired.angle||active.uncapFps!==wantsUnlock()}
 function jsCall(name,...args){
   if(!win || win.isDestroyed() || !validURL(win.webContents.getURL()))return;
   const script=`window.__KS_CLIENT__?.${name}?.apply(window.__KS_CLIENT__, ${JSON.stringify(args)});`;
   win.webContents.executeJavaScript(script,true).catch(()=>{});
 }
-function browserConfig(status='') {jsCall('setBrowserConfig',desired,active,needsRestart(),status)}
+function browserConfig(status='') {
+  jsCall('setBrowserConfig',desired,active,needsRestart(),status||startup.message,verifiedBackends);
+}
+function sendDisplay() {
+  if(win&&!win.isDestroyed())jsCall('setDisplayInfo',graphicsHost.displayInfo(screen,win));
+}
 function runJS(code){if(win && !win.isDestroyed() && validURL(win.webContents.getURL()))win.webContents.executeJavaScript(code,true).catch(()=>{});}
 function navigate(url){if(!validURL(url))return;currentURL=url;win.loadURL(url).catch(e=>log(e.message));}
 function setWindowSize(preset) {
@@ -373,6 +393,16 @@ function createWindow(){
   win.on('resize',gameDisplay.apply);
   win.on('move',gameDisplay.apply);
   win.on('restore',gameDisplay.apply);
+  let displayTimer=null;
+  const displayChanged=()=>{clearTimeout(displayTimer);displayTimer=setTimeout(sendDisplay,100);};
+  for(const event of ['move','restore','enter-full-screen','leave-full-screen'])win.on(event,displayChanged);
+  for(const event of ['display-added','display-removed','display-metrics-changed'])screen.on(event,displayChanged);
+  win.once('closed',()=>{
+    clearTimeout(displayTimer);
+    for(const event of ['display-added','display-removed','display-metrics-changed'])screen.off(event,displayChanged);
+  });
+  win.on('unresponsive',()=>{graphicsFault='Game window unresponsive';startup.fail();log(graphicsFault);});
+
   win.webContents.on('did-start-navigation',(event,_url,inPlace,mainFrame)=>{
     if((event.isMainFrame ?? mainFrame) && !(event.isSameDocument ?? inPlace))gameDisplay.leave();
   });
@@ -385,7 +415,7 @@ function createWindow(){
     if(switchProbe)return;
     if(!validURL(win.webContents.getURL()))return;
     // Frame pacer is also installed at document start by preload where possible.
-    // The overlay runs after the page DOM exists, retaining its 1.0.30 settings UI.
+    // The overlay runs after the page DOM exists, retaining its 1.0.31 settings UI.
     try{
       // Let Kirka's original email/password and OAuth buttons handle their
       // own events without any injected KS listeners or render hooks.
@@ -417,7 +447,7 @@ function createWindow(){
       await win.webContents.executeJavaScript(freezeJS,true);
       sendActivityStatus();
       jsCall('setEngineInfo','Electron');
-      browserConfig();
+      sendDisplay();browserConfig();
     }catch(e){log('Overlay: '+e.message)}
 
     closeSplash();
@@ -549,7 +579,18 @@ function receiveMessage(event, raw){
     case 'discord-activity-save':void saveActivity(raw);break;
     case 'auth-help':jsCall('openAccountHelp');break;
     case 'fullscreen':win.setFullScreen(!win.isFullScreen());break;
-    case 'game-buffer-ready':gameDisplay.bufferReady();break;
+    case 'game-buffer-ready':gameDisplay.bufferReady();startup.confirm();break;
+    case 'game-context-lost':graphicsFault='Game WebGL context lost';startup.fail();log(graphicsFault);break;
+    case 'game-context-restored':graphicsFault='Game WebGL context restored';startup.confirm();log(graphicsFault);break;
+    case 'graphics-probe':{
+      if(probeRunning||process.platform!=='win32'||Date.now()-lastProbe<60000)break;
+      lastProbe=Date.now();
+      probeRunning=true;browserConfig('Checking each backend in an isolated local Electron process…');
+      void graphicsHost.probeInstalled(app).then(result=>{
+        verifiedBackends=result;browserConfig('Backend check finished. Verified on this machine: '+(result.join(', ')||'none'));
+      }).catch(e=>browserConfig('Backend check failed: '+e.message)).finally(()=>{probeRunning=false;});
+      break;
+    }
     case 'game-resolution':gameDisplay.select(String(raw.preset||'native'));break;
     case 'menu-resolution':setWindowSize(String(raw.preset||'native'));break;
     case 'engine-switch':switchEngine(raw.engine);break;
@@ -565,17 +606,22 @@ function receiveMessage(event, raw){
     case 'update-install':void installKSUpdate(['alpha','beta','stable'].includes(raw.channel)?raw.channel:'beta',raw.language);break;
     case 'nvidia-frame-limit':void configureDriverLimit(raw.fps);break;
     case 'frame-policy':{
-      if(typeof raw.enabled!=='boolean'||raw.enabled===fixedTarget)break;
+      const above=raw.enabled===true && raw.aboveRefresh===true;
+      if(typeof raw.enabled!=='boolean'||(raw.enabled===fixedTarget && above===aboveRefresh))break;
       try{
-        if(raw.enabled){fs.mkdirSync(ROOT,{recursive:true});fs.writeFileSync(fixedMarker,'1');}
+        if(raw.enabled){fs.mkdirSync(ROOT,{recursive:true});fs.writeFileSync(fixedMarker,above?'above-refresh':'1');}
         else fs.rmSync(fixedMarker,{force:true});
-        fixedTarget=raw.enabled;browserConfig();
+        fixedTarget=raw.enabled;aboveRefresh=above;browserConfig();
       }catch(e){browserConfig('Could not save frame policy: '+e.message);}
       break;
     }
     case 'browser-config':browserConfig();break;
     case 'browser-save':{
-      desired=normPrefs(raw.browser);
+      const next=normPrefs(raw.browser);
+      if(next.angle!==desired.angle && next.angle!=='default' && !verifiedBackends.includes(next.angle)){
+        browserConfig('Check available backends before selecting this renderer.'); break;
+      }
+      desired=next;
       try{savePrefs(desired);browserConfig(needsRestart()?'Saved. Restart to apply Chromium launch switches.':'Browser preferences saved.');}
       catch(e){browserConfig('Could not save: '+e.message)}
       break;
@@ -640,7 +686,7 @@ function receiveMessage(event, raw){
         requested:desired.uncapFps,
         activeAtStartup:active.uncapFps,
         frameRateLimitSwitch:app.commandLine.hasSwitch('disable-frame-rate-limit'),
-        gpuVsyncSwitch:app.commandLine.hasSwitch('disable-gpu-vsync'),
+        gpuVsyncSwitch:app.commandLine.hasSwitch('disable-frame-rate-limit') || app.commandLine.hasSwitch('disable-gpu-vsync'),
         gpuAccelerationRequested:active.gpu!=='disabled',
         note:'Native startup switches only; no claim of actual game/GPU FPS.'
       });
@@ -652,19 +698,21 @@ function receiveMessage(event, raw){
       let metrics=[];
       try {metrics=app.getAppMetrics();}catch(e){log('Electron metrics: '+e.message);}
       const children=metrics.filter(item=>item.pid!==process.pid);
-      const cpu=item=>Number.isFinite(item?.cpu?.percentCPUUsage)?Math.max(0,item.cpu.percentCPUUsage):0;
-      const ram=item=>Number.isFinite(item?.memory?.workingSetSize)?Math.max(0,item.memory.workingSetSize/1024):0;
-      let hostCPU=0;
-      try {hostCPU=Math.max(0,process.getCPUUsage().percentCPUUsage||0);}catch(_){}
-      jsCall('setDiagnostics',{
-        browserCPU:children.reduce((sum,item)=>sum+cpu(item),0),
-        browserRAM:children.reduce((sum,item)=>sum+ram(item),0),
-        browserProcesses:1+children.length,
-        clientCPU:hostCPU,
-        clientRAM:Math.round(process.memoryUsage().rss/1048576),
+      const total=(items,read)=>items.length && items.every(i=>Number.isFinite(read(i))) ? items.reduce((n,i)=>n+read(i),0) : null;
+      const host=metrics.find(item=>item.pid===process.pid);
+      const owner=win.webContents;
+      void gpuDetails().then(async hardware=>{
+        const sensors=hardware.devices.some(device=>device.vendor==='NVIDIA') ? await graphicsHost.nvidiaSensors() : [];
+        if(!win||win.isDestroyed()||owner!==win.webContents)return;
+        jsCall('setDiagnostics',{
+        hardware,sensors,display:graphicsHost.displayInfo(screen,win),gpuProcess:metrics.find(x=>x.type==='GPU')?.pid,
+        graphicsFault, browserCPU:total(children,i=>i.cpu?.percentCPUUsage),
+        browserRAM:total(children,i=>i.memory?.workingSetSize/1024),
+        browserProcesses:metrics.length||null,
+        clientCPU:host?.cpu?.percentCPUUsage,clientRAM:Math.round(process.memoryUsage().rss/1048576),
         engine:'Electron',
         sampling:'Native Electron process metrics (host and child Chromium processes). CPU is sampled since the previous call; the first sample can be zero.'
-      });
+      });}).catch(e=>log('Diagnostics: '+e.message));
       break;
     }
     case 'crash-status':jsCall('setCrashStatus','Electron log: '+LOG_FILE);break;
@@ -749,7 +797,7 @@ app.whenReady().then(()=>{
   log('FPS startup flags: '+JSON.stringify({
     requested:active.uncapFps,
     frameRateLimitSwitch:app.commandLine.hasSwitch('disable-frame-rate-limit'),
-    gpuVsyncSwitch:app.commandLine.hasSwitch('disable-gpu-vsync')
+    gpuVsyncSwitch:app.commandLine.hasSwitch('disable-frame-rate-limit') || app.commandLine.hasSwitch('disable-gpu-vsync')
   }));
   createWindow();
   if(!switchProbe)applyActivity();

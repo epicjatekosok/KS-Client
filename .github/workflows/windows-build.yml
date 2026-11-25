@@ -2,6 +2,11 @@ name: KS Client - Windows verified engines
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish the verified Windows release'
+        type: boolean
+        default: false
   pull_request:
     branches: [main]
     paths:
@@ -53,7 +58,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.x'
-      - name: Cross-compile 1.0.30 Windows launcher and updater
+      - name: Cross-compile 1.0.31 Windows launcher and updater
         shell: bash
         run: |
           cd launcher
@@ -132,6 +137,7 @@ jobs:
           node tests/test_native_login_111.cjs
           node tests/test_redline_navigation_112.cjs
           node tests/test_version_cef_links_113.cjs
+          node tests/test_graphics_131.cjs
           node tests/test_beta_114.cjs
 
   offline-installer:
@@ -176,6 +182,9 @@ jobs:
       - name: Measure actual WebGL output at fixed resolutions
         shell: pwsh
         run: ./ci/Test-GameResolution.ps1
+      - name: Measure visible Electron frames and native PresentMon intervals
+        shell: pwsh
+        run: ./ci/Test-FrameOutput.ps1
       - name: Real Windows Electron startup smoke test
         shell: pwsh
         run: ./ci/Test-Engines.ps1 -Engine Electron
@@ -228,9 +237,22 @@ jobs:
       # No upload-artifact/download-artifact: GitHub Actions artifact storage is
       # full. The verified ZIP and EXE are published directly via Releases.
       - name: Publish verified ZIP and EXE directly to GitHub Releases
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KS_PUBLIC_RELEASE_TOKEN: ${{ secrets.KS_PUBLIC_RELEASE_TOKEN }}
         run: ./ci/Publish-Release.ps1
+      # Maintainers can retrieve a tested candidate without publishing a tag,
+      # consuming Actions artifact storage or notifying the client updater.
+      - name: Stage requested maintainer test package as an unpublished draft
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.event.pull_request.title, '[test package]')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $manifest = Get-Content RELEASE-MANIFEST.json -Raw | ConvertFrom-Json
+          $files = @($manifest.files.name) + @('RELEASE-MANIFEST.json','SHA256SUMS.txt')
+          $tag = "qa-$($manifest.version)-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          gh release create $tag @files --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --draft --prerelease --title "KS Client $($manifest.version) · Windows QA" --notes "Unpublished test package from workflow $env:GITHUB_RUN_ID. Public distribution requires separate approval."
+          if ($LASTEXITCODE) { throw 'Could not stage the unpublished test package.' }
