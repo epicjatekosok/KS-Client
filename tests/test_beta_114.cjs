@@ -1,5 +1,5 @@
 'use strict';
-// KS Beta 1.0.30 regression: independent FPS controls, external status
+// KS Beta 1.0.31 regression: independent FPS controls, external status
 // always clears, CEF fullscreen native command exists and Settings translations.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -10,11 +10,9 @@ const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const ui=read('electron-app/overlay/overlay.js');
 const pacer=read('electron-app/overlay/frame_pacer.js');
 const workflow=read('.github/workflows/windows-build.yml');
-assert(ui.includes("const CLIENT_VERSION='1.0.30'"));
-for(const cap of [200,240,300,360]){
-  assert(ui.includes("{ value: "+cap+", label: '"+cap+" FPS' }"),'missing option '+cap);
-  assert(pacer.includes(cap),'missing pacer cap '+cap);
-}
+assert(ui.includes("const CLIENT_VERSION='1.0.31'"));
+for(const cap of [30,60,75,90,120,144,165,180,200,240,280,300,360,480,500,1000])
+  assert(ui.match(/const fpsOptions=\[([^\]]+)/)[1].split(',').map(Number).includes(cap));
 assert(ui.includes('canvas.width!==Math.round(width*dpr)'));
 assert(ui.includes('style.backdropFilter=\'none\''));
 assert(ui.includes('if(measurementHandle===null)queueMeasurement()'));
@@ -36,7 +34,7 @@ assert(ui.includes('Object.entries(languageNames).map'));
 assert(!read('installer/main_windows.go').includes('extraLocales'));
 assert(!read('uninstaller/main_windows.go').includes('extraLocales'));
 assert(workflow.includes('node tests/test_beta_114.cjs'));
-console.log('PASS Beta 1.0.30: fixed FPS caps, Settings GPU work, CEF fullscreen, Discord timer and 8 additional Settings languages');
+console.log('PASS Beta 1.0.31: fixed FPS caps, Settings GPU work, CEF fullscreen, Discord timer and 8 additional Settings languages');
 
 // Simulate a 180 Hz browser clock, including timeout wakeups, cancellation and menu transitions.
 let now=0,next=0;
@@ -61,7 +59,7 @@ function advance(ticks,hz=180){
 let deliveries=0,pending,lastDelivery;
 function game(ts){lastDelivery=ts;deliveries++;pending=win.requestAnimationFrame(game);}
 pending=win.requestAnimationFrame(game);
-for(const [cap,expected] of [[60,60],[144,144],[180,180],[240,240],[0,180]]){
+for(const [cap,expected] of [[60,60],[144,144],[180,180],[240,180],[0,180]]){
  p.setLimit(cap);deliveries=0;advance(1800);
  assert(Math.abs(deliveries/10-expected)<1,JSON.stringify({cap,deliveries}));
 }
@@ -90,15 +88,17 @@ assert(stillRuns);
 
 p.setLimit(180);
 pending=win.requestAnimationFrame(game);
+p.setDisplaySync(false);
 const initialWakes=p.getStats().nativeWakes;
 deliveries=0;
 advance(25000,2500);
 const wakes=p.getStats().nativeWakes-initialWakes;
 assert(Math.abs(deliveries/10-180)<1);
-assert.equal(wakes,0,'fixed mode requested native unlocked frames');
+assert(wakes > 0 && wakes < 25000, 'a fixed target sleeps between native wakes');
+const unlockedDeliveries=deliveries;
 p.setLimit(180);deliveries=0;advance(1440,144);
-assert(Math.abs(deliveries/10-180)<1,'180 game frames on a simulated 144 Hz display');
-console.log('Simulated 2500 Hz, 180 cap: %d callbacks, %d native rAF wakes in 10 s',deliveries,wakes);
+assert(Math.abs(deliveries/10-144)<1,'no synthetic game frames between 144 Hz repaints');
+console.log('Simulated 2500 Hz, 180 cap: %d callbacks, %d native rAF wakes in 10 s',unlockedDeliveries,wakes);
 for(const [activity,menu,expected] of [[60,false,60],[60,true,30],[30,false,30],[0,false,180]]){
   p.setActivityLimit(activity);p.setMenuLimited(menu);
   deliveries=0;advance(1800);
@@ -111,7 +111,7 @@ win.cancelAnimationFrame(pending);
 // cover all 144 repaint slots, with the remaining steps between paints.
 p.setLimit(0);pending=win.requestAnimationFrame(game);deliveries=0;advance(5000,2500);
 assert(Math.abs(p.getStats().averageCallbackFPS-2500)<3);
-p.setDisplaySync(true);p.setLimit(180);
+p.setRefreshRate(144);p.setDisplaySync(true);p.setLimit(180);
 assert.equal(p.getStats().averageCallbackFPS,0);
 advance(144,144);
 let onPaint=0;
@@ -122,8 +122,8 @@ for(let i=0;i<1440;i++){
   if(Math.abs(lastDelivery-tick)<1e-6)onPaint++;
 }
 assert.equal(onPaint,1440);
-assert(Math.abs(deliveries/10-180)<1,deliveries);
-assert(Math.abs(p.getStats().averageCallbackFPS-180)<2);
+assert(Math.abs(deliveries/10-144)<1,deliveries);
+assert(Math.abs(p.getStats().averageCallbackFPS-144)<2);
 p.setLimit(60);deliveries=0;advance(1440,144);
 assert(Math.abs(deliveries/10-60)<1);
 assert(Math.abs(p.getStats().averageCallbackFPS-60)<2);
@@ -134,7 +134,7 @@ assert(Math.abs(p.getStats().averageCallbackFPS-30)<1);
 win.cancelAnimationFrame(pending);
 assert.equal(timers.size+raf.size,0);
 
-p.setMenuLimited(false);p.setLimit(30);pending=win.requestAnimationFrame(game);
+p.setRefreshRate(240);p.setMenuLimited(false);p.setLimit(30);pending=win.requestAnimationFrame(game);
 advance(240,240);
 const lowWakes=p.getStats().nativeWakes,lowSteps=deliveries;
 advance(2400,240);

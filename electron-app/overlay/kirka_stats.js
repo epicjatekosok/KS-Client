@@ -167,9 +167,9 @@
     if(document.pointerLockElement||window.__KS_GAME_RUNTIME__?.getStatus?.()?.scene==='match')return;
     if(host.hidden){previousFocus=document.activeElement;stack=[];state=null;}
     try{language=JSON.parse(localStorage.getItem('ksclient.settings.alpha')||'{}').language||'en';}catch{}
-    window.__KS_CLIENT__?.close?.();host.hidden=false;go(kind,arg,filter);(aside.querySelector('input')||at('header button:last-child')).focus();
+    window.__KS_CLIENT__?.close?.();host.hidden=false;window.dispatchEvent(new Event('ks-stats-visibility'));go(kind,arg,filter);(aside.querySelector('input')||at('header button:last-child')).focus();
   }
-  function close(){if(host.hidden)return;clearTimeout(timer);generation++;busy=false;host.hidden=true;state=null;stack=[];main.replaceChildren();
+  function close(){if(host.hidden)return;clearTimeout(timer);generation++;busy=false;host.hidden=true;window.dispatchEvent(new Event('ks-stats-visibility'));state=null;stack=[];main.replaceChildren();
     if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});}
   host.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();close();}
     if(e.key==='Tab'){const nodes=[...root.querySelectorAll('button:not(:disabled),input,select,summary')];
@@ -178,7 +178,7 @@
   host.addEventListener('click',e=>{if(e.composedPath()[0]===host)close();});
   document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement)close();});
   document.addEventListener('visibilitychange',()=>{clearTimeout(timer);if(!document.hidden&&!host.hidden)reload();});
-  window.__KS_KIRKA_STATS__=Object.freeze({open,close});
+  window.__KS_KIRKA_STATS__=Object.freeze({open,close,isOpen:()=>!host.hidden});
   const surfaces=[
     ['.clans,.my-clan,.champions-container,.list-top:has(.clan-name)','clans','Clans'],
     ['.trade-window,.inventory,.marketplace,.market','market','Market'],

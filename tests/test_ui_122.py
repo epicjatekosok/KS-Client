@@ -33,21 +33,21 @@ with sync_playwright() as p:
     bg:getComputedStyle(p).backgroundColor};
   }""")
   assert info['title']=='Settings' and info['groups']==7 and info['selected']=='Graphics',info
-  assert info['icons']==7 and info['presets']==3 and info['width']>1100,info
+  assert info['icons']==7 and info['presets']==6 and info['width']>1100,info
   assert info['bg']=='rgb(8, 10, 14)',info
-  for preset,height,smooth in [('Low','720',False),('Balanced','1080',True),('High Performance','2160',True)]:
+  for preset,height,smooth in [('Low','720',False),('Medium','1080',True),('High','1440',True),('Ultra','2160',True)]:
    page.locator(f'[data-preset="{preset}"]').click()
    saved=page.evaluate("JSON.parse(localStorage.getItem('ksclient.settings.alpha'))")
    assert (saved['gameResolution'],saved['smoothGameEdges'],saved['fpsLimit'])==(height,smooth,0),saved
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-preset="Low"]').click()""")
-  assert page.evaluate("JSON.parse(localStorage.getItem('ksclient.settings.alpha')).performancePreset")=='Low'
+  assert page.evaluate("JSON.parse(localStorage.getItem('ksclient.settings.alpha')).qualityProfile")=='Low'
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-cancel').click()""")
   assert not page.evaluate("window.__KS_CLIENT__.isSettingsOpen()")
-  assert page.evaluate("JSON.parse(localStorage.getItem('ksclient.settings.alpha')).performancePreset")=='Balanced'
+  assert page.evaluate("JSON.parse(localStorage.getItem('ksclient.settings.alpha')).qualityProfile")=='Native'
   page.evaluate('window.__KS_CLIENT__.open()')
-  page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-preset="High Performance"]').click()""")
+  page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('[data-preset="High"]').click()""")
   page.evaluate("""() => document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-apply').click()""")
-  assert page.evaluate("JSON.parse(localStorage.getItem('ksclient.settings.alpha')).performancePreset")=='High Performance'
+  assert page.evaluate("JSON.parse(localStorage.getItem('ksclient.settings.alpha')).qualityProfile")=='High'
   page.evaluate('window.__KS_CLIENT__.open()')
   categories={}
   for name in ('Graphics','Display','Gameplay','Workshop','Controls','Interface','Advanced'):

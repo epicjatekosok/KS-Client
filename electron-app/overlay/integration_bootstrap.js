@@ -8,8 +8,8 @@
 
   const proto = HTMLCanvasElement.prototype;
   const original = proto.getContext;
-  let smoothEdges=true, performanceAA=false;
-  try{const saved=JSON.parse(localStorage.getItem('ksclient.settings.alpha')||'{}');smoothEdges=saved.smoothGameEdges!==false;performanceAA=!smoothEdges&&saved.performancePreset==='Low';}catch(_){}
+  let smoothEdges=true, performanceAA=false, powerPreference=null;
+  try{const saved=JSON.parse(localStorage.getItem('ksclient.settings.alpha')||'{}');smoothEdges=saved.smoothGameEdges!==false;performanceAA=!smoothEdges&&(saved.qualityProfile==='Low'||(!saved.qualityProfile&&saved.performancePreset==='Low'));powerPreference=['high-performance','low-power'].includes(saved.gpuPreference)?saved.gpuPreference:null;}catch(_){}
   const contexts = new WeakSet();
   const known = new Set();
   function liveContexts(){
@@ -95,8 +95,9 @@
     let options=args;
     if(gameGL && performanceAA)options=[{...(args[0] || {}),antialias:false},...args.slice(1)];
     if(requestAA)options=[Object.create(args[0],{antialias:{value:true,enumerable:true}}),...args.slice(1)];
+    if(gameGL && powerPreference)options=[Object.create(options[0]||null,{powerPreference:{value:powerPreference,enumerable:true}}),...options.slice(1)];
     let gl=Reflect.apply(original,this,[kind,...options]);
-    if(!gl && requestAA){options=args;gl=Reflect.apply(original,this,[kind,...args]);}
+    if(!gl && options!==args){options=args;gl=Reflect.apply(original,this,[kind,...args]);}
     if (kind === 'webgl' || kind === 'experimental-webgl' || kind === 'webgl2') {
       try {
         if (!this.__ksLastWebGLAttrs && args.length && args[0] && typeof args[0] === 'object') {
@@ -112,8 +113,8 @@
   catch (_) { installed = false; }
   if (!installed) return;
 
-  document.addEventListener('webglcontextlost', () => { seen.contextLost++; }, true);
-  document.addEventListener('webglcontextrestored', () => { seen.restored++; }, true);
+  document.addEventListener('webglcontextlost', e => { seen.contextLost++; if(e.target.id==='game')window.__KS_NATIVE__?.post?.({type:'game-context-lost'}); }, true);
+  document.addEventListener('webglcontextrestored', e => { seen.restored++; if(e.target.id==='game')window.__KS_NATIVE__?.post?.({type:'game-context-restored'}); }, true);
   window.__KS_RENDER_OBSERVER__ = Object.freeze({
     onContext: callback => {
       if (typeof callback !== 'function') return () => {};

@@ -1,64 +1,87 @@
-"""Summarize a local PresentMon display capture for one KS process and swapchain."""
+"""Compare native presentation and displayed intervals for one KS swap chain."""
 import argparse
 import csv
+import json
 import math
-from statistics import median
 from pathlib import Path, PureWindowsPath
+from statistics import median, fmean, pstdev
+
+ENGINES = {'ksclientgame.exe', 'electron.exe'}
+MISSING = {'', 'NA', 'N/A'}
+
+
+def interval(row, name):
+    raw = (row.get(name) or '').strip()
+    if raw in MISSING:
+        return None
+    value = float(raw)
+    if not math.isfinite(value) or value < 0:
+        raise ValueError(f'Invalid {name} interval')
+    return value if value > 0 else None
 
 
 def summarize(stream, pid, swapchain):
     reader = csv.DictReader(stream)
-    fields = set(reader.fieldnames or ())
-    metric = 'DisplayedTime' if 'DisplayedTime' in fields else 'MsBetweenDisplayChange'
-    required = {'Application', 'ProcessID', 'SwapChainAddress', metric}
-    if not required <= fields:
-        raise ValueError('Missing columns: ' + ', '.join(sorted(required - fields)))
-    durations = []
-    submissions = []
-    submit_metric = 'FrameTime' if 'FrameTime' in fields else 'MsBetweenPresents'
-    engines = {'ksclientgame.exe', 'electron.exe', 'ks.cef.client.exe', 'cefsharp.browsersubprocess.exe'}
+    columns = set(reader.fieldnames or ())
+    if not {'Application', 'ProcessID', 'SwapChainAddress'} <= columns:
+        raise ValueError('Missing process or swap chain columns')
+    display = 'DisplayedTime' if 'DisplayedTime' in columns else 'MsBetweenDisplayChange'
+    presented, displayed = [], []
+    dropped = 0 if 'Dropped' in columns else None
+    matched = 0
     for row in reader:
         if row['ProcessID'] != str(pid) or row['SwapChainAddress'].lower() != swapchain.lower():
             continue
-        if PureWindowsPath(row['Application']).name.lower() not in engines:
-            raise ValueError('The selected process is not a KS browser executable.')
-        submitted = row.get(submit_metric, '').strip()
-        if submitted not in ('', 'NA', 'N/A'):
-            interval = float(submitted)
-            if not math.isfinite(interval) or interval < 0:
-                raise ValueError('Invalid application frame interval.')
-            if interval > 0:
-                submissions.append(interval)
-        raw = row[metric].strip()
-        if raw in ('', 'NA', 'N/A') or row.get('Dropped', '').lower() in ('1', 'true'):
+        if PureWindowsPath(row['Application']).name.lower() not in ENGINES:
+            raise ValueError('Select the KS Electron process')
+        matched += 1
+        dt = interval(row, 'MsBetweenPresents')
+        if dt is not None:
+            presented.append(dt)
+        if (row.get('Dropped') or '').lower() in ('1', 'true'):
+            dropped += 1
             continue
-        duration = float(raw)
-        if not math.isfinite(duration) or duration < 0:
-            raise ValueError('Invalid display interval.')
-        if duration > 0:
-            durations.append(duration)
-    if len(durations) < 2:
-        raise ValueError('At least two displayed intervals from one matching swapchain are required.')
-    durations.sort()
-    def percentile(fraction):
-        return durations[math.ceil(len(durations) * fraction) - 1]
-    return dict(samples=len(durations), fps=1000 * len(durations) / sum(durations),
-                p50_ms=median(durations), p95_ms=percentile(.95), p99_ms=percentile(.99),
-                application_fps=1000 * len(submissions) / sum(submissions) if submissions else None)
+        dt = interval(row, display)
+        if dt is not None:
+            displayed.append(dt)
+    if not matched:
+        raise ValueError('No rows match this process and swap chain')
+    ordered = sorted(displayed)
+    def percentile(p):
+        return ordered[math.ceil(p * len(ordered))-1] if ordered else None
+    def low(p):
+        size = math.ceil(len(ordered)*p)
+        return 1000 / fmean(ordered[-size:]) if len(ordered)*p >= 1 else None
+    mid = median(ordered) if ordered else None
+    return dict(samples=len(ordered), fps=1000/fmean(ordered) if ordered else None,
+                application_fps=1000/fmean(presented) if presented else None,
+                mean_ms=fmean(ordered) if ordered else None, p50_ms=mid,
+                p95_ms=percentile(.95), p99_ms=percentile(.99),
+                displayed_1pct_low_fps=low(.01), displayed_01pct_low_fps=low(.001),
+                stddev_ms=pstdev(ordered) if ordered else None,
+                long_intervals=sum(v > 1.5*mid for v in ordered) if ordered else None,
+                dropped=dropped)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('csv', type=Path)
-    parser.add_argument('--pid', type=int, required=True)
-    parser.add_argument('--swapchain', required=True)
+    parser.add_argument('--pid', type=int)
+    parser.add_argument('--swapchain')
     args = parser.parse_args()
     try:
         with args.csv.open(encoding='utf-8-sig', newline='') as capture:
-            stats = summarize(capture, args.pid, args.swapchain)
-        print('{samples} displayed intervals | {fps:.1f} displayed FPS | '
-              'median {p50_ms:.2f} ms | p95 {p95_ms:.2f} ms | p99 {p99_ms:.2f} ms'.format(**stats))
-        rate = stats['application_fps']
-        print(f'Application frame rate: {rate:.1f} FPS' if rate else 'Application frame rate unavailable')
-    except (OSError, ValueError, csv.Error) as error:
-        parser.exit(1, f'{error}\n')
+            if args.pid is None and args.swapchain is None:
+                groups = {}
+                for row in csv.DictReader(capture):
+                    if PureWindowsPath(row['Application']).name.lower() in ENGINES:
+                        key=(row['ProcessID'],row['SwapChainAddress'])
+                        groups[key]=groups.get(key,0)+1
+                for (pid, chain), rows in groups.items():
+                    print(f'--pid {pid} --swapchain {chain}   ({rows} capture rows)')
+            elif args.pid is None or args.swapchain is None:
+                parser.error('Select both --pid and --swapchain')
+            else:
+                print(json.dumps(summarize(capture,args.pid,args.swapchain),indent=2,allow_nan=False))
+    except (OSError, ValueError, KeyError, csv.Error) as error:
+        parser.exit(1,f'{error}\n')
