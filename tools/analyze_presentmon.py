@@ -69,7 +69,10 @@ if __name__ == '__main__':
     parser.add_argument('--pid', type=int)
     parser.add_argument('--swapchain')
     parser.add_argument('--all-chains', action='store_true', help='Summarize each KS process and swap chain separately')
+    parser.add_argument('--output', type=Path, help='Export one selected chain for KS Diagnostics')
     args = parser.parse_args()
+    if args.output and (args.pid is None or args.swapchain is None or args.all_chains):
+        parser.error('--output requires one --pid and --swapchain')
     try:
         with args.csv.open(encoding='utf-8-sig', newline='') as capture:
             if args.pid is None and args.swapchain is None:
@@ -89,6 +92,12 @@ if __name__ == '__main__':
             elif args.pid is None or args.swapchain is None:
                 parser.error('Select both --pid and --swapchain')
             else:
-                print(json.dumps(summarize(capture,args.pid,args.swapchain),indent=2,allow_nan=False))
+                metrics = summarize(capture, args.pid, args.swapchain)
+                if args.output:
+                    report = dict(format='ks-presentmon-v1', capture=args.csv.name, pid=args.pid,
+                                  swapchain=args.swapchain, metrics=metrics)
+                    with args.output.open('x', encoding='utf-8') as target:
+                        json.dump(report, target, indent=2, allow_nan=False)
+                print(json.dumps(metrics, indent=2, allow_nan=False))
     except (OSError, ValueError, KeyError, csv.Error) as error:
         parser.exit(1,f'{error}\n')

@@ -1,5 +1,8 @@
 """KS alpha 1.0.31: partial diagnostics must never break the gear or settings."""
 from pathlib import Path
+import subprocess
+import sys
+from tempfile import TemporaryDirectory
 from playwright.sync_api import sync_playwright
 
 root=Path(__file__).resolve().parents[1]
@@ -56,6 +59,17 @@ def run(browser,engine):
       return ['ks-browser-cpu','ks-client-cpu','ks-browser-ram','ks-client-ram','ks-browser-processes'].map(id=>s.getElementById(id).textContent);
     }""")
     assert numbers==['14.8%','2.7%','420 MB','111 MB','7'],numbers
+    with TemporaryDirectory() as folder:
+        capture=Path(folder)/'match.csv'
+        report=Path(folder)/'match.json'
+        capture.write_text('Application,ProcessID,SwapChainAddress,MsBetweenPresents,MsBetweenDisplayChange,Dropped\n'
+                           'KSClientGame.exe,42,0xabc,4,8,0\n')
+        subprocess.run([sys.executable,str(root/'tools/analyze_presentmon.py'),str(capture),'--pid','42',
+                        '--swapchain','0xabc','--output',str(report)],check=True,capture_output=True)
+        page.locator('#ks-capture-file').set_input_files(str(report))
+        page.wait_for_function("document.querySelector('#ks-client-root').shadowRoot.querySelector('#ks-capture-result').textContent.includes('Displayed FPS 125')")
+        assert 'Present FPS 250' in page.locator('#ks-capture-result').inner_text()
+
     page.evaluate("window.__KS_CLIENT__.close()")
     # SPA body replacement during weapon selection must preserve the gear.
     page.evaluate("document.body.innerHTML='<main><canvas width=640 height=360></canvas></main>'")

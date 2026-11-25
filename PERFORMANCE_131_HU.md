@@ -105,3 +105,13 @@ Elsődleges hivatkozások: [Electron 45.3.2](https://releases.electronjs.org/rel
 A Windows CI referenciaablaka a szállított frame_pacer.js fájlt futtatja. A rajzolási ütem a tesztjelenet saját mérése. Az ETW-output a Windows asztali környezetét jellemzi. A valódi Kirka-meccs átlagos vagy 1% low FPS-nyeresége, az input lag és a megtakarított watt egyelőre ismeretlen. Az 1.0.30 és az 1.0.31 azonos hardveren végzett összehasonlításához a fenti Windowsos A/B eljárás használható.
 
 A kiegészítő módosítások helye: tests/frame-output-windows.cjs, ci/Test-FrameOutput.ps1, .github/workflows/windows-build.yml, tests/test_beta_114.cjs, tests/test_graphics_131.cjs, tools/analyze_presentmon.py, electron-app/graphics-host.cjs, electron-app/main.cjs, electron-app/overlay/game_extras.js és electron-app/overlay/overlay.js.
+
+### Helyi mérés megnyitása a Diagnostics lapon
+
+A Measure-KSClient.ps1 alapból öt másodpercet ad a játékablakba visszaváltásra. Ez a `-StartDelay` paraméterrel változtatható. Azonosítsd a mérendő folyamatot és swap chaint a fenti listázó paranccsal. A példa fájlnevét és azonosítóit helyettesítsd a felvételed értékeivel.
+
+```powershell
+python .\tools\analyze_presentmon.py .\captures\recording-presents.csv --pid 1234 --swapchain 0x123 --output .\captures\match-180.json
+```
+
+A Diagnostics → Recorded PresentMon measurement mezőben nyisd meg a JSON-fájlt. A felület kiírja a felvétel nevét, PID-jét, swap chainjét, a prezentált és megjelent FPS-t, a kijelzési P99-et és az eldobott képkockákat. Ezek a kiválasztott felvételre vonatkoznak.

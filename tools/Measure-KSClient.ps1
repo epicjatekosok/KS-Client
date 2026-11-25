@@ -4,7 +4,7 @@ param([ValidateRange(10,7200)][int]$Seconds=60,
       [string]$Label='match-180', [string]$OutputDirectory='.',
       [string]$PresentMon, [ValidateSet(0,1000,2000,4000,8000)][int]$MouseHz=0,
       [string]$Resolution, [double]$DisplayHz, [string]$Scene, [string]$WindowMode,
-      [switch]$GpuEngineCounters)
+      [switch]$GpuEngineCounters, [ValidateRange(0,120)][int]$StartDelay=5)
 $ErrorActionPreference='Stop'
 if ($Label -notmatch '^[a-zA-Z0-9_-]{1,60}$') {throw 'Invalid capture label'}
 $dest=(New-Item -ItemType Directory -Force -Path $OutputDirectory).FullName
@@ -18,6 +18,10 @@ $adapters=@(Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue 
   version=(Get-Content -Raw (Join-Path (Split-Path $paths[0]) 'resources/app/package.json')|ConvertFrom-Json).version
 } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath ($base+'-metadata.json') -Encoding UTF8
 $gpu=Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue
+if($StartDelay -gt 0){
+  Write-Host "Capture starts in $StartDelay seconds. Switch to the intended KS Client window state."
+  Start-Sleep -Seconds $StartDelay
+}
 $pm=$null
 if($PresentMon){
   $pm=Start-Process -FilePath $PresentMon -ArgumentList @('--v1_metrics','--process_name','KSClientGame.exe','--timed',"$Seconds",'--terminate_after_timed','--output_file',('"'+$base+'-presents.csv"')) -PassThru

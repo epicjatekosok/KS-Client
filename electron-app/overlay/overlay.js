@@ -85,6 +85,7 @@
     state.qualityProfile=Object.keys(graphicsProfiles).find(k=>Object.entries(graphicsProfiles[k]).every(([key,v])=>state[key]===v))||'Custom';
     if(Object.hasOwn(previousSettings,'performancePreset'))state.performancePreset='Custom';
   }
+  let importedCapture='', captureGeneration=0;
   let monitorInfo=null,availableBackends=[],lastMatchIntervals=[];
   const currentHz=()=>monitorInfo?.current?.hz || 0;
   const gameTarget=()=>state.fpsMode==='monitor' ? currentHz() : state.fpsLimit;
@@ -2458,6 +2459,30 @@
       styleMessage=L('Preview')+' · '+f.name;apply();renderTab();
     }catch(e){if(zone.isConnected)status.textContent=String(e.message);}
   }
+  $('ks-body').addEventListener('change', async event=>{
+    if(event.target.id!=='ks-capture-file')return;
+    const file=event.target.files?.[0];
+    if(!file)return;
+    const generation=++captureGeneration;
+    let message;
+    try {
+      if(file.size>32768)throw Error();
+      const r=JSON.parse(await file.text());
+      if(r.format!=='ks-presentmon-v1'||!Number.isSafeInteger(r.pid)||r.pid<=0||
+        !/^0x[0-9a-f]+$/i.test(r.swapchain)||typeof r.capture!=='string'||!r.metrics)throw Error();
+      const format=k=>{
+        const v=r.metrics[k];
+        if(v===null)return L('Unavailable');
+        if(!Number.isFinite(v)||v<0)throw Error();
+        return Number(v.toFixed(2));
+      };
+      message=[r.capture.slice(0,160),'PID '+r.pid,r.swapchain,'Present FPS '+format('application_fps'),
+        'Displayed FPS '+format('fps'),'Displayed P99 (ms) '+format('p99_ms'),'Dropped '+format('dropped')].join(' · ');
+    }catch{message='Invalid KS PresentMon report. Export one process and swap chain with --output.';}
+    if(generation!==captureGeneration)return;
+    importedCapture=message;
+    if($('ks-capture-result'))$('ks-capture-result').textContent=message;
+  });
   $('ks-body').addEventListener('change',e=>{
     if(e.target.id==='ks-style-file'&&e.target.files.length)void importLook([...e.target.files],e.target.closest('#ks-style-drop'));
   });
@@ -2655,6 +2680,8 @@
           `<div class="ks-row"><div><div class="ks-label">Hardware Acceleration Check</div><div class="ks-desc">Inspect WebGL context and software-renderer indicators. Electron uses GPU acceleration by default.</div></div><button class="ks-btn primary" data-action="check-gpu">Check GPU</button></div>` +
           `<div class="ks-row"><div class="ks-label">WebGL renderer</div><span class="ks-code" style="max-width:62%;text-align:right" id="ks-gpu-renderer">${esc(gpuInfo.renderer)}</span></div>` +
           '<div id="ks-hardware-details"></div>'+
+          '<label class="ks-row">Recorded PresentMon measurement <input id="ks-capture-file" type="file" accept=".json"></label>'+
+          '<p class="ks-hint" id="ks-capture-result">'+esc(importedCapture||'Select a JSON report exported by analyze_presentmon.py.')+'</p>'+
           `<div class="ks-stat-details" id="ks-diagnostics-note">CPU percentages are fractions of total logical CPU capacity. Browser RAM is summed working-set memory of the client-owned Electron process tree. First CPU sample may show zero.</div>` +
           `</div>` +
           `<div class="ks-card" style="margin-top:12px"><div class="ks-row"><div><div class="ks-label">Local Crash Reporter</div><div class="ks-desc">Logs app errors and identifies previously unclean shutdowns. Reports remain on your PC.</div></div><button class="ks-btn" data-action="open-logs">Open log folder</button></div><div class="ks-stat-details" id="ks-crash-status">${esc(crashStatus)}</div></div>` +
